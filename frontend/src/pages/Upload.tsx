@@ -1,19 +1,36 @@
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import axios from 'axios';
 import { AlertCircle, CheckCircle2, FileText, FileType, HelpCircle, Layers, Loader2, Music, ScrollText, StickyNote, Upload as UploadIcon, Wand2 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { useProcessUpload } from '@/hooks/useJobs';
+import { useJob } from '@/hooks/useJobs';
+import type { FileUploadProps, ProcessingProps, MaterialType } from '@/types';
+import React from 'react';
 
-const contentTypes = [
+const contentTypes: Array<{ id: MaterialType; label: string; description: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: 'summary', label: 'Summary', description: 'Concise overview of key points', icon: ScrollText },
   { id: 'notes', label: 'Notes', description: 'Detailed structured notes', icon: StickyNote },
   { id: 'flashcards', label: 'Flashcards', description: 'Q&A cards for memorization', icon: Layers },
   { id: 'quizzes', label: 'Quizzes', description: 'Test your understanding', icon: HelpCircle },
 ];
 
-const FileUpload = ({ file, fileInputRef, handleRemoveFile, handleChange, handleDrag, dragActive, handleDrop, simulateProcessing, getFileIcon, error, selectedTypes, onTypeToggle }: any) => {
+const FileUpload: React.FC<FileUploadProps> = ({ 
+  file, 
+  fileInputRef, 
+  handleRemoveFile, 
+  handleChange, 
+  handleDrag, 
+  dragActive, 
+  handleDrop, 
+  onSubmit, 
+  getFileIcon, 
+  error, 
+  selectedTypes, 
+  onTypeToggle 
+}) => {
   return (
     <div className="flex-1 flex flex-col">
       {file ? (
@@ -73,7 +90,7 @@ const FileUpload = ({ file, fileInputRef, handleRemoveFile, handleChange, handle
               Remove
             </Button>
             <Button
-              onClick={simulateProcessing}
+              onClick={onSubmit}
               disabled={selectedTypes.length === 0}
               className="px-8 py-6 rounded-xl border bg-primary text-background hover:bg-background hover:text-primary hover:border-primary font-medium shadow-lg shadow-primary/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -132,10 +149,10 @@ const FileUpload = ({ file, fileInputRef, handleRemoveFile, handleChange, handle
         </form>
       )}
     </div>
-  )
-}
+  );
+};
 
-export const Processing = ({ progress, steps, currentStep }: { progress: number, steps: any[], currentStep: number }) => {
+const Processing: React.FC<ProcessingProps> = ({ progress, steps, currentStep }) => {
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-12 bg-background border border-primary rounded-3xl">
       <div className="w-full max-w-md">
@@ -186,25 +203,25 @@ export const Processing = ({ progress, steps, currentStep }: { progress: number,
         </div>
       </div>
     </div>
-  )
-}
-
-import { useAuth } from '@/hooks/useAuth';
+  );
+};
 
 export default function Upload() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { session } = useAuth(); // Get session from auth context
+  const { session } = useAuth();
+  const processUploadMutation = useProcessUpload();
 
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTypes, setSelectedTypes] = useState<string[]>(['summary', 'notes']);
+  const [selectedTypes, setSelectedTypes] = useState<MaterialType[]>(['summary', 'notes']);
 
   // Processing State
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [jobId, setJobId] = useState<string | undefined>(undefined);
   const [currentStep, setCurrentStep] = useState<number>(0);
-  const [progress, setProgress] = useState<number>(0);
+
+  const { data: job, status: jobStatus } = useJob(jobId);
 
   const steps = [
     { id: 0, title: "Uploading File", desc: "Securely transferring your data..." },
@@ -213,6 +230,35 @@ export default function Upload() {
     { id: 3, title: "Creating Flashcards", desc: "Building study materials..." },
     { id: 4, title: "Finalizing", desc: "Preparing your study guide..." }
   ];
+
+  // Update UI based on job status
+  useEffect(() => {
+    if (!job) return;
+
+    setCurrentStep((prev) => {
+      // Map backend status to UI steps
+      // backend: queued, transcribing, generating, completed, failed
+      // steps: 0=Uploading, 1=Transcribing, 2=Generating Summary, 3=Flashcards, 4=Finalizing
+      if (job.status === 'transcribing') return 1;
+      if (job.status === 'generating') {
+        // Rough mapping based on progress
+        if (job.progress < 60) return 2;
+        if (job.progress < 90) return 3;
+        return 4;
+      }
+      if (job.status === 'completed') return 4;
+      if (job.status === 'failed') return prev; // Keep current step on failure
+      return prev;
+    });
+
+    if (job.status === 'completed') {
+      setTimeout(() => {
+        navigate(`/notes/${job.id}`);
+      }, 1000);
+    } else if (job.status === 'failed') {
+      setError(job.error_message || "Processing failed. Please try again.");
+    }
+  }, [job, navigate]);
 
   const handleDrag = (e: React.DragEvent<HTMLElement>) => {
     e.preventDefault();
@@ -224,7 +270,7 @@ export default function Upload() {
     }
   };
 
-  const validateFile = (file: File) => {
+  const validateFile = (file: File): boolean => {
     const validTypes = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'application/pdf', 'text/plain'];
     if (!validTypes.includes(file.type)) {
       setError("Unsupported file format. Please upload MP3, WAV, PDF, or TXT.");
@@ -270,7 +316,7 @@ export default function Upload() {
     }
   };
 
-  const handleTypeToggle = (typeId: string) => {
+  const handleTypeToggle = (typeId: MaterialType) => {
     setSelectedTypes(prev =>
       prev.includes(typeId)
         ? prev.filter(t => t !== typeId)
@@ -278,9 +324,6 @@ export default function Upload() {
     );
   };
 
-  /* 
-   * Backend Integration Code
-   */
   const handleUpload = async () => {
     if (!file) return;
 
@@ -290,96 +333,29 @@ export default function Upload() {
     }
 
     try {
-      setIsProcessing(true);
       setError(null);
-      setProgress(5);
       setCurrentStep(0);
 
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('material_types', JSON.stringify(selectedTypes));
-
-      // 1. Upload File
-      // Note: Assuming axios is configured globally or we use it directly. 
-      // If auth header is needed, it should be intercepted.
-      // For now, using direct axios call relative to current domain if proxy set, or full URL.
-      // Ideally use an api client wrapper.
-      const response = await axios.post('http://127.0.0.1:8000/api/process', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${session.access_token}`
-        }
+      const response = await processUploadMutation.mutateAsync({
+        file,
+        materialTypes: selectedTypes,
       });
 
-      const { job_id } = response.data;
-
-      // 2. Poll for Status
-      pollJobStatus(job_id);
-
-    } catch (err: any) {
+      setJobId(response.job_id);
+    } catch (err) {
       console.error("Upload failed", err);
-      setError(err.response?.data?.detail || "Upload failed. Please try again.");
-      setIsProcessing(false);
+      setError((err as Error).message || "Upload failed. Please try again.");
     }
   };
 
-  const pollJobStatus = async (jobId: string) => {
-    const interval = setInterval(async () => {
-      try {
-        if (!session?.access_token) return;
-
-        const response = await axios.get(`http://127.0.0.1:8000/api/jobs/${jobId}/`, {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`
-          }
-        });
-        const { status, progress } = response.data;
-
-        setProgress(progress);
-        // setCurrentStepString(current_step); // Backend sends string description
-
-        // Map backend status to UI steps
-        // backend: queued, transcribing, generating, completed, failed
-        // steps: 0=Uploading, 1=Transcribing, 2=Generating Summary, 3=Flashcards, 4=Finalizing
-
-        let uiStep = 0;
-        if (status === 'transcribing') uiStep = 1;
-        else if (status === 'generating') {
-          // Rough mapping as backend doesn't granularly report "flashcards" vs "summary" creation step yet
-          // It just says "generating". We can simulate progress or use progress %
-          if (progress < 60) uiStep = 2;
-          else if (progress < 90) uiStep = 3;
-          else uiStep = 4;
-        } else if (status === 'completed') {
-          uiStep = 4;
-        }
-
-        setCurrentStep(uiStep); // Use the calculated UI step index
-
-        if (status === 'completed') {
-          clearInterval(interval);
-          setProgress(100);
-          setTimeout(() => {
-            navigate(`/notes/${jobId}`); // Navigate to result page with Job ID
-          }, 1000);
-        } else if (status === 'failed') {
-          clearInterval(interval);
-          setError("Processing failed. Please try again.");
-          setIsProcessing(false);
-        }
-
-      } catch (err) {
-        console.error("Polling failed", err);
-        // Don't clear immediately on network blip, maybe retry?
-      }
-    }, 2000);
-  };
-
-  const getFileIcon = (fileType: string) => {
+  const getFileIcon = (fileType: string): React.ReactNode => {
     if (fileType.includes('audio')) return <Music className="w-8 h-8 text-primary" />;
     if (fileType.includes('pdf')) return <FileText className="w-8 h-8 text-primary" />;
     return <FileType className="w-8 h-8 text-primary" />;
   };
+
+  const isProcessing = !!jobId && job?.status !== 'completed' && job?.status !== 'failed';
+  const progress = job?.progress || 0;
 
   return (
     <Layout>
@@ -396,7 +372,20 @@ export default function Upload() {
 
           {!isProcessing ? (
             // Upload State
-            <FileUpload file={file} fileInputRef={fileInputRef} handleRemoveFile={handleRemoveFile} handleChange={handleChange} handleDrag={handleDrag} dragActive={dragActive} handleDrop={handleDrop} simulateProcessing={handleUpload} getFileIcon={getFileIcon} error={error} selectedTypes={selectedTypes} onTypeToggle={handleTypeToggle} />
+            <FileUpload 
+              file={file} 
+              fileInputRef={fileInputRef} 
+              handleRemoveFile={handleRemoveFile} 
+              handleChange={handleChange} 
+              handleDrag={handleDrag} 
+              dragActive={dragActive} 
+              handleDrop={handleDrop} 
+              onSubmit={handleUpload} 
+              getFileIcon={getFileIcon} 
+              error={error} 
+              selectedTypes={selectedTypes} 
+              onTypeToggle={handleTypeToggle} 
+            />
           ) : (
             // Processing State
             <Processing progress={progress} steps={steps} currentStep={currentStep} />
@@ -430,7 +419,7 @@ export default function Upload() {
             </div>
           )
         }
-      </div >
-    </Layout >
+      </div>
+    </Layout>
   );
 }

@@ -215,3 +215,7 @@ frontend/*.local
 frontend/.vite/
 frontend/.env.local
 frontend/.env.production
+
+# Claude
+CLAUDE.md
+.claude/

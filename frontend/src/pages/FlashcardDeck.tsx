@@ -1,28 +1,59 @@
 import { useState } from 'react';
-import { ArrowLeft, RotateCw, ArrowRight, ArrowLeft as PrevIcon, LayoutGrid, Layers } from 'lucide-react';
+import { ArrowLeft, RotateCw, ArrowRight, ArrowLeft as PrevIcon, LayoutGrid, Layers, Loader2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
-import mockData from '../data/mockData.json';
+import { useJob } from '@/hooks/useJobs';
+import type { FlashcardsContent, Flashcard } from '@/types';
+
+// Helper to extract flashcards from job
+function getFlashcardsContent(job: NonNullable<ReturnType<typeof useJob>['data']>): Flashcard[] {
+  const content = job.generated_content.find(c => c.type === 'flashcards');
+  if (!content) return [];
+  const flashcardsContent = content.content as FlashcardsContent;
+  return flashcardsContent.flashcards || [];
+}
 
 export default function FlashcardDeck() {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
+  const { data: job, isLoading } = useJob(id);
   const [isStudyMode, setIsStudyMode] = useState(true);
   const [currentCard, setCurrentCard] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [direction, setDirection] = useState(0);
 
-  const deck = mockData.flashcardDecks.find(d => d.id === id);
-  const cards = deck ? deck.cards : [];
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
-  if (!deck) {
+  if (!job) {
     return (
       <Layout>
         <div className="text-center py-20">
           <h2 className="text-2xl font-serif text-foreground">Deck not found</h2>
+          <Button variant="link" onClick={() => navigate('/flashcards')} className="text-primary hover:underline mt-4">Back to Flashcards</Button>
+        </div>
+      </Layout>
+    );
+  }
+
+  const cards = getFlashcardsContent(job);
+  const deckTitle = job.filename || 'Flashcards';
+
+  if (cards.length === 0) {
+    return (
+      <Layout>
+        <div className="text-center py-20">
+          <h2 className="text-2xl font-serif text-foreground">No flashcards found</h2>
           <Button variant="link" onClick={() => navigate('/flashcards')} className="text-primary hover:underline mt-4">Back to Flashcards</Button>
         </div>
       </Layout>
@@ -95,7 +126,7 @@ export default function FlashcardDeck() {
           </div>
         </header>
 
-        <h1 className="text-3xl font-serif text-foreground mb-2 text-center">{deck.title}</h1>
+        <h1 className="text-3xl font-serif text-foreground mb-2 text-center">{deckTitle}</h1>
         <p className="text-muted-foreground text-center mb-8">{currentCard + 1} of {cards.length}</p>
 
         {isStudyMode ? (
