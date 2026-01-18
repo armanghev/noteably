@@ -1,4 +1,4 @@
-# Noteably
+# Noteably [![wakatime](https://wakatime.com/badge/user/4a2c04a0-e17f-4c55-8202-8dcc0ed8e240/project/e1506398-8580-4123-965a-c5ee42cc3fbc.svg)](https://wakatime.com/badge/user/4a2c04a0-e17f-4c55-8202-8dcc0ed8e240/project/e1506398-8580-4123-965a-c5ee42cc3fbc)
 
 **AI-Powered Study Material Generator**
 
