@@ -1,16 +1,91 @@
-import { ArrowLeft, Share2, Download, PlayCircle, BookOpen, Quote } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
-import Layout from '../components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import mockData from '../data/mockData.json';
+import { useAuth } from '@/hooks/useAuth';
+import { formatFileType } from '@/lib/utils';
+import axios from 'axios';
+import { ArrowLeft, BookOpen, Download, FileText, Loader2, Quote, Share2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import { useNavigate, useParams } from 'react-router-dom';
+import Layout from '../components/layout/Layout';
+
+interface GeneratedContent {
+   type: string;
+   content: any;
+}
+
+interface Job {
+   id: string;
+   filename: string;
+   file_type: string;
+   status: string;
+   created_at: string;
+   generated_content: GeneratedContent[];
+   transcription_text: string;
+}
 
 export default function NoteDetail() {
    const navigate = useNavigate();
    const { id } = useParams();
-   const note = mockData.notes.find(n => n.id === id);
+   const { session } = useAuth();
+   const [activeSection, setActiveSection] = useState('summary');
+   const [job, setJob] = useState<Job | null>(null);
+   const [loading, setLoading] = useState(true);
+   const [error, setError] = useState<string | null>(null);
 
-   if (!note) {
+   useEffect(() => {
+      const handleScroll = () => {
+         const sections = ['summary', 'notes', 'flashcards', 'transcript'];
+         for (const section of sections) {
+            const element = document.getElementById(section);
+            if (element) {
+               const rect = element.getBoundingClientRect();
+               if (rect.top >= 0 && rect.top <= 300) {
+                  setActiveSection(section);
+                  break;
+               }
+            }
+         }
+      };
+
+      window.addEventListener('scroll', handleScroll);
+      return () => window.removeEventListener('scroll', handleScroll);
+   }, []);
+
+   useEffect(() => {
+      const fetchJob = async () => {
+         if (!id || !session?.access_token) return;
+
+         try {
+            const response = await axios.get(`http://127.0.0.1:8000/api/jobs/${id}/`, {
+               headers: {
+                  'Authorization': `Bearer ${session.access_token}`
+               }
+            });
+            console.log("Job Data:", response.data);
+            setJob(response.data);
+         } catch (err) {
+            console.error("Failed to fetch note:", err);
+            setError("Failed to load note.");
+         } finally {
+            setLoading(false);
+         }
+      };
+
+      fetchJob();
+   }, [id, session]);
+
+   if (loading) {
+      return (
+         <Layout>
+            <div className="flex items-center justify-center min-h-[50vh]">
+               <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+         </Layout>
+      );
+   }
+
+   if (error || !job) {
       return (
          <Layout>
             <div className="text-center py-20">
@@ -20,6 +95,24 @@ export default function NoteDetail() {
          </Layout>
       );
    }
+
+   // Extract content
+   const summaryContent = job.generated_content.find(c => c.type === 'summary')?.content;
+   const notesContent = job.generated_content.find(c => c.type === 'notes')?.content;
+   const flashcardsContent = job.generated_content.find(c => c.type === 'flashcards')?.content;
+
+   // Parse Content
+   const summaryText = typeof summaryContent === 'string' ? summaryContent : summaryContent?.summary || "No summary available.";
+   const generatedTitle = typeof summaryContent === 'object' ? summaryContent?.title : null;
+
+   // Key Concepts from Flashcards (since they are structured key terms)
+   const keyConcepts = flashcardsContent?.flashcards || [];
+
+   // Study Notes from Markdown
+   const studyNotesMarkdown = typeof notesContent === 'string' ? notesContent : notesContent?.content || "";
+
+   // Transcript
+   const transcriptText = job.transcription_text || "No transcript available.";
 
    return (
       <Layout>
@@ -37,10 +130,10 @@ export default function NoteDetail() {
                <div className="flex justify-between items-start mb-4">
                   <div>
                      <div className="flex gap-2 mb-3">
-                        <span className="text-xs font-medium px-2 py-1 bg-primary/10 text-primary rounded-md">{note.subject}</span>
-                        <span className="text-xs px-2 py-1 bg-muted text-muted-foreground rounded-md">{new Date(note.createdAt).toLocaleDateString()}</span>
+                        <span className="text-xs font-medium px-2 py-1 bg-primary/10 text-primary rounded-md">{formatFileType(job.file_type)}</span>
+                        <span className="text-xs px-2 py-1 bg-muted text-muted-foreground rounded-md">{new Date(job.created_at).toLocaleDateString()}</span>
                      </div>
-                     <h1 className="text-4xl font-serif text-foreground mb-2">{note.title}</h1>
+                     <h1 className="text-4xl font-serif text-foreground mb-2">{generatedTitle || job.filename}</h1>
                   </div>
                   <div className="flex gap-2">
                      <Button size="icon" variant="outline" className="text-muted-foreground hover:text-primary rounded-full hover:bg-muted">
@@ -52,68 +145,104 @@ export default function NoteDetail() {
                   </div>
                </div>
 
-               <div className="p-4 rounded-xl border border-border flex items-end gap-4 bg-background">
-                  <Button size="icon" className="w-12 h-12 bg-primary rounded-full text-primary-foreground hover:bg-[#4A5A40] shadow-lg">
-                     <PlayCircle className="w-6 h-6" />
-                  </Button>
-                  <div className="flex-1 pb-1">
-                     <div className="h-1 bg-muted rounded-full mb-1">
-                        <div className="w-1/3 h-full bg-primary rounded-full"></div>
-                     </div>
-                     <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>12:45</span>
-                        <span>{note.recordingDuration}</span>
-                     </div>
-                  </div>
-               </div>
+               {/* Audio Player Placeholder - Only show if audio? */}
+               {/* <div className="p-4 rounded-xl border border-border flex items-end gap-4 bg-background"> ... </div> */}
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-               {/* Main Content */}
-               <div className="md:col-span-2 space-y-8">
-                  <Card className="p-8 shadow-sm bg-background border border-border">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+               {/* Main Content (Left 3 cols) */}
+               <div className="lg:col-span-3 space-y-8">
+                  <Card id="summary" className="p-8 shadow-sm bg-background border border-border scroll-mt-24">
                      <div className="flex items-center gap-2 mb-6">
                         <BookOpen className="w-5 h-5 text-primary" />
                         <h2 className="text-xl font-medium text-foreground">Summary</h2>
                      </div>
-                     <p className="text-muted-foreground leading-relaxed">
-                        {note.summary}
-                     </p>
+                     <div className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                        {summaryText}
+                     </div>
                   </Card>
 
-                  <Card className="p-8 shadow-sm bg-background border border-border">
-                     <div className="flex items-center gap-2 mb-6">
-                        <Quote className="w-5 h-5 text-primary" />
-                        <h2 className="text-xl font-medium text-foreground">Key Concepts</h2>
-                     </div>
-                     <div className="space-y-4">
-                        {note.keyConcepts.map((concept, i) => (
-                           <div key={i} className="p-4 bg-background rounded-xl border border-border">
-                              <h3 className="font-medium text-foreground mb-1">{concept.title}</h3>
-                              <p className="text-sm text-muted-foreground">{concept.description}</p>
+                  {/* Study Notes Markdown Display */}
+                  {studyNotesMarkdown && (
+                     <Card id="notes" className="p-8 shadow-sm bg-background border border-border scroll-mt-24">
+                        <div className="flex items-center gap-2 mb-6">
+                           <BookOpen className="w-5 h-5 text-primary" />
+                           <h2 className="text-xl font-medium text-foreground">Study Notes</h2>
+                        </div>
+                        <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary">
+                           <ReactMarkdown>{studyNotesMarkdown}</ReactMarkdown>
+                        </div>
+                     </Card>
+                  )}
+
+                  {keyConcepts.length > 0 && (
+                     <Card id="flashcards" className="p-8 shadow-sm bg-background border border-border scroll-mt-24">
+                        <div className="flex items-center justify-between mb-6">
+                           <div className="flex items-center gap-2">
+                              <Quote className="w-5 h-5 text-primary" />
+                              <h2 className="text-xl font-medium text-foreground">Flashcards</h2>
                            </div>
-                        ))}
-                     </div>
-                  </Card>
-               </div>
-
-               {/* Sidebar */}
-               <div className="space-y-6">
-                  <Card className="p-6 shadow-sm sticky top-8 bg-background border border-border">
-                     <h3 className="font-medium text-foreground mb-4">Transcript</h3>
-                     <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                        {note.transcript.length > 0 ? (
-                           note.transcript.map((entry, i) => (
-                              <div key={i} className="group cursor-pointer hover:bg-muted p-2 rounded-lg transition-colors">
-                                 <span className="text-xs font-mono text-primary block mb-1 opacity-60 group-hover:opacity-100">{entry.timestamp}</span>
-                                 <p className="text-sm text-muted-foreground">{entry.text}</p>
+                           <Button variant="outline" size="sm" onClick={() => navigate(`/flashcards/${id}`)}>
+                              Open Flashcards
+                           </Button>
+                        </div>
+                        <div className="space-y-4">
+                           {keyConcepts.map((card: any, i: number) => (
+                              <div key={i} className="p-4 bg-background rounded-xl border border-border grid grid-cols-1 md:grid-cols-3 gap-4">
+                                 <div className="font-medium text-foreground md:col-span-1 md:border-r border-border md:pr-4 flex items-center">
+                                    {card.front}
+                                 </div>
+                                 <div className="text-sm text-muted-foreground md:col-span-2 flex items-center">
+                                    {card.back}
+                                 </div>
                               </div>
-                           ))
+                           ))}
+                        </div>
+                     </Card>
+                  )}
+
+                  {/* Transcript Display */}
+                  <Card id="transcript" className="p-8 shadow-sm bg-background border border-border scroll-mt-24">
+                     <div className="flex items-center gap-2 mb-6">
+                        <FileText className="w-5 h-5 text-primary" />
+                        <h2 className="text-xl font-medium text-foreground">Transcript</h2>
+                     </div>
+                     <div className="max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                        {transcriptText ? (
+                           <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary leading-relaxed">
+                              <ReactMarkdown>{transcriptText}</ReactMarkdown>
+                           </div>
                         ) : (
                            <p className="text-sm text-muted-foreground italic">No transcript available.</p>
                         )}
                      </div>
                   </Card>
+               </div>
+
+               {/* Sidebar Navigation */}
+               <div className="space-y-6">
+                  <div className="sticky top-24">
+                     <p className="font-medium text-foreground mb-4 pl-4">On this page</p>
+                     <nav className="flex flex-col space-y-1">
+                        {['Summary', 'Notes', 'Flashcards', 'Transcript'].map((item) => (
+                           <a
+                              key={item}
+                              href={`#${item.toLowerCase()}`}
+                              onClick={(e) => {
+                                 e.preventDefault();
+                                 document.getElementById(item.toLowerCase())?.scrollIntoView({ behavior: 'smooth' });
+                                 setActiveSection(item.toLowerCase());
+                              }}
+                              className={`px-4 py-2 text-sm rounded-md transition-colors text-left block ${activeSection === item.toLowerCase()
+                                 ? 'bg-primary/10 text-primary font-medium'
+                                 : 'text-muted-foreground hover:text-primary hover:bg-muted/50'
+                                 }`}
+                           >
+                              {item}
+                           </a>
+                        ))}
+                     </nav>
+                  </div>
                </div>
             </div>
          </div>

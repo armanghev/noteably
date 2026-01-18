@@ -1,21 +1,68 @@
-import { useState, useRef } from 'react';
-import Layout from '../components/layout/Layout';
+import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Upload as UploadIcon, FileText, AlertCircle, CheckCircle2, Loader2, Wand2, Music, FileType } from 'lucide-react';
+import axios from 'axios';
+import { AlertCircle, CheckCircle2, FileText, FileType, HelpCircle, Layers, Loader2, Music, ScrollText, StickyNote, Upload as UploadIcon, Wand2 } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const FileUpload = ({ file, fileInputRef, handleRemoveFile, handleChange, handleDrag, dragActive, handleDrop, simulateProcessing, getFileIcon, error }: any) => {
+const contentTypes = [
+  { id: 'summary', label: 'Summary', description: 'Concise overview of key points', icon: ScrollText },
+  { id: 'notes', label: 'Notes', description: 'Detailed structured notes', icon: StickyNote },
+  { id: 'flashcards', label: 'Flashcards', description: 'Q&A cards for memorization', icon: Layers },
+  { id: 'quizzes', label: 'Quizzes', description: 'Test your understanding', icon: HelpCircle },
+];
+
+const FileUpload = ({ file, fileInputRef, handleRemoveFile, handleChange, handleDrag, dragActive, handleDrop, simulateProcessing, getFileIcon, error, selectedTypes, onTypeToggle }: any) => {
   return (
     <div className="flex-1 flex flex-col">
       {file ? (
         // File Preview State
         <div className="flex-1 flex flex-col items-center justify-center p-12 animate-fadeIn bg-background border border-primary rounded-3xl">
-          <div className="w-24 h-24 bg-card rounded-3xl flex items-center justify-center mb-6 shadow-sm">
+          <div className="w-20 h-20 bg-card rounded-2xl flex items-center justify-center mb-4 shadow-sm">
             {getFileIcon(file.type)}
           </div>
-          <h3 className="text-xl font-medium text-foreground mb-2">{file.name}</h3>
-          <p className="text-muted-foreground text-sm mb-8">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+          <h3 className="text-lg font-medium text-foreground mb-1">{file.name}</h3>
+          <p className="text-muted-foreground text-sm mb-6">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+
+          {/* Content Type Selection */}
+          <div className="w-full max-w-2xl mb-8">
+            <h4 className="text-sm font-medium text-foreground mb-3 text-center">Select content to generate</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {contentTypes.map((type) => {
+                const Icon = type.icon;
+                const isSelected = selectedTypes.includes(type.id);
+                return (
+                  <button
+                    key={type.id}
+                    onClick={() => onTypeToggle(type.id)}
+                    className={`p-4 rounded-xl border-2 transition-all duration-200 text-left ${isSelected
+                      ? 'border-primary bg-primary/10 shadow-sm'
+                      : 'border-border hover:border-primary/50 hover:bg-card'
+                      }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isSelected ? 'bg-primary text-background' : 'bg-muted text-muted-foreground'
+                        }`}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-primary bg-primary' : 'border-muted-foreground'
+                        }`}>
+                        {isSelected && <CheckCircle2 className="w-4 h-4 text-background" />}
+                      </div>
+                    </div>
+                    <p className={`text-sm font-medium ${isSelected ? 'text-foreground' : 'text-muted-foreground'}`}>
+                      {type.label}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{type.description}</p>
+                  </button>
+                );
+              })}
+            </div>
+            {selectedTypes.length === 0 && (
+              <p className="text-xs text-red-500 mt-2 text-center">Please select at least one content type</p>
+            )}
+          </div>
 
           <div className="flex gap-4">
             <Button
@@ -27,10 +74,11 @@ const FileUpload = ({ file, fileInputRef, handleRemoveFile, handleChange, handle
             </Button>
             <Button
               onClick={simulateProcessing}
-              className="px-8 py-6 rounded-xl border  bg-primary text-background hover:bg-background hover:text-primary hover:border-primary font-medium shadow-lg shadow-primary/20 flex items-center gap-2"
+              disabled={selectedTypes.length === 0}
+              className="px-8 py-6 rounded-xl border bg-primary text-background hover:bg-background hover:text-primary hover:border-primary font-medium shadow-lg shadow-primary/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Wand2 className="w-4 h-4" />
-              Generate Materials
+              Generate {selectedTypes.length > 0 ? `(${selectedTypes.length})` : 'Materials'}
             </Button>
           </div>
         </div>
@@ -109,8 +157,8 @@ export const Processing = ({ progress, steps, currentStep }: { progress: number,
             </svg>
             <span className="text-lg font-bold text-primary">{progress}%</span>
           </div>
-          <h3 className="text-2xl font-serif text-foreground mb-2">{steps[currentStep].title}</h3>
-          <p className="text-foreground">{steps[currentStep].desc}</p>
+          <h3 className="text-2xl font-serif text-foreground mb-2">{steps[currentStep]?.title || "Processing..."}</h3>
+          <p className="text-foreground">{steps[currentStep]?.desc || "Please wait while we process your file."}</p>
         </div>
 
         {/* Steps List */}
@@ -141,13 +189,17 @@ export const Processing = ({ progress, steps, currentStep }: { progress: number,
   )
 }
 
+import { useAuth } from '@/hooks/useAuth';
+
 export default function Upload() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { session } = useAuth(); // Get session from auth context
 
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>(['summary', 'notes']);
 
   // Processing State
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -218,30 +270,109 @@ export default function Upload() {
     }
   };
 
-  const simulateProcessing = () => {
-    setIsProcessing(true);
-    let step = 0;
-    let prog = 0;
-    const interval = setInterval(() => {
-      prog += 1;
-      setProgress(prog);
+  const handleTypeToggle = (typeId: string) => {
+    setSelectedTypes(prev =>
+      prev.includes(typeId)
+        ? prev.filter(t => t !== typeId)
+        : [...prev, typeId]
+    );
+  };
 
-      // Verify logic - map progress to steps
-      if (prog < 20) step = 0;
-      else if (prog < 40) step = 1;
-      else if (prog < 60) step = 2;
-      else if (prog < 80) step = 3;
-      else step = 4;
+  /* 
+   * Backend Integration Code
+   */
+  const handleUpload = async () => {
+    if (!file) return;
 
-      setCurrentStep(step);
+    if (!session?.access_token) {
+      setError("You must be logged in to upload files.");
+      return;
+    }
 
-      if (prog >= 100) {
-        clearInterval(interval);
-        setTimeout(() => {
-          navigate('/notes/note_new');
-        }, 800);
+    try {
+      setIsProcessing(true);
+      setError(null);
+      setProgress(5);
+      setCurrentStep(0);
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('material_types', JSON.stringify(selectedTypes));
+
+      // 1. Upload File
+      // Note: Assuming axios is configured globally or we use it directly. 
+      // If auth header is needed, it should be intercepted.
+      // For now, using direct axios call relative to current domain if proxy set, or full URL.
+      // Ideally use an api client wrapper.
+      const response = await axios.post('http://127.0.0.1:8000/api/process', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      const { job_id } = response.data;
+
+      // 2. Poll for Status
+      pollJobStatus(job_id);
+
+    } catch (err: any) {
+      console.error("Upload failed", err);
+      setError(err.response?.data?.detail || "Upload failed. Please try again.");
+      setIsProcessing(false);
+    }
+  };
+
+  const pollJobStatus = async (jobId: string) => {
+    const interval = setInterval(async () => {
+      try {
+        if (!session?.access_token) return;
+
+        const response = await axios.get(`http://127.0.0.1:8000/api/jobs/${jobId}/`, {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        });
+        const { status, progress } = response.data;
+
+        setProgress(progress);
+        // setCurrentStepString(current_step); // Backend sends string description
+
+        // Map backend status to UI steps
+        // backend: queued, transcribing, generating, completed, failed
+        // steps: 0=Uploading, 1=Transcribing, 2=Generating Summary, 3=Flashcards, 4=Finalizing
+
+        let uiStep = 0;
+        if (status === 'transcribing') uiStep = 1;
+        else if (status === 'generating') {
+          // Rough mapping as backend doesn't granularly report "flashcards" vs "summary" creation step yet
+          // It just says "generating". We can simulate progress or use progress %
+          if (progress < 60) uiStep = 2;
+          else if (progress < 90) uiStep = 3;
+          else uiStep = 4;
+        } else if (status === 'completed') {
+          uiStep = 4;
+        }
+
+        setCurrentStep(uiStep); // Use the calculated UI step index
+
+        if (status === 'completed') {
+          clearInterval(interval);
+          setProgress(100);
+          setTimeout(() => {
+            navigate(`/notes/${jobId}`); // Navigate to result page with Job ID
+          }, 1000);
+        } else if (status === 'failed') {
+          clearInterval(interval);
+          setError("Processing failed. Please try again.");
+          setIsProcessing(false);
+        }
+
+      } catch (err) {
+        console.error("Polling failed", err);
+        // Don't clear immediately on network blip, maybe retry?
       }
-    }, 80); // Total time approx 8s
+    }, 2000);
   };
 
   const getFileIcon = (fileType: string) => {
@@ -265,7 +396,7 @@ export default function Upload() {
 
           {!isProcessing ? (
             // Upload State
-            <FileUpload file={file} fileInputRef={fileInputRef} handleRemoveFile={handleRemoveFile} handleChange={handleChange} handleDrag={handleDrag} dragActive={dragActive} handleDrop={handleDrop} simulateProcessing={simulateProcessing} getFileIcon={getFileIcon} error={error}/>
+            <FileUpload file={file} fileInputRef={fileInputRef} handleRemoveFile={handleRemoveFile} handleChange={handleChange} handleDrag={handleDrag} dragActive={dragActive} handleDrop={handleDrop} simulateProcessing={handleUpload} getFileIcon={getFileIcon} error={error} selectedTypes={selectedTypes} onTypeToggle={handleTypeToggle} />
           ) : (
             // Processing State
             <Processing progress={progress} steps={steps} currentStep={currentStep} />

@@ -1,5 +1,5 @@
 import { useAuth } from '@/hooks/useAuth';
-import Layout from '../components/layout/Layout';
+import Layout from '@/components/layout/Layout';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

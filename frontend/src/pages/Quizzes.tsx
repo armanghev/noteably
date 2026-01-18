@@ -1,9 +1,9 @@
-import Layout from '../components/layout/Layout';
+import Layout from '@/components/layout/Layout';
 import { Plus, Clock, Trophy, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import mockData from '../data/mockData.json';
+import mockData from '@/data/mockData.json';
 
 export default function Quizzes() {
    const navigate = useNavigate();

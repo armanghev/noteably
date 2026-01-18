@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeft, CheckCircle2, XCircle, ArrowRight, Timer, Trophy } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import Layout from '../components/layout/Layout';
+import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import mockData from '../data/mockData.json';

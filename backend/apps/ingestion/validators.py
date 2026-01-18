@@ -1,15 +1,15 @@
 import logging
-from typing import Optional
-from django.core.files.uploadedfile import UploadedFile
+
 from apps.core.exceptions import InvalidFileError
-from mutagen import File
+from django.core.files.uploadedfile import UploadedFile
 
 logger = logging.getLogger(__name__)
 
 # Allowed file types
 ALLOWED_AUDIO_TYPES = ["mp3", "wav", "m4a", "aac", "flac"]
 ALLOWED_VIDEO_TYPES = ["mp4", "webm", "mov", "avi", "mkv"]
-ALLOWED_EXTENSIONS = ALLOWED_AUDIO_TYPES + ALLOWED_VIDEO_TYPES
+ALLOWED_DOCUMENT_TYPES = ["pdf"]
+ALLOWED_EXTENSIONS = ALLOWED_AUDIO_TYPES + ALLOWED_VIDEO_TYPES + ALLOWED_DOCUMENT_TYPES
 
 
 def validate_file_type(file: UploadedFile) -> bool:

@@ -13,7 +13,6 @@ import {
 import mockData from '../data/mockData.json';
 
 export default function Flashcards() {
-   const navigate = useNavigate();
 
    return (
       <Layout>

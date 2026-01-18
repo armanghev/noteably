@@ -1,15 +1,16 @@
 import logging
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework import status
 
 from apps.accounts.permissions import IsAuthenticated
-from .serializers import ProcessUploadSerializer
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+
 from .models import Job
-from .validators import validate_file_type, validate_file_size, get_file_duration
 from .quota import check_user_quota
 from .r2_storage import upload_to_r2
+from .serializers import ProcessUploadSerializer
 from .tasks import process_upload_task
+from .validators import get_file_duration, validate_file_size, validate_file_type
 
 logger = logging.getLogger(__name__)
 
@@ -59,3 +60,23 @@ def process_upload(request):
         },
         status=status.HTTP_201_CREATED,
     )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_job_status(request, job_id):
+    """
+    Get current status of a job.
+    """
+    try:
+        job = Job.objects.get(id=job_id, user_id=request.user_id)
+    except Job.DoesNotExist:
+        return Response(
+            {"error": "Job not found or access denied"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    from .serializers import JobSerializer
+
+    serializer = JobSerializer(job)
+    return Response(serializer.data)

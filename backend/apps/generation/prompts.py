@@ -11,7 +11,7 @@ Structure it with bullet points.
 
 Return your response in JSON format:
 {{
-    "title": "Suggested Title",
+    "title": "A Descriptive Document Title (e.g., 'Introduction to Biology', NOT 'Summary of...')",
     "summary": "The summary text...",
     "key_points": ["point 1", "point 2"]
 }}
@@ -22,13 +22,19 @@ Text:
 
     elif type == "notes":
         return f"""{base_instruction}
-Create detailed study notes from the following text.
-Use a hierarchical structure with headings and subheadings.
-Include definitions for key terms.
+Create a comprehensive Study Guide from the following text.
+Do NOT just reproduce the text. Synthesize the information into a format optimized for studying.
+- Use clear headings and bullet points.
+- Highlight Key Terms and important definitions.
+- Group related concepts together.
+- Add "Key Takeaways" sections to summarize major topics.
+
+Format the output as a valid JSON object with a single key "content" containing the Markdown string. 
+Ensure all newlines and quotes in the content are strictly escaped for JSON.
 
 Return your response in JSON format:
 {{
-    "content": "Markdown formatted study notes..."
+    "content": "# Study Guide\\n\\n## Section 1..."
 }}
 
 Text:
@@ -51,7 +57,7 @@ Text:
 {text}
 """
 
-    elif type == "quiz":
+    elif type in ["quiz", "quizzes"]:
         return f"""{base_instruction}
 Create a 5-question multiple choice quiz based on the text.
 Include the correct answer index (0-3).
@@ -67,6 +73,18 @@ Return your response in JSON format:
         }}
     ]
 }}
+
+Text:
+{text}
+"""
+
+    elif type == "cleanup":
+        return f"""You are an expert editor. Format the following raw text into clean, readable Markdown.
+- Remove page numbers, headers, and footers that interrupt the flow.
+- Fix broken line breaks and spacing.
+- Format tables and lists properly.
+- Preserve all original information and data.
+- Return ONLY the cleaned Markdown text, no JSON.
 
 Text:
 {text}

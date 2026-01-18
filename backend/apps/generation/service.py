@@ -1,8 +1,10 @@
-import google.generativeai as genai
 import json
 import logging
-from django.conf import settings
+
+import google.generativeai as genai
 from apps.core.exceptions import ThirdPartyServiceError
+from django.conf import settings
+
 from .prompts import get_prompt_for_type
 
 logger = logging.getLogger(__name__)
@@ -24,13 +26,20 @@ class GeminiService:
         cls._configure()
 
         try:
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            model = genai.GenerativeModel("gemini-2.0-flash")
             prompt = get_prompt_for_type(type, text)
 
-            # Request JSON response
+            # Request JSON response for structured types, plain text for cleanup
+            generation_config = {}
+            if type != "cleanup":
+                generation_config["response_mime_type"] = "application/json"
+
             response = model.generate_content(
-                prompt, generation_config={"response_mime_type": "application/json"}
+                prompt, generation_config=generation_config
             )
+
+            if type == "cleanup":
+                return response.text
 
             # Parse JSON
             try:
