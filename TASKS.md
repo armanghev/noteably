@@ -2,8 +2,8 @@
 
 This document outlines all tasks needed to build the MVP of Noteably, an AI-powered study materials generation platform that transforms audio/video content into summaries, notes, flashcards, and quizzes.
 
-**Last Updated:** 2026-01-08
-**Status:** In Progress - Frontend core pages (Profile, Landing, Flashcards) implemented. Backend foundation ready.
+**Last Updated:** 2026-01-09
+**Status:** In Progress - Frontend core pages (Profile, Landing, Flashcards) implemented. Media player components (Audio, Video, PDF) added. Backend foundation ready with Supabase storage integration.
 
 ---
 
@@ -76,9 +76,10 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
 - [x] 9. **Implement Cloudflare R2 storage integration**
   - [x] Configure R2 credentials and bucket
   - [x] Create R2 client wrapper with upload/download/delete
-  - [ ] Implement signed URL generation for secure access
+  - [x] Implement signed URL generation for secure access
   - [x] Set up proper content type headers
   - [x] Test file upload and retrieval
+  - **Note:** Migrated to Supabase Storage for unified infrastructure
 
 - [x] 10. **Implement file reference management**
   - [x] Create file reference database models
@@ -86,6 +87,7 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
   - [x] Track file metadata (size, type, duration)
   - [x] Implement file lifecycle tracking
   - [x] Create file reference serializers
+  - [x] Migrate to Supabase Storage with signed URL support
 
 - [ ] 11. **Implement file cleanup for expired files**
   - [ ] Create cleanup Celery task
@@ -442,7 +444,8 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
   - [x] Show only generated material tabs
   - [x] Handle tab switching
   - [x] Preserve state across switches
-  - [ ] Show loading state per tab
+  - [x] Show loading state per tab
+  - [x] Integrate media players for audio/video/PDF files
 
 - [x] 54. **Build summary view component**
   - [x] Render summary with toggle for lengths
@@ -472,7 +475,17 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
   - [x] Display explanations after answering
   - [ ] Allow quiz restart
 
-### 9.5 Export & History
+### 9.5 Media Players & File Viewing
+
+- [x] 57.5. **Implement media player components**
+  - [x] Create AudioPlayer component with transcript sync
+  - [x] Create VideoPlayer component with transcript sync
+  - [x] Create PDFViewer component with navigation controls
+  - [x] Integrate media players into StudySetDetail page
+  - [x] Support signed URL generation for secure file access
+  - [x] Add PDF.js worker for PDF rendering
+
+### 9.6 Export & History
 
 - [ ] 58. **Build export button and format selector**
   - [ ] Create export dropdown menu
@@ -749,12 +762,12 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
 
 ## Progress Tracking
 
-- **Total Tasks:** 91
-- **Completed:** 38
+- **Total Tasks:** 92 (added media player components task)
+- **Completed:** 40
 - **In Progress:** 8
-- **Remaining:** 45
+- **Remaining:** 44
 
-**Completion Rate:** ~42%
+**Completion Rate:** ~43%
 
 ### Summary of Current Implementation
 
@@ -762,7 +775,8 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
 - Django project with DRF, CORS, Celery, Redis configured
 - Core error handling and Supabase client integration
 - JWT authentication middleware and permissions
-- Cloudflare R2 storage with file upload/validation
+- Cloudflare R2 storage with file upload/validation (migrated to Supabase Storage)
+- Supabase Storage integration with signed URL generation
 - Jobs model with complete pipeline tracking
 - AssemblyAI transcription service with speaker diarization and language detection
 - Google Gemini integration with prompts for all material types (summary, notes, flashcards, quiz)
@@ -780,6 +794,8 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
 - Notes, Flashcards (with popover menu), Quizzes pages with detail views
 - FlashcardDeck and QuizDetail with interactive UI
 - Login page (UI only)
+- Media player components: AudioPlayer, VideoPlayer, PDFViewer with transcript synchronization
+- StudySetDetail page with integrated media playback support
 
 **⚠️ In Progress:**
 - WebSocket infrastructure (currently using polling)
@@ -930,7 +946,7 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
 
 ## Progress Summary
 
-**Status:** 38 done | 45 pending | 8 in progress
-**Completion:** ~42% (38/91 tasks completed)
+**Status:** 40 done | 44 pending | 8 in progress
+**Completion:** ~43% (40/92 tasks completed)
 
 *Note: Tasks marked with `[x]` are done, `[~]` are in progress, and `[ ]` are pending. Run `node taskman/tasks-cli.js` for an interactive progress view.*
