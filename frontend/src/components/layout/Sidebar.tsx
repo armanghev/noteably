@@ -5,6 +5,7 @@ import {
     FileText,
     Brain,
     Zap,
+    BookOpen,
 } from "lucide-react"
 import { SidebarBody, SidebarLink, useSidebar } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils";
@@ -20,6 +21,11 @@ const items = [
         label: "Upload",
         href: "/upload",
         icon: <Upload className="text-foreground h-5 w-5 shrink-0" />,
+    },
+    {
+        label: "Study Sets",
+        href: "/study-sets",
+        icon: <BookOpen className="text-foreground h-5 w-5 shrink-0" />,
     },
     {
         label: "My Notes",

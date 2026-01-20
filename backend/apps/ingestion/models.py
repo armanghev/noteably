@@ -52,6 +52,14 @@ class Job(models.Model):
     error_message = models.TextField(blank=True)
     retry_count = models.IntegerField(default=0)
 
+    # Cached content metadata (denormalized for fast list queries)
+    # Updated when content is generated - avoids loading GeneratedContent for lists
+    cached_flashcard_count = models.IntegerField(default=0)
+    cached_quiz_count = models.IntegerField(default=0)
+    cached_content_types = models.JSONField(default=list)
+    cached_summary_title = models.CharField(max_length=500, blank=True)
+    cached_summary_preview = models.CharField(max_length=250, blank=True)
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     started_at = models.DateTimeField(null=True, blank=True)
@@ -80,3 +88,41 @@ class Job(models.Model):
         size_mb = self.file_size_bytes / (1024 * 1024)
         estimated_duration_minutes = size_mb / 10  # Rough estimate
         return int(estimated_duration_minutes * 30)
+
+    def update_content_cache(self):
+        """
+        Update cached content metadata from generated_content.
+        Call this after content generation completes.
+        """
+        content_types = []
+        flashcard_count = 0
+        quiz_count = 0
+        summary_title = ""
+        summary_preview = ""
+
+        for content in self.generated_content.all():
+            content_types.append(content.type)
+
+            if content.type == "flashcards":
+                flashcards = content.content.get("flashcards", [])
+                flashcard_count = len(flashcards) if isinstance(flashcards, list) else 0
+            elif content.type in ("quiz", "quizzes"):
+                questions = content.content.get("questions", [])
+                quiz_count = len(questions) if isinstance(questions, list) else 0
+            elif content.type == "summary":
+                summary_title = content.content.get("title", "")[:500]
+                summary = content.content.get("summary", "")
+                summary_preview = (summary[:197] + "...") if len(summary) > 200 else summary[:250]
+
+        self.cached_content_types = content_types
+        self.cached_flashcard_count = flashcard_count
+        self.cached_quiz_count = quiz_count
+        self.cached_summary_title = summary_title
+        self.cached_summary_preview = summary_preview
+        self.save(update_fields=[
+            'cached_content_types',
+            'cached_flashcard_count',
+            'cached_quiz_count',
+            'cached_summary_title',
+            'cached_summary_preview',
+        ])

@@ -4,14 +4,14 @@ import type { MaterialType } from './models';
 
 export interface FileUploadProps {
   file: File | null;
-  fileInputRef: React.RefObject<HTMLInputElement>;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
   selectedTypes: MaterialType[];
   dragActive: boolean;
   error: string | null;
-  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onDrag: (e: React.DragEvent<HTMLElement>) => void;
-  onDrop: (e: React.DragEvent<HTMLElement>) => void;
-  onRemoveFile: () => void;
+  handleRemoveFile: () => void;
+  handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleDrag: (e: React.DragEvent<HTMLElement>) => void;
+  handleDrop: (e: React.DragEvent<HTMLElement>) => void;
   onTypeToggle: (type: MaterialType) => void;
   onSubmit: () => void;
   getFileIcon: (fileType: string) => React.ReactNode;

@@ -203,7 +203,7 @@ const Features = () => {
           {features.map((f, i) => (
             <FadeIn key={i} delay={i * 0.1}>
               <div className="group">
-                <div className="mb-4 inline-flex p-3 rounded-2xl bg-[#F9F8F6] group-hover:bg-[#A9B388]/30 transition-colors duration-300 text-foreground">
+                <div className="mb-4 inline-flex p-3 rounded-2xl bg-primary group-hover:bg-accent transition-colors duration-300 text-foreground">
                   {f.icon}
                 </div>
                 <h3 className="text-xl font-serif font-medium mb-3 text-foreground">{f.title}</h3>
@@ -230,7 +230,17 @@ const NeuralBackground = () => {
       duration: 2 + Math.random() * 3
     }));
 
-    const links: any[] = [];
+    interface LinkNode {
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+      id: string;
+      delay: number;
+      width: number;
+    }
+
+    const links: LinkNode[] = [];
     nodes.forEach((a, i) => {
       nodes.slice(i + 1).forEach((b, j) => {
         const dist = Math.hypot(a.x - b.x, a.y - b.y);
@@ -300,7 +310,7 @@ const NeuralBackground = () => {
 };
 
 const BigPicture = () => (
-  <section className="py-24 bg-[#F9F8F6] overflow-hidden relative">
+  <section className="py-24 bg-secondary overflow-hidden relative">
     {/* Replaced static image with animated component */}
     <NeuralBackground />
 
@@ -327,7 +337,7 @@ const BigPicture = () => (
               ))}
 
               <div className="pt-8">
-                <Button className="px-8 py-6 rounded-full hover:bg-primary/90 text-primary-foreground hover:bg-[#1A1A1A]">
+                <Button className="px-8 py-6 rounded-full hover:bg-foreground text-primary-foreground">
                   Start Organizing
                 </Button>
               </div>
@@ -336,7 +346,7 @@ const BigPicture = () => (
         </div>
 
         <div className="w-full md:w-1/2 relative">
-          <FadeIn delay={0.2} className="relative rounded-3xl overflow-hidden shadow-2xl bg-[#EBE7E0]">
+          <FadeIn delay={0.2} className="relative rounded-3xl overflow-hidden shadow-2xl bg-muted">
             <img src="/feature-cards.png" alt="Structured Flashcards" className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-primary/10 to-transparent" />
           </FadeIn>
@@ -359,7 +369,7 @@ const Comparison = () => (
       <div className="flex flex-col md:flex-row gap-8 lg:gap-16 items-center">
         <div className="w-full md:w-5/12">
           <FadeIn>
-            <div className="bg-[#E5E0D8] rounded-3xl overflow-hidden relative shadow-lg">
+            <div className="bg-muted rounded-3xl overflow-hidden relative shadow-lg">
               <div className="p-8 aspect-square flex items-center justify-center">
                 <div className="text-center space-y-4">
                   <div className="text-6xl font-serif text-primary">10x</div>
@@ -376,10 +386,10 @@ const Comparison = () => (
             <div className="space-y-6">
               <h3 className="font-serif text-xl border-b border-border pb-2 text-foreground">The Old Way</h3>
               <ul className="space-y-4 text-muted-foreground text-sm">
-                <li className="flex items-center gap-2"><X className="w-4 h-4 text-red-400" /> Pausing & rewinding video</li>
-                <li className="flex items-center gap-2"><X className="w-4 h-4 text-red-400" /> Messy, unorganized scribbles</li>
-                <li className="flex items-center gap-2"><X className="w-4 h-4 text-red-400" /> Spending hours making cards</li>
-                <li className="flex items-center gap-2"><X className="w-4 h-4 text-red-400" /> Losing track of sources</li>
+                <li className="flex items-center gap-2"><X className="w-4 h-4 text-destructive" /> Pausing & rewinding video</li>
+                <li className="flex items-center gap-2"><X className="w-4 h-4 text-destructive" /> Messy, unorganized scribbles</li>
+                <li className="flex items-center gap-2"><X className="w-4 h-4 text-destructive" /> Spending hours making cards</li>
+                <li className="flex items-center gap-2"><X className="w-4 h-4 text-destructive" /> Losing track of sources</li>
               </ul>
             </div>
             <div className="space-y-6">
@@ -399,7 +409,7 @@ const Comparison = () => (
 );
 
 const Footer = () => (
-  <footer className="bg-primary text-primary-foreground/90 py-20">
+  <footer className="bg-primary/80 text-primary-foreground/90 py-20">
     <div className="container mx-auto px-6">
       <div className="flex flex-col md:flex-row justify-between items-start gap-12">
         <div className="max-w-md">
@@ -432,7 +442,7 @@ const Footer = () => (
         </div>
       </div>
 
-      <div className="mt-20 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center text-xs text-primary-foreground/40">
+      <div className="mt-20 pt-8 border-t border-primary-foreground/10 flex flex-col md:flex-row justify-between items-center text-xs text-primary-foreground/40">
         <p>© 2024 Noteably. All rights reserved.</p>
         <div className="flex gap-6 mt-4 md:mt-0">
           <a href="#">Privacy</a>

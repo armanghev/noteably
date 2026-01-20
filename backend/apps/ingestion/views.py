@@ -7,7 +7,7 @@ from rest_framework.response import Response
 
 from .models import Job
 from .quota import check_user_quota
-from .r2_storage import upload_to_r2
+from .supabase_storage import upload_to_supabase
 from .serializers import ProcessUploadSerializer
 from .tasks import process_upload_task
 from .validators import get_file_duration, validate_file_size, validate_file_type
@@ -34,20 +34,30 @@ def process_upload(request):
     duration = get_file_duration(file)
     check_user_quota(request.user_id, duration, file.size / (1024 * 1024))
 
-    # Upload to R2
-    storage_url = upload_to_r2(file, file.name, file.content_type)
-
-    # Create job
+    # Create job first to get job_id for storage path
     job = Job.objects.create(
         user_id=request.user_id,
         filename=file.name,
         file_size_bytes=file.size,
         file_type=file.content_type,
-        storage_url=storage_url,
+        storage_url="",  # Will be updated after upload
         material_types=material_types,
         options=options,
         status="queued",
     )
+
+    # Upload to Supabase Storage in job's directory
+    storage_url = upload_to_supabase(
+        file, 
+        file.name, 
+        job_id=str(job.id),
+        content_type=file.content_type,
+        subfolder="upload"
+    )
+    
+    # Update job with storage URL
+    job.storage_url = storage_url
+    job.save(update_fields=['storage_url'])
 
     # Trigger Celery task
     process_upload_task.delay(str(job.id))
@@ -60,6 +70,78 @@ def process_upload(request):
         },
         status=status.HTTP_201_CREATED,
     )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def list_jobs(request):
+    """
+    List all jobs for the authenticated user.
+    Uses lightweight serializer - excludes transcription and full content.
+    Supports optional ?limit= parameter for pagination.
+    """
+    from .serializers import JobListSerializer
+
+    jobs = (
+        Job.objects.filter(user_id=request.user_id)
+        .prefetch_related('generated_content')
+        .order_by("-created_at")
+    )
+
+    # Optional limit parameter
+    limit = request.query_params.get('limit')
+    if limit:
+        try:
+            jobs = jobs[:int(limit)]
+        except (ValueError, TypeError):
+            pass
+
+    serializer = JobListSerializer(jobs, many=True)
+    return Response(serializer.data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def dashboard_data(request):
+    """
+    Lightweight endpoint for dashboard - returns recent jobs and aggregate stats.
+    Optimized to avoid loading full generated_content.
+    """
+    from django.db.models import Count, Sum
+    from django.db.models.functions import Coalesce
+
+    user_jobs = Job.objects.filter(user_id=request.user_id)
+    completed_jobs = user_jobs.filter(status="completed")
+
+    # Aggregate stats at DB level
+    total_notes = completed_jobs.count()
+
+    # Sum cached flashcard counts (or 0 if not populated yet)
+    stats = completed_jobs.aggregate(
+        total_flashcards=Coalesce(Sum('cached_flashcard_count'), 0)
+    )
+
+    # Get only the 5 most recent completed jobs with minimal fields
+    recent_jobs = (
+        completed_jobs
+        .order_by("-created_at")[:5]
+        .values(
+            "id",
+            "filename",
+            "file_type",
+            "status",
+            "created_at",
+            "cached_flashcard_count",
+        )
+    )
+
+    return Response({
+        "stats": {
+            "total_notes": total_notes,
+            "total_flashcards": stats["total_flashcards"],
+        },
+        "recent_jobs": list(recent_jobs),
+    })
 
 
 @api_view(["GET"])

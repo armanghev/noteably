@@ -6,6 +6,7 @@ import { useErrorHandler } from '@/hooks/useErrorHandler';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
+import type { ApiError } from '@/types';
 
 export default function Login() {
    const [email, setEmail] = useState('');
@@ -23,7 +24,12 @@ export default function Login() {
          await login({ email, password });
          navigate(from, { replace: true });
       } catch (error) {
-         handleError(error as any);
+         // Handle both ApiError and generic Error types
+         if (error && typeof error === 'object' && 'message' in error) {
+            handleError(error as ApiError);
+         } else {
+            handleError(new Error(String(error)));
+         }
       }
    };
 

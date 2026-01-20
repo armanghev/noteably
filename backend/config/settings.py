@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "apps.storage",
     "apps.tasks",
     "apps.analytics",
+    "apps.export",
 ]
 
 MIDDLEWARE = [
@@ -198,12 +199,16 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 
-# Cloudflare R2 Settings
+# Cloudflare R2 Settings (DEPRECATED - Migrated to Supabase Storage)
+# Kept for migration purposes only
 R2_ENDPOINT = os.getenv("R2_ENDPOINT")
 R2_BUCKET = os.getenv("R2_BUCKET", "noteably-files")
 R2_ACCESS_KEY = os.getenv("R2_ACCESS_KEY")
 R2_SECRET_KEY = os.getenv("R2_SECRET_KEY")
 R2_PUBLIC_URL = os.getenv("R2_PUBLIC_URL")
+
+# Supabase Storage Bucket
+SUPABASE_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "noteably")
 
 # AssemblyAI Settings
 ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY")

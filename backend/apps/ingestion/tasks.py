@@ -154,6 +154,9 @@ def process_upload_task(self, job_id):
                 job.completed_at = from_datetime()
                 job.save()
 
+                # Update cached content metadata for fast list queries
+                job.update_content_cache()
+
             elif status == "error":
                 error_msg = result.get("error")
                 logger.error(f"Transcription failed for job {job_id}: {error_msg}")

@@ -2,6 +2,8 @@ export const ROUTES = {
     HOME: '/',
     LOGIN: '/login',
     DASHBOARD: '/dashboard',
+    STUDY_SETS: '/study-sets',
+    STUDY_SETS_DETAIL: '/study-sets/:id',
     NOTES: '/notes',
     NOTES_DETAIL: '/notes/:id',
     FLASHCARDS: '/flashcards',

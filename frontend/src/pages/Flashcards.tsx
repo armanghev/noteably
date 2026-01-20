@@ -5,71 +5,58 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+   DropdownMenu,
+   DropdownMenuContent,
+   DropdownMenuItem,
+   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useJobs } from '@/hooks/useJobs';
-import type { Job, FlashcardsContent } from '@/types';
+import type { JobListItem } from '@/types';
 
-// Helper to check if job has flashcards
-function hasFlashcards(job: Job): boolean {
-  return job.generated_content.some(c => c.type === 'flashcards');
-}
-
-// Helper to get flashcard count from job
-function getFlashcardCount(job: Job): number {
-  const content = job.generated_content.find(c => c.type === 'flashcards');
-  if (!content) return 0;
-  const flashcardsContent = content.content as FlashcardsContent;
-  return flashcardsContent.flashcards?.length || 0;
-}
-
-function FlashcardDeck({ job }: { job: Job }) {
-  const navigate = useNavigate();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const cardCount = getFlashcardCount(job);
+function FlashcardDeck({ job }: { job: JobListItem }) {
+   const navigate = useNavigate();
+   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const cardCount = job.flashcard_count;
   const title = job.filename || 'Flashcards';
 
-  return (
-    <Card
-      onClick={() => navigate(`/flashcards/${job.id}`)}
-      className="p-6 cursor-pointer hover:shadow-md transition-shadow group bg-background border-border"
-    >
-      <div className="flex justify-between items-start mb-4">
-        <div className={`p-2 rounded-lg transition-colors ${isMenuOpen
-          ? "bg-primary text-primary-foreground"
-          : "bg-secondary text-primary group-hover:bg-primary group-hover:text-primary-foreground"
-          }`}>
-          <Brain className="w-5 h-5" />
-        </div>
-        <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-              <MoreVertical className="w-4 h-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} className="border-border bg-background p-0">
-            <DropdownMenuItem className="w-full h-full rounded-t-md rounded-b-none p-2">
-              <Edit2 className="mr-2 h-4 w-4" />
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem className="rounded-none p-2">
-              <Pencil className="mr-2 h-4 w-4" />
-              Rename
-            </DropdownMenuItem>
-            <DropdownMenuItem className="rounded-t-none rounded-b-md text-destructive focus:text-destructive p-2">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+   return (
+      <Card
+      onClick={() => navigate(`/flashcards/${job.id}`, { state: { from: '/flashcards' } })}
+         className="p-6 cursor-pointer hover:shadow-md transition-shadow group bg-background border-border"
+      >
+         <div className="flex justify-between items-start mb-4">
+            <div className={`p-2 rounded-lg transition-colors ${isMenuOpen
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-primary group-hover:bg-primary group-hover:text-primary-foreground"
+               }`}>
+               <Brain className="w-5 h-5" />
+            </div>
+            <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                     <MoreVertical className="w-4 h-4" />
+                  </Button>
+               </DropdownMenuTrigger>
+               <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} className="border-border bg-background p-0">
+                  <DropdownMenuItem className="w-full h-full rounded-t-md rounded-b-none p-2">
+                     <Edit2 className="mr-2 h-4 w-4" />
+                     Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="rounded-none p-2">
+                     <Pencil className="mr-2 h-4 w-4" />
+                     Rename
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="rounded-t-none rounded-b-md text-destructive focus:text-destructive p-2">
+                     <Trash2 className="mr-2 h-4 w-4" />
+                     Delete
+                  </DropdownMenuItem>
+               </DropdownMenuContent>
+            </DropdownMenu>
+         </div>
       <h3 className="font-serif text-lg font-medium mb-2 text-foreground">{title}</h3>
       <p className="text-sm text-muted-foreground mb-6">{cardCount} cards</p>
-    </Card>
-  );
+      </Card>
+   );
 }
 
 export default function Flashcards() {
@@ -77,7 +64,9 @@ export default function Flashcards() {
   const { data: jobs, isLoading } = useJobs();
 
   // Filter for completed jobs with flashcards
-  const jobsWithFlashcards = jobs?.filter(job => job.status === 'completed' && hasFlashcards(job)) || [];
+  const jobsWithFlashcards = jobs?.filter(job =>
+    job.status === 'completed' && job.content_types.includes('flashcards')
+  ) || [];
 
   if (isLoading) {
     return (

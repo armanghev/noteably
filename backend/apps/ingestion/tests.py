@@ -20,12 +20,12 @@ class TranscriptionTriggerTest(TestCase):
     @patch("apps.ingestion.views.validate_file_type")
     @patch("apps.ingestion.views.validate_file_size")
     @patch("apps.ingestion.views.check_user_quota")
-    @patch("apps.ingestion.views.upload_to_r2")
+    @patch("apps.ingestion.views.upload_to_supabase")
     def test_upload_triggers_task(
         self, mock_upload, mock_quota, mock_size, mock_type, mock_task
     ):
         # Mock dependencies
-        mock_upload.return_value = "https://r2.example.com/file.mp3"
+        mock_upload.return_value = "https://example.supabase.co/storage/v1/object/public/uploads/uuid/file.mp3"
 
         # Setup request
         url = reverse("process_upload")  # We need to know the URL name

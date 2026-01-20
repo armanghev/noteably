@@ -6,6 +6,8 @@ import { ROUTES } from './routes';
 import LandingPage from '@/pages/LandingPage';
 import Dashboard from '@/pages/Dashboard';
 import Login from '@/pages/Login';
+import StudySets from '@/pages/StudySets';
+import StudySetDetail from '@/pages/StudySetDetail';
 import Notes from '@/pages/Notes';
 import NoteDetail from '@/pages/NoteDetail';
 import Flashcards from '@/pages/Flashcards';
@@ -35,6 +37,14 @@ export const router = createBrowserRouter([
             {
                 path: ROUTES.DASHBOARD,
                 element: <Dashboard />,
+            },
+            {
+                path: ROUTES.STUDY_SETS,
+                element: <StudySets />,
+            },
+            {
+                path: ROUTES.STUDY_SETS_DETAIL,
+                element: <StudySetDetail />,
             },
             {
                 path: ROUTES.UPLOAD,

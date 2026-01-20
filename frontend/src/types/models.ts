@@ -1,7 +1,8 @@
 // Core types matching backend Django models
 
 export type JobStatus = 'queued' | 'transcribing' | 'generating' | 'completed' | 'failed';
-export type MaterialType = 'summary' | 'notes' | 'flashcards' | 'quiz';
+// Note: Backend uses 'quiz' but API may return 'quizzes' - support both for compatibility
+export type MaterialType = 'summary' | 'notes' | 'flashcards' | 'quiz' | 'quizzes';
 
 export interface JobOptions {
   summary_length?: 'short' | 'medium' | 'long';
@@ -55,7 +56,8 @@ export interface QuizQuestion {
   text?: string; // Alternative field name
   options: string[];
   correct_answer?: number;
-  correctAnswer?: number; // Alternative field name
+  correctAnswer?: number; // Alternative field name (camelCase)
+  correct_option?: number; // Alternative field name (snake_case variant)
   explanation?: string;
 }
 
@@ -63,7 +65,25 @@ export interface QuizContent {
   questions: QuizQuestion[];
 }
 
-// Job type matching Job model and JobSerializer
+// Lightweight job type for list views (excludes heavy content fields)
+export interface JobListItem {
+  id: string;
+  filename: string;
+  file_type: string;
+  status: JobStatus;
+  progress: number;
+  current_step: string;
+  error_message: string;
+  created_at: string;
+  completed_at: string | null;
+  flashcard_count: number;
+  quiz_count: number;
+  content_types: MaterialType[];
+  summary_title: string;
+  summary_preview: string;
+}
+
+// Full job type matching Job model and JobSerializer (for detail views)
 export interface Job {
   id: string;
   user_id: string;

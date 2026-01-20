@@ -8,6 +8,18 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <title>Noteably - Browse everything.</title>
+    <script>
+      // Set sidebar state before React hydrates to prevent flash
+      (function() {
+        try {
+          const stored = localStorage.getItem('sidebar-open');
+          const isOpen = stored !== null ? JSON.parse(stored) : true;
+          document.documentElement.setAttribute('data-sidebar-open', isOpen);
+        } catch (e) {
+          document.documentElement.setAttribute('data-sidebar-open', 'true');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

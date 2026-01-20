@@ -5,8 +5,8 @@ import { AlertCircle, CheckCircle2, FileText, FileType, HelpCircle, Layers, Load
 import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useProcessUpload } from '@/hooks/useJobs';
-import { useJob } from '@/hooks/useJobs';
+import { useProcessUpload, useJob, jobKeys } from '@/hooks/useJobs';
+import { useQueryClient } from '@tanstack/react-query';
 import type { FileUploadProps, ProcessingProps, MaterialType } from '@/types';
 import React from 'react';
 
@@ -77,7 +77,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
               })}
             </div>
             {selectedTypes.length === 0 && (
-              <p className="text-xs text-red-500 mt-2 text-center">Please select at least one content type</p>
+              <p className="text-xs text-destructive mt-2 text-center">Please select at least one content type</p>
             )}
           </div>
 
@@ -121,7 +121,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
                          ${dragActive
                 ? 'bg-background/80'
                 : 'hover:bg-card bg-background'
-              } ${error ? 'border-red-300 bg-red-50' : ''}`}
+              } ${error ? 'border-destructive/50 bg-destructive/10' : ''}`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
@@ -139,7 +139,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
                 MP3, WAV, PDF up to 50MB
               </p>
               {error && (
-                <div className="flex items-center gap-2 text-red-500 text-sm bg-red-100/50 px-4 py-2 rounded-full mx-auto w-fit">
+                <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 px-4 py-2 rounded-full mx-auto w-fit">
                   <AlertCircle className="w-4 h-4" />
                   {error}
                 </div>
@@ -160,11 +160,11 @@ const Processing: React.FC<ProcessingProps> = ({ progress, steps, currentStep })
         <div className="mb-10 text-center">
           <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 relative shadow-[0_0_15px_var(--primary)]">
             <div className="absolute inset-0 rounded-full"></div>
-            <svg className="absolute inset-0 w-full h-full rotate-[-90deg]" viewBox="0 0 100 100">
+            <svg className="absolute inset-0 w-full h-full rotate-[-90deg] text-primary" viewBox="0 0 100 100">
               <circle
                 cx="50" cy="50" r="46"
                 fill="none"
-                stroke="#5F6F52"
+                stroke="currentColor"
                 strokeWidth="4"
                 strokeDasharray="289" // 2 * pi * 46
                 strokeDashoffset={289 - (289 * progress) / 100}
@@ -188,7 +188,7 @@ const Processing: React.FC<ProcessingProps> = ({ progress, steps, currentStep })
             >
               <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${idx < currentStep ? 'bg-primary text-primary-foreground' :
                 idx === currentStep ? 'bg-card text-primary border border-primary' :
-                  'bg-muted text-gray-300'
+                  'bg-muted text-muted-foreground/50'
                 }`}>
                 {idx < currentStep ? <CheckCircle2 className="w-5 h-5" /> :
                   idx === currentStep ? <Loader2 className="w-4 h-4 animate-spin" /> :
@@ -211,6 +211,7 @@ export default function Upload() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { session } = useAuth();
   const processUploadMutation = useProcessUpload();
+  const queryClient = useQueryClient();
 
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [file, setFile] = useState<File | null>(null);
@@ -221,7 +222,7 @@ export default function Upload() {
   const [jobId, setJobId] = useState<string | undefined>(undefined);
   const [currentStep, setCurrentStep] = useState<number>(0);
 
-  const { data: job, status: jobStatus } = useJob(jobId);
+  const { data: job } = useJob(jobId);
 
   const steps = [
     { id: 0, title: "Uploading File", desc: "Securely transferring your data..." },
@@ -252,13 +253,21 @@ export default function Upload() {
     });
 
     if (job.status === 'completed') {
+      // Cancel any pending queries for this job to stop polling
+      if (jobId) {
+        queryClient.cancelQueries({ queryKey: jobKeys.detail(jobId) });
+      }
       setTimeout(() => {
-        navigate(`/notes/${job.id}`);
+        navigate(`/notes/${job.id}`, { state: { from: '/upload' } });
       }, 1000);
     } else if (job.status === 'failed') {
+      // Cancel polling on failure
+      if (jobId) {
+        queryClient.cancelQueries({ queryKey: jobKeys.detail(jobId) });
+      }
       setError(job.error_message || "Processing failed. Please try again.");
     }
-  }, [job, navigate]);
+  }, [job, jobId, navigate, queryClient]);
 
   const handleDrag = (e: React.DragEvent<HTMLElement>) => {
     e.preventDefault();

@@ -1,13 +1,16 @@
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { ExportButton } from '@/components/export/ExportButton';
 import { formatFileType } from '@/lib/utils';
-import { ArrowLeft, BookOpen, Download, FileText, Loader2, Quote, Share2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowLeft, BookOpen, FileText, Loader2, Share2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import { useJob } from '@/hooks/useJobs';
-import type { Job, SummaryContent, NotesContent, FlashcardsContent, Flashcard } from '@/types';
+import { useBackNavigation } from '@/hooks/useBackNavigation';
+import type { Job, SummaryContent, NotesContent } from '@/types';
+import { JsonDisplay } from '@/components/ui/json-display';
 
 // Helper functions to extract and type content
 function getSummaryContent(job: Job): SummaryContent | null {
@@ -22,35 +25,185 @@ function getNotesContent(job: Job): NotesContent | null {
   return content.content as NotesContent;
 }
 
-function getFlashcardsContent(job: Job): Flashcard[] {
-  const content = job.generated_content.find(c => c.type === 'flashcards');
-  if (!content) return [];
-  const flashcardsContent = content.content as FlashcardsContent;
-  return flashcardsContent.flashcards || [];
-}
-
 export default function NoteDetail() {
-  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { data: job, isLoading: loading, error: jobError } = useJob(id);
+  // Disable polling for detail pages since jobs are already completed
+  const { data: job, isLoading: loading, error: jobError } = useJob(id, { stopPollingWhenComplete: false });
+  const { handleBack, backLabel } = useBackNavigation({ 
+    defaultPath: '/notes', 
+    defaultLabel: 'Back to Notes' 
+  });
   const [activeSection, setActiveSection] = useState('summary');
+
+  // Helper function to check if a string is valid JSON (defined before hooks)
+  const isValidJson = (str: string): boolean => {
+    if (!str || str.trim().length === 0) return false;
+    const trimmed = str.trim();
+    // Check if it starts with { or [ which are JSON indicators
+    if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return false;
+    try {
+      JSON.parse(trimmed);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  // Post-process markdown to replace JSON code blocks with JsonDisplay
+  // This must be before early returns to maintain hooks order
+  useEffect(() => {
+    // Only run if we have a job
+    if (!job) return;
+
+    const replaceJsonCodeBlocks = (containerId: string) => {
+      const container = document.getElementById(containerId);
+      if (!container) {
+        console.log(`Container ${containerId} not found`);
+        return;
+      }
+
+      console.log(`Processing container ${containerId}`, container);
+      const preElements = container.querySelectorAll('pre code');
+      console.log(`Found ${preElements.length} pre code elements`);
+      
+      preElements.forEach((codeEl, index) => {
+        const preEl = codeEl.parentElement;
+        if (!preEl || (preEl as HTMLElement).dataset.jsonReplaced === 'true') {
+          console.log(`Skipping element ${index} - already replaced or no parent`);
+          return;
+        }
+
+        // Get text content and decode HTML entities
+        let codeString = codeEl.textContent?.trim() || '';
+        console.log(`Element ${index} code string length:`, codeString.length, codeString.substring(0, 50));
+        
+        // Decode HTML entities (like &amp; -> &)
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = codeString;
+        codeString = tempDiv.textContent || tempDiv.innerText || codeString;
+        
+        if (codeString && isValidJson(codeString)) {
+          console.log(`Element ${index} is valid JSON, replacing...`);
+          try {
+            const jsonData = JSON.parse(codeString);
+            // Mark as replaced
+            (preEl as HTMLElement).dataset.jsonReplaced = 'true';
+            
+            // Create a wrapper div
+            const wrapper = document.createElement('div');
+            wrapper.className = 'json-display-wrapper my-4';
+            
+            // Use ReactDOM to render JsonDisplay
+            import('react-dom/client').then(({ createRoot }) => {
+              const root = createRoot(wrapper);
+              root.render(
+                React.createElement(JsonDisplay, {
+                  data: jsonData,
+                  showCopyButton: true,
+                  className: 'my-4',
+                  maxHeight: '400px',
+                  inline: true,
+                })
+              );
+              preEl.replaceWith(wrapper);
+              console.log(`Element ${index} replaced successfully`);
+            });
+          } catch (e) {
+            console.log('JSON parse error:', e, codeString.substring(0, 100));
+            // Not valid JSON, skip
+          }
+        } else {
+          console.log(`Element ${index} is not valid JSON`);
+        }
+      });
+    };
+
+    // Use MutationObserver to watch for when ReactMarkdown renders
+    const observer = new MutationObserver(() => {
+      replaceJsonCodeBlocks('study-notes-content');
+      replaceJsonCodeBlocks('transcript-content');
+    });
+
+    // Start observing after a short delay
+    const timeoutId = setTimeout(() => {
+      // Observe the document body for changes
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
+      
+      // Also try immediately
+      replaceJsonCodeBlocks('study-notes-content');
+      replaceJsonCodeBlocks('transcript-content');
+      
+      // Stop observing after 5 seconds
+      setTimeout(() => {
+        observer.disconnect();
+      }, 5000);
+    }, 100);
+
+    return () => {
+      clearTimeout(timeoutId);
+      observer.disconnect();
+    };
+  }, [job]);
 
   useEffect(() => {
     const handleScroll = () => {
-      const sections = ['summary', 'notes', 'flashcards', 'transcript'];
-      for (const section of sections) {
+      const sections = ['summary', 'notes', 'transcript'];
+      const viewportHeight = window.innerHeight;
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const documentHeight = document.documentElement.scrollHeight;
+      
+      // Check if user is at or near the bottom of the page
+      // Use a more generous threshold to catch when user is viewing transcript
+      // But only if user has scrolled down (not at the top)
+      const distanceFromBottom = documentHeight - (scrollTop + viewportHeight);
+      const isAtBottom = distanceFromBottom <= 250 && scrollTop > 100;
+      
+      // If at the bottom, always highlight transcript
+      if (isAtBottom) {
+        setActiveSection('transcript');
+        return;
+      }
+      
+      // Otherwise, find which section's top is closest to the top of viewport
+      // Check sections from bottom to top (transcript -> notes -> summary)
+      let activeSection = 'summary';
+      let closestDistance = Infinity;
+      
+      for (let i = sections.length - 1; i >= 0; i--) {
+        const section = sections[i];
         const element = document.getElementById(section);
         if (element) {
           const rect = element.getBoundingClientRect();
-          if (rect.top >= 0 && rect.top <= 300) {
-            setActiveSection(section);
-            break;
+          
+          // Check if section is visible in viewport
+          if (rect.bottom > 0 && rect.top < viewportHeight) {
+            // Calculate distance from top of viewport
+            const distanceFromTop = Math.abs(rect.top);
+            
+            // If this section is closer to the top, make it active
+            if (distanceFromTop < closestDistance) {
+              closestDistance = distanceFromTop;
+              activeSection = section;
+            }
+            
+            // If section top is near the top of viewport (within 300px), prioritize it
+            if (rect.top >= 0 && rect.top <= 300) {
+              activeSection = section;
+              break;
+            }
           }
         }
       }
+      
+      setActiveSection(activeSection);
     };
 
     window.addEventListener('scroll', handleScroll);
+    // Call once on mount to set initial state
+    handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -70,7 +223,7 @@ export default function NoteDetail() {
       <Layout>
         <div className="text-center py-20">
           <h2 className="text-2xl font-serif text-foreground">Note not found</h2>
-          <Button variant="link" onClick={() => navigate('/notes')} className="text-primary hover:underline mt-4">Back to Notes</Button>
+          <Button variant="link" onClick={handleBack} className="text-primary hover:underline mt-4">{backLabel}</Button>
         </div>
       </Layout>
     );
@@ -79,7 +232,6 @@ export default function NoteDetail() {
   // Extract and type content properly
   const summaryContent = getSummaryContent(job);
   const notesContent = getNotesContent(job);
-  const flashcards = getFlashcardsContent(job);
 
   // Parse content for display
   const summaryText = summaryContent?.summary || "No summary available.";
@@ -96,11 +248,11 @@ export default function NoteDetail() {
       <div className="max-w-7xl mx-auto">
         <Button
           variant="ghost"
-          onClick={() => navigate('/notes')}
+          onClick={handleBack}
           className="flex items-center text-muted-foreground hover:text-primary transition-colors mb-6 pl-0 hover:bg-transparent"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Notes
+          {backLabel}
         </Button>
 
         <header className="mb-8">
@@ -116,9 +268,11 @@ export default function NoteDetail() {
               <Button size="icon" variant="outline" className="text-muted-foreground hover:text-primary rounded-full hover:bg-muted">
                 <Share2 className="w-5 h-5" />
               </Button>
-              <Button size="icon" variant="outline" className="text-muted-foreground hover:text-primary rounded-full hover:bg-muted">
-                <Download className="w-5 h-5" />
-              </Button>
+              <ExportButton 
+                jobId={job.id}
+                materialTypes={job.material_types}
+                disabled={job.status !== 'completed'}
+              />
             </div>
           </div>
 
@@ -146,34 +300,11 @@ export default function NoteDetail() {
                   <BookOpen className="w-5 h-5 text-primary" />
                   <h2 className="text-xl font-medium text-foreground">Study Notes</h2>
                 </div>
-                <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary">
+                <div 
+                  id="study-notes-content"
+                  className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary"
+                >
                   <ReactMarkdown>{studyNotesMarkdown}</ReactMarkdown>
-                </div>
-              </Card>
-            )}
-
-            {flashcards.length > 0 && (
-              <Card id="flashcards" className="p-8 shadow-sm bg-background border border-border scroll-mt-24">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-2">
-                    <Quote className="w-5 h-5 text-primary" />
-                    <h2 className="text-xl font-medium text-foreground">Flashcards</h2>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={() => navigate(`/flashcards/${id}`)}>
-                    Open Flashcards
-                  </Button>
-                </div>
-                <div className="space-y-4">
-                  {flashcards.map((card, i) => (
-                    <div key={i} className="p-4 bg-background rounded-xl border border-border grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="font-medium text-foreground md:col-span-1 md:border-r border-border md:pr-4 flex items-center">
-                        {card.front}
-                      </div>
-                      <div className="text-sm text-muted-foreground md:col-span-2 flex items-center">
-                        {card.back}
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </Card>
             )}
@@ -186,7 +317,10 @@ export default function NoteDetail() {
               </div>
               <div className="max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                 {transcriptText ? (
-                  <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary leading-relaxed">
+                  <div 
+                    id="transcript-content"
+                    className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary leading-relaxed"
+                  >
                     <ReactMarkdown>{transcriptText}</ReactMarkdown>
                   </div>
                 ) : (
@@ -201,7 +335,7 @@ export default function NoteDetail() {
             <div className="sticky top-24">
               <p className="font-medium text-foreground mb-4 pl-4">On this page</p>
               <nav className="flex flex-col space-y-1">
-                {['Summary', 'Notes', 'Flashcards', 'Transcript'].map((item) => (
+                {['Summary', 'Notes', 'Transcript'].map((item) => (
                   <a
                     key={item}
                     href={`#${item.toLowerCase()}`}

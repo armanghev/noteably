@@ -6,6 +6,57 @@ from rest_framework import serializers
 from .models import Job
 
 
+class JobListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for job list views - excludes heavy content fields."""
+
+    class Meta:
+        model = Job
+        fields = [
+            "id",
+            "filename",
+            "file_type",
+            "status",
+            "progress",
+            "current_step",
+            "error_message",
+            "created_at",
+            "completed_at",
+        ]
+
+    def to_representation(self, instance):
+        """Override to compute all content-derived fields in a single pass."""
+        data = super().to_representation(instance)
+
+        # Process generated_content once for all derived fields
+        flashcard_count = 0
+        quiz_count = 0
+        content_types = []
+        summary_title = instance.filename
+        summary_preview = ""
+
+        for content in instance.generated_content.all():
+            content_types.append(content.type)
+
+            if content.type == "flashcards":
+                flashcards = content.content.get("flashcards", [])
+                flashcard_count = len(flashcards) if isinstance(flashcards, list) else 0
+            elif content.type in ("quiz", "quizzes"):
+                questions = content.content.get("questions", [])
+                quiz_count = len(questions) if isinstance(questions, list) else 0
+            elif content.type == "summary":
+                summary_title = content.content.get("title", instance.filename)
+                summary = content.content.get("summary", "")
+                summary_preview = (summary[:200] + "...") if len(summary) > 200 else summary
+
+        data["flashcard_count"] = flashcard_count
+        data["quiz_count"] = quiz_count
+        data["content_types"] = content_types
+        data["summary_title"] = summary_title
+        data["summary_preview"] = summary_preview
+
+        return data
+
+
 class JobSerializer(serializers.ModelSerializer):
     """Serializer for Job model."""
 

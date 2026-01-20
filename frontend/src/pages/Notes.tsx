@@ -5,27 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useJobs } from '@/hooks/useJobs';
 import { formatFileType } from '@/lib/utils';
-import type { Job, SummaryContent } from '@/types';
-
-// Helper to extract summary title from job
-function getSummaryTitle(job: Job): string {
-  const summaryContent = job.generated_content.find(c => c.type === 'summary');
-  if (summaryContent) {
-    const content = summaryContent.content as SummaryContent;
-    return content.title || job.filename;
-  }
-  return job.filename;
-}
-
-// Helper to extract summary text from job
-function getSummaryText(job: Job): string {
-  const summaryContent = job.generated_content.find(c => c.type === 'summary');
-  if (summaryContent) {
-    const content = summaryContent.content as SummaryContent;
-    return content.summary || 'No summary available.';
-  }
-  return 'No summary available.';
-}
+import type { JobListItem } from '@/types';
 
 export default function Notes() {
   const navigate = useNavigate();
@@ -63,7 +43,7 @@ export default function Notes() {
             <input
               type="text"
               placeholder="Search notes..."
-              className="pl-10 pr-4 py-2 rounded-full border border-border focus:outline-none focus:border-primary w-64"
+              className="pl-10 pr-4 py-2 rounded-full border border-border focus:outline-none focus:border-primary w-64 bg-background"
             />
           </div>
           <Button size="icon" variant="outline" className="rounded-full text-muted-foreground">
@@ -82,7 +62,7 @@ export default function Notes() {
           {completedJobs.map(job => (
             <Card
               key={job.id}
-              onClick={() => navigate(`/notes/${job.id}`)}
+              onClick={() => navigate(`/notes/${job.id}`, { state: { from: '/notes' } })}
               className="p-6 cursor-pointer hover:shadow-md transition-shadow group bg-background border-border"
             >
               <div className="flex justify-between items-start mb-4">
@@ -91,9 +71,9 @@ export default function Notes() {
                 </div>
                 <span className="text-xs text-muted-foreground">{formatDate(job.created_at)}</span>
               </div>
-              <h3 className="font-serif text-lg font-medium mb-2 text-foreground">{getSummaryTitle(job)}</h3>
+              <h3 className="font-serif text-lg font-medium mb-2 text-foreground">{job.summary_title}</h3>
               <p className="text-sm text-muted-foreground line-clamp-3 mb-4">
-                {getSummaryText(job)}
+                {job.summary_preview || 'No summary available.'}
               </p>
               <div className="flex flex-wrap gap-2">
                 <span className="text-xs px-2 py-1 bg-muted rounded-md text-muted-foreground">{formatFileType(job.file_type)}</span>

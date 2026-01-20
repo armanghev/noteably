@@ -1,7 +1,7 @@
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "@/components/theme/theme-provider"
 import { cn } from "@/lib/utils"
-import { motion } from "framer-motion"
+import { motion } from "motion/react"
 import { useSidebar } from "@/components/ui/sidebar"
 
 export function ThemeToggle() {
@@ -25,10 +25,14 @@ export function ThemeToggle() {
 
       <motion.span
         animate={{
-          display: animate ? (open ? "inline-block" : "none") : "inline-block",
+          width: animate ? (open ? "auto" : 0) : "auto",
           opacity: animate ? (open ? 1 : 0) : 1,
         }}
-        className="text-sidebar-foreground text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block p-0! m-0!"
+        transition={{
+          duration: 0.3,
+          ease: "easeInOut",
+        }}
+        className="text-sidebar-foreground text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre overflow-hidden inline-block p-0! m-0!"
       >
         Theme
       </motion.span>

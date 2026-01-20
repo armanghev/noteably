@@ -4,8 +4,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { ExportButton } from '@/components/export/ExportButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useJob } from '@/hooks/useJobs';
+import { useBackNavigation } from '@/hooks/useBackNavigation';
 import type { FlashcardsContent, Flashcard } from '@/types';
 
 // Helper to extract flashcards from job
@@ -19,7 +21,12 @@ function getFlashcardsContent(job: NonNullable<ReturnType<typeof useJob>['data']
 export default function FlashcardDeck() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { data: job, isLoading } = useJob(id);
+  // Disable polling for detail pages since jobs are already completed
+  const { data: job, isLoading } = useJob(id, { stopPollingWhenComplete: false });
+  const { handleBack, backLabel } = useBackNavigation({ 
+    defaultPath: '/flashcards', 
+    defaultLabel: 'Back to Decks' 
+  });
   const [isStudyMode, setIsStudyMode] = useState(true);
   const [currentCard, setCurrentCard] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -40,7 +47,7 @@ export default function FlashcardDeck() {
       <Layout>
         <div className="text-center py-20">
           <h2 className="text-2xl font-serif text-foreground">Deck not found</h2>
-          <Button variant="link" onClick={() => navigate('/flashcards')} className="text-primary hover:underline mt-4">Back to Flashcards</Button>
+          <Button variant="link" onClick={handleBack} className="text-primary hover:underline mt-4">{backLabel}</Button>
         </div>
       </Layout>
     );
@@ -54,7 +61,7 @@ export default function FlashcardDeck() {
       <Layout>
         <div className="text-center py-20">
           <h2 className="text-2xl font-serif text-foreground">No flashcards found</h2>
-          <Button variant="link" onClick={() => navigate('/flashcards')} className="text-primary hover:underline mt-4">Back to Flashcards</Button>
+          <Button variant="link" onClick={handleBack} className="text-primary hover:underline mt-4">{backLabel}</Button>
         </div>
       </Layout>
     );
@@ -99,19 +106,24 @@ export default function FlashcardDeck() {
         <header className="flex justify-between items-center mb-8">
           <Button
             variant="ghost"
-            onClick={() => navigate('/flashcards')}
+            onClick={handleBack}
             className="flex items-center text-muted-foreground hover:text-primary transition-colors pl-0 hover:bg-transparent"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Decks
+            {backLabel}
           </Button>
-
-          <div className="flex bg-card rounded-lg p-1 border border-border shadow-sm">
+          <div className="flex items-center gap-2">
+            <ExportButton 
+              jobId={job.id}
+              materialTypes={job.material_types}
+              disabled={job.status !== 'completed'}
+            />
+            <div className="flex bg-card rounded-lg p-1 border border-border shadow-sm">
             <Button
               variant={isStudyMode ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setIsStudyMode(true)}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${isStudyMode ? 'bg-accent text-accent-foreground hover:bg-[#4f5c44]' : 'text-muted-foreground hover:text-gray-900 hover:bg-transparent'}`}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${isStudyMode ? 'bg-accent text-accent-foreground hover:bg-accent/80' : 'text-muted-foreground hover:text-foreground hover:bg-transparent'}`}
             >
               <Layers className="w-4 h-4" /> Study
             </Button>
@@ -119,10 +131,11 @@ export default function FlashcardDeck() {
               variant={!isStudyMode ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setIsStudyMode(false)}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${!isStudyMode ? 'bg-accent text-accent-foreground hover:bg-[#4f5c44]' : 'text-muted-foreground hover:text-gray-900 hover:bg-transparent'}`}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${!isStudyMode ? 'bg-accent text-accent-foreground hover:bg-accent/80' : 'text-muted-foreground hover:text-foreground hover:bg-transparent'}`}
             >
               <LayoutGrid className="w-4 h-4" /> List
             </Button>
+          </div>
           </div>
         </header>
 
@@ -154,7 +167,7 @@ export default function FlashcardDeck() {
                     transition={{ duration: 0.3 }}
                   >
                     {/* Front */}
-                    <div className="absolute inset-0 backface-hidden bg-secondary rounded-3xl shadow-xl flex items-center justify-center p-12 border border-border text-center">
+                    <div className="absolute inset-0 backface-hidden bg-background rounded-3xl shadow-xl flex items-center justify-center p-12 border border-border text-center">
                       <h3 className="text-2xl font-medium text-foreground">{cards[currentCard].front}</h3>
                       <p className="absolute bottom-6 text-muted-foreground text-sm">Click to flip</p>
                     </div>

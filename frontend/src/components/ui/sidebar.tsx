@@ -1,6 +1,6 @@
 "use client";
 import { cn } from "@/lib/utils";
-import React, { useState, createContext, useContext } from "react";
+import React, { useState, createContext, useContext, useMemo } from "react";
 import { motion } from "motion/react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { ThemeToggle } from "../theme/theme-toggle";
@@ -93,15 +93,33 @@ export const DesktopSidebar = ({
   ...props
 }: Omit<React.ComponentProps<typeof motion.div>, "children"> & { children?: React.ReactNode }) => {
   const { open, animate } = useSidebar();
+  const targetWidth = animate ? (open ? "250px" : "60px") : "250px";
+  
+  // Get initial width from data attribute for first render
+  const initialWidth = useMemo(() => {
+    if (typeof document === 'undefined') return targetWidth;
+    const dataAttr = document.documentElement.getAttribute('data-sidebar-open');
+    const isOpen = dataAttr === null ? true : dataAttr === 'true';
+    return isOpen ? "250px" : "60px";
+  }, []);
+
   return (
     <>
       <motion.div
+        data-sidebar
         className={cn(
-          "h-full px-4 py-4 hidden  md:flex md:flex-col bg-sidebar w-[250px] shrink-0",
+          "h-full px-4 py-4 hidden  md:flex md:flex-col bg-sidebar shrink-0",
           className
         )}
+        initial={{
+          width: initialWidth,
+        }}
         animate={{
-          width: animate ? (open ? "250px" : "60px") : "250px",
+          width: targetWidth,
+        }}
+        transition={{
+          duration: 0.3,
+          ease: "easeInOut",
         }}
         {...props}
       >
@@ -141,6 +159,10 @@ export const SidebarLink = ({
           width: animate ? (open ? "auto" : 0) : "auto",
           opacity: animate ? (open ? 1 : 0) : 1,
         }}
+        transition={{
+          duration: 0.3,
+          ease: "easeInOut",
+        }}
         className="text-sidebar-foreground text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre overflow-hidden inline-block p-0! m-0!"
       >
         {link.label}
@@ -170,10 +192,14 @@ export const SidebarToggle = () => {
 
       <motion.span
         animate={{
-          display: animate ? (open ? "inline-block" : "none") : "inline-block",
+          width: animate ? (open ? "auto" : 0) : "auto",
           opacity: animate ? (open ? 1 : 0) : 1,
         }}
-        className="text-sidebar-foreground text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block p-0! m-0!"
+        transition={{
+          duration: 0.3,
+          ease: "easeInOut",
+        }}
+        className="text-sidebar-foreground text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre overflow-hidden inline-block p-0! m-0!"
       >
         Close Sidebar
       </motion.span>
@@ -211,6 +237,10 @@ export const ProfileLink = () => {
         animate={{
           width: animate ? (open ? "auto" : 0) : "auto",
           opacity: animate ? (open ? 1 : 0) : 1,
+        }}
+        transition={{
+          duration: 0.3,
+          ease: "easeInOut",
         }}
         className="text-sidebar-foreground text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre overflow-hidden inline-block p-0! m-0!"
       >
