@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Brain, Zap, FileText, Loader2, ScrollText, StickyNote, RotateCw, ArrowRight as ArrowRightIcon, ArrowLeft as PrevIcon, CheckCircle2, XCircle } from 'lucide-react';
+import { ArrowLeft, Brain, Zap, FileText, Loader2, ScrollText, StickyNote, RotateCw, ArrowRight as ArrowRightIcon, ArrowLeft as PrevIcon, CheckCircle2, XCircle, History, Trophy, Upload, Video, Music } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -9,8 +9,13 @@ import { ExportButton } from '@/components/export/ExportButton';
 import { formatFileType } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
-import { useJob } from '@/hooks/useJobs';
+import { useJob, useSignedFileUrl } from '@/hooks/useJobs';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
+import { useQuizAttempts, useCreateQuizAttempt } from '@/hooks/useQuizAttempts';
+import { toast } from 'sonner';
+import { AudioPlayer } from '@/components/ui/audio-player';
+import { VideoPlayer } from '@/components/ui/video-player';
+import { PDFViewer } from '@/components/ui/pdf-viewer';
 import type { Job, SummaryContent, NotesContent, FlashcardsContent, Flashcard, QuizContent, QuizQuestion, MaterialType } from '@/types';
 import { JsonDisplay } from '@/components/ui/json-display';
 import type { Components } from 'react-markdown';
@@ -54,9 +59,12 @@ export default function StudySetDetail() {
   const hasSummaryOrNotes = job?.material_types?.some((t: MaterialType) => t === 'summary' || t === 'notes') ?? false;
   const hasFlashcards = job?.material_types?.includes('flashcards' as MaterialType) ?? false;
   const hasQuiz = job?.material_types?.some((t: MaterialType) => t === 'quiz' || t === 'quizzes') ?? false;
+  const hasSourceFile = !!job?.storage_url;
   
-  const defaultTab = hasSummaryOrNotes ? 'summary-notes' : hasFlashcards ? 'flashcards' : hasQuiz ? 'quiz' : 'summary-notes';
+  const defaultTab = hasSummaryOrNotes ? 'summary-notes' : hasFlashcards ? 'flashcards' : hasQuiz ? 'quiz' : hasSourceFile ? 'source' : 'summary-notes';
   const [activeTab, setActiveTab] = useState(defaultTab);
+  
+  // Video player is now handled by VideoPlayer component
 
   // Flashcard study mode state (default to study mode)
   const [isFlashcardStudyMode, setIsFlashcardStudyMode] = useState(true);
@@ -70,7 +78,22 @@ export default function StudySetDetail() {
   const [isAnswered, setIsAnswered] = useState(false);
   const [score, setScore] = useState(0);
   const [showResults, setShowResults] = useState(false);
-
+  const [answers, setAnswers] = useState<Array<{ question_index: number; selected_option: number; is_correct: boolean }>>([]);
+  const [attemptSaved, setAttemptSaved] = useState(false);
+  
+  // Quiz attempts
+  const { data: attemptsData } = useQuizAttempts(id);
+  const createAttemptMutation = useCreateQuizAttempt();
+  
+  // Get signed URL for file access (for private buckets)
+  const { data: signedUrlData } = useSignedFileUrl(id);
+  const fileUrl = signedUrlData?.signed_url || job?.storage_url;
+  
+  // File type detection (safe to call even if job is null)
+  const isAudioFile = job?.file_type?.includes('audio') || job?.filename?.match(/\.(mp3|wav|m4a|ogg|flac)$/i);
+  const isVideoFile = job?.file_type?.includes('video') || job?.filename?.match(/\.(mp4|webm|mov|avi|mkv)$/i);
+  
+  // Now safe to do early returns after all hooks
   if (isLoading) {
     return (
       <Layout>
@@ -95,7 +118,7 @@ export default function StudySetDetail() {
     );
   }
 
-  // Extract content
+  // Extract content (now safe since we know job exists)
   const summaryContent = getSummaryContent(job);
   const notesContent = getNotesContent(job);
   const flashcards = getFlashcardsContent(job);
@@ -105,6 +128,12 @@ export default function StudySetDetail() {
   const generatedTitle = summaryContent?.title || job.filename;
   const studyNotesMarkdown = notesContent?.content || "";
   const transcriptText = job.transcription_text || "No transcript available.";
+  
+  // File type detection (re-evaluate now that we know job exists)
+  const isPdfFile = job.file_type?.includes('pdf') || job.filename?.match(/\.pdf$/i);
+  const isDocumentFile = job.file_type?.includes('text') || job.file_type?.includes('document') || job.filename?.match(/\.(doc|docx|txt)$/i);
+  
+  // Video player is now handled by VideoPlayer component
 
   // Helper function to check if a string is valid JSON
   const isValidJson = (str: string): boolean => {
@@ -199,7 +228,7 @@ export default function StudySetDetail() {
   };
 
   // Count available tabs
-  const tabCount = [hasSummaryOrNotes, hasFlashcards, hasQuiz].filter(Boolean).length;
+  const tabCount = [hasSummaryOrNotes, hasFlashcards, hasQuiz, hasSourceFile].filter(Boolean).length;
 
   // Flashcard handlers
   const flashcardVariants = {
@@ -246,18 +275,46 @@ export default function StudySetDetail() {
     setIsAnswered(true);
     const currentQ = quizQuestions[currentQuestion];
     const correctAnswer = currentQ.correct_answer ?? currentQ.correctAnswer ?? currentQ.correct_option ?? 0;
-    if (selectedOption === correctAnswer) {
+    const isCorrect = selectedOption === correctAnswer;
+    
+    if (isCorrect) {
       setScore(s => s + 1);
     }
+    
+    // Track the answer
+    setAnswers(prev => [...prev, {
+      question_index: currentQuestion,
+      selected_option: selectedOption ?? -1,
+      is_correct: isCorrect,
+    }]);
   };
 
-  const handleNextQuestion = () => {
+  const handleNextQuestion = async () => {
     if (currentQuestion < quizQuestions.length - 1) {
       setCurrentQuestion(c => c + 1);
       setSelectedOption(null);
       setIsAnswered(false);
     } else {
+      // Quiz is complete - save the attempt
       setShowResults(true);
+      
+      if (!attemptSaved && id) {
+        try {
+          await createAttemptMutation.mutateAsync({
+            jobId: id,
+            data: {
+              score,
+              total_questions: quizQuestions.length,
+              answers,
+            },
+          });
+          setAttemptSaved(true);
+          toast.success('Quiz score saved!');
+        } catch (error) {
+          console.error('Failed to save quiz attempt:', error);
+          toast.error('Failed to save quiz score. You can still retake the quiz.');
+        }
+      }
     }
   };
 
@@ -267,6 +324,8 @@ export default function StudySetDetail() {
     setIsAnswered(false);
     setScore(0);
     setShowResults(false);
+    setAnswers([]);
+    setAttemptSaved(false);
   };
 
   return (
@@ -285,7 +344,7 @@ export default function StudySetDetail() {
             </Button>
             
             {tabCount > 1 && (
-              <TabsList className={`grid ${tabCount === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+              <TabsList className={`grid ${tabCount === 2 ? 'grid-cols-2' : tabCount === 3 ? 'grid-cols-3' : 'grid-cols-4'}`}>
                 {hasSummaryOrNotes && (
                   <TabsTrigger value="summary-notes" className="flex items-center gap-2">
                     <FileText className="w-4 h-4" />
@@ -302,6 +361,12 @@ export default function StudySetDetail() {
                   <TabsTrigger value="quiz" className="flex items-center gap-2">
                     <Zap className="w-4 h-4" />
                     Quiz
+                  </TabsTrigger>
+                )}
+                {hasSourceFile && (
+                  <TabsTrigger value="source" className="flex items-center gap-2">
+                    <Upload className="w-4 h-4" />
+                    Source File
                   </TabsTrigger>
                 )}
               </TabsList>
@@ -506,7 +571,7 @@ export default function StudySetDetail() {
                   {showResults ? (
                     <div className="text-center py-12">
                       <div className="w-24 h-24 bg-secondary rounded-full flex items-center justify-center mx-auto mb-6 text-primary">
-                        <Zap className="w-12 h-12" />
+                        <Trophy className="w-12 h-12" />
                       </div>
                       <h2 className="text-3xl font-serif text-foreground mb-2">Quiz Complete!</h2>
                       <p className="text-muted-foreground mb-8">You scored {score} out of {quizQuestions.length}</p>
@@ -516,12 +581,71 @@ export default function StudySetDetail() {
                         <p className="text-sm text-muted-foreground uppercase tracking-wide">Accuracy</p>
                       </div>
 
-                      <Button
-                        onClick={resetQuiz}
-                        className="px-8 py-6 bg-primary text-primary-foreground rounded-full hover:hover:bg-primary/90 transition-colors"
-                      >
-                        Retake Quiz
-                      </Button>
+                      <div className="w-full flex items-center justify-center gap-4 mb-8">
+                        <Button
+                          onClick={resetQuiz}
+                          className="px-8 py-6 bg-primary text-primary-foreground rounded-full hover:hover:bg-primary/90 transition-colors"
+                        >
+                          Retake Quiz
+                        </Button>
+                      </div>
+
+                      {/* Attempt History */}
+                      {attemptsData?.results && attemptsData.results.length > 0 && (
+                        <Card className="rounded-2xl p-6 border-border bg-background max-w-2xl mx-auto">
+                          <div className="flex items-center gap-2 mb-4">
+                            <History className="w-5 h-5 text-primary" />
+                            <h3 className="text-xl font-serif text-foreground">Attempt History</h3>
+                          </div>
+                          <div className="space-y-3">
+                            {attemptsData.results.map((attempt, index) => {
+                              const attemptDate = new Date(attempt.created_at);
+                              const isLatest = index === 0;
+                              
+                              return (
+                                <div
+                                  key={attempt.id}
+                                  className={`flex items-center justify-between p-4 rounded-xl border ${
+                                    isLatest
+                                      ? 'border-primary bg-secondary/50'
+                                      : 'border-border bg-card'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-4">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
+                                      isLatest
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'bg-muted text-muted-foreground'
+                                    }`}>
+                                      {attemptsData.results.length - index}
+                                    </div>
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium text-foreground">
+                                          {attempt.score}/{attempt.total_questions} correct
+                                        </span>
+                                        {isLatest && (
+                                          <span className="text-xs px-2 py-0.5 bg-primary/20 text-primary rounded-full">
+                                            Latest
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-sm text-muted-foreground">
+                                        {attemptDate.toLocaleDateString()} at {attemptDate.toLocaleTimeString()}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="text-2xl font-bold text-primary">
+                                      {Math.round(attempt.percentage)}%
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </Card>
+                      )}
                     </div>
                   ) : (
                     <>
@@ -613,6 +737,126 @@ export default function StudySetDetail() {
               ) : (
                 <Card className="shadow-sm bg-background border-none">
                   <p className="text-sm text-muted-foreground italic text-center py-8">No quiz questions available.</p>
+                </Card>
+              )}
+            </TabsContent>
+          )}
+
+          {/* Source File Tab */}
+          {hasSourceFile && (
+            <TabsContent value="source" className="space-y-6">
+              {isAudioFile ? (
+                <Card className="p-8 shadow-sm bg-background border border-border">
+                  <div className="flex items-center gap-2 mb-6">
+                    <Music className="w-5 h-5 text-primary" />
+                    <h2 className="text-xl font-medium text-foreground">Audio Player</h2>
+                  </div>
+                  
+                  {/* Audio Player */}
+                  <div className="space-y-4 mb-8">
+                    <AudioPlayer
+                      src={fileUrl}
+                      filename={job.filename}
+                      fileType={formatFileType(job.file_type)}
+                      fileSizeBytes={job.file_size_bytes}
+                      transcript={transcriptText && transcriptText !== "No transcript available." ? transcriptText : undefined}
+                      transcriptWords={job.transcription_words || undefined}
+                    />
+                  </div>
+                </Card>
+              ) : isVideoFile ? (
+                <Card className="p-8 shadow-sm bg-background border border-border">
+                  <div className="flex items-center gap-2 mb-6">
+                    <Video className="w-5 h-5 text-primary" />
+                    <h2 className="text-xl font-medium text-foreground">Video Player</h2>
+                  </div>
+                  
+                  {/* Video Player */}
+                  <VideoPlayer
+                    src={fileUrl}
+                    filename={job.filename}
+                    fileType={formatFileType(job.file_type)}
+                    fileSizeBytes={job.file_size_bytes}
+                    transcript={transcriptText && transcriptText !== "No transcript available." ? transcriptText : undefined}
+                    transcriptWords={job.transcription_words || undefined}
+                  />
+                </Card>
+              ) : isPdfFile ? (
+                fileUrl ? (
+                  <PDFViewer 
+                    file={fileUrl}
+                    filename={job.filename}
+                  />
+                ) : (
+                  <Card className="p-8 shadow-sm bg-background border border-border">
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  </Card>
+                )
+              ) : isDocumentFile ? (
+                <Card className="p-8 shadow-sm bg-background border border-border">
+                  <div className="flex items-center gap-2 mb-6">
+                    <FileText className="w-5 h-5 text-primary" />
+                    <h2 className="text-xl font-medium text-foreground">Document Viewer</h2>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="bg-card p-4 rounded-xl border border-border">
+                      <div className="text-center text-sm text-muted-foreground mb-4">
+                        <p className="font-medium">{job.filename}</p>
+                        <p>{formatFileType(job.file_type)} • {(job.file_size_bytes / (1024 * 1024)).toFixed(2)} MB</p>
+                      </div>
+                      
+                      {/* For text files, show content directly */}
+                      {job.file_type?.includes('text/plain') ? (
+                        <div className="bg-background p-6 rounded-lg border border-border max-h-96 overflow-y-auto">
+                          <p className="text-muted-foreground whitespace-pre-wrap font-mono text-sm">
+                            {/* Note: For text files, we'd need to fetch the content */}
+                            Click the button below to view the document.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="w-full h-[600px] rounded-lg overflow-hidden border border-border bg-muted flex items-center justify-center">
+                          <p className="text-muted-foreground">Preview not available for this file type</p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Download/Open Button */}
+                    <div className="flex justify-center">
+                      {fileUrl && (
+                        <Button
+                          onClick={() => window.open(fileUrl, '_blank')}
+                          variant="outline"
+                          className="gap-2"
+                        >
+                          <Upload className="w-4 h-4" />
+                          Open Document
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ) : (
+                <Card className="p-8 shadow-sm bg-background border border-border">
+                  <div className="text-center py-12">
+                    <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-xl font-medium text-foreground mb-2">File Viewer</h3>
+                    <p className="text-muted-foreground mb-6">
+                      {job.filename} • {formatFileType(job.file_type)} • {(job.file_size_bytes / (1024 * 1024)).toFixed(2)} MB
+                    </p>
+                    {fileUrl && (
+                      <Button
+                        onClick={() => window.open(fileUrl, '_blank')}
+                        variant="outline"
+                        className="gap-2"
+                      >
+                        <Upload className="w-4 h-4" />
+                        Open File
+                      </Button>
+                    )}
+                  </div>
                 </Card>
               )}
             </TabsContent>

@@ -1,7 +1,7 @@
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { AlertCircle, CheckCircle2, FileText, FileType, HelpCircle, Layers, Loader2, Music, ScrollText, StickyNote, Upload as UploadIcon, Wand2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, FileText, FileType, HelpCircle, Layers, Loader2, Music, ScrollText, StickyNote, Upload as UploadIcon, Wand2, Video } from 'lucide-react';
 import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -113,7 +113,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
             multiple={false}
             onChange={handleChange}
             className="hidden"
-            accept=".mp3,.wav,.pdf,.txt"
+            accept=".mp3,.wav,.pdf,.txt,.mp4,.mov"
           />
           <label
             htmlFor="file-upload"
@@ -136,7 +136,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
                 {dragActive ? "Drop file here" : "Click to upload or drag and drop"}
               </h3>
               <p className="text-muted-foreground text-sm mb-6">
-                MP3, WAV, PDF up to 50MB
+                MP3, WAV, PDF, TXT, MP4, MOV up to 50MB
               </p>
               {error && (
                 <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 px-4 py-2 rounded-full mx-auto w-fit">
@@ -258,7 +258,7 @@ export default function Upload() {
         queryClient.cancelQueries({ queryKey: jobKeys.detail(jobId) });
       }
       setTimeout(() => {
-        navigate(`/notes/${job.id}`, { state: { from: '/upload' } });
+        navigate(`/study-sets/${job.id}`, { state: { from: '/upload' } });
       }, 1000);
     } else if (job.status === 'failed') {
       // Cancel polling on failure
@@ -280,9 +280,9 @@ export default function Upload() {
   };
 
   const validateFile = (file: File): boolean => {
-    const validTypes = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'application/pdf', 'text/plain'];
+    const validTypes = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'application/pdf', 'text/plain', 'video/mp4', 'video/quicktime', 'video/x-msvideo'];
     if (!validTypes.includes(file.type)) {
-      setError("Unsupported file format. Please upload MP3, WAV, PDF, or TXT.");
+      setError("Unsupported file format. Please upload MP3, WAV, PDF, TXT, MP4, or MOV.");
       return false;
     }
     if (file.size > 50 * 1024 * 1024) { // 50MB limit
@@ -359,6 +359,7 @@ export default function Upload() {
 
   const getFileIcon = (fileType: string): React.ReactNode => {
     if (fileType.includes('audio')) return <Music className="w-8 h-8 text-primary" />;
+    if (fileType.includes('video')) return <Video className="w-8 h-8 text-primary" />;
     if (fileType.includes('pdf')) return <FileText className="w-8 h-8 text-primary" />;
     return <FileType className="w-8 h-8 text-primary" />;
   };

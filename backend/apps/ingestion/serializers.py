@@ -64,6 +64,7 @@ class JobSerializer(serializers.ModelSerializer):
     transcription_text = serializers.CharField(
         source="transcription.text", read_only=True
     )
+    transcription_words = serializers.SerializerMethodField()
 
     class Meta:
         model = Job
@@ -78,6 +79,7 @@ class JobSerializer(serializers.ModelSerializer):
             "options",
             "status",
             "transcription_text",
+            "transcription_words",
             "progress",
             "current_step",
             "error_message",
@@ -86,6 +88,30 @@ class JobSerializer(serializers.ModelSerializer):
             "completed_at",
             "completed_at",
             "generated_content",
+        ]
+    
+    def get_transcription_words(self, obj):
+        """Extract word-level timestamps from AssemblyAI response."""
+        if not hasattr(obj, 'transcription') or not obj.transcription:
+            return None
+        
+        raw_response = obj.transcription.raw_response
+        if not raw_response or not isinstance(raw_response, dict):
+            return None
+        
+        words = raw_response.get('words', [])
+        if not words:
+            return None
+        
+        # Convert timestamps from milliseconds to seconds and format for frontend
+        return [
+            {
+                'text': word.get('text', ''),
+                'start': word.get('start', 0) / 1000,  # Convert ms to seconds
+                'end': word.get('end', 0) / 1000,  # Convert ms to seconds
+                'confidence': word.get('confidence', 0),
+            }
+            for word in words
         ]
         read_only_fields = [
             "id",

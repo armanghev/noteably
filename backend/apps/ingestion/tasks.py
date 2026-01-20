@@ -5,6 +5,7 @@ import requests
 from apps.generation.models import GeneratedContent
 from apps.generation.service import GeminiService
 from apps.ingestion.models import Job
+from apps.ingestion.supabase_storage import get_signed_url_from_storage_url
 from apps.transcription.models import Transcription
 from apps.transcription.service import TranscriptionService
 from celery import shared_task
@@ -18,7 +19,15 @@ logger = logging.getLogger(__name__)
 def extract_pdf_text_from_url(url: str) -> str:
     """Download PDF from URL and extract text."""
     try:
-        response = requests.get(url)
+        # Generate signed URL if needed (for private buckets)
+        try:
+            signed_url = get_signed_url_from_storage_url(url, expires_in=3600)
+            url_to_use = signed_url
+        except Exception:
+            # If URL extraction fails, try using the original URL (might be public)
+            url_to_use = url
+        
+        response = requests.get(url_to_use)
         response.raise_for_status()
 
         with io.BytesIO(response.content) as f:
@@ -82,8 +91,23 @@ def process_upload_task(self, job_id):
                     return
 
             logger.info(f"Submitting job {job_id} to AssemblyAI")
-            # Submit to AssemblyAI
-            tx_id = TranscriptionService.submit_transcription(job.storage_url)
+            # Generate a signed URL for AssemblyAI (expires in 24 hours)
+            # This is needed because the bucket is private and AssemblyAI needs to download the file
+            try:
+                signed_url = get_signed_url_from_storage_url(
+                    job.storage_url,
+                    expires_in=86400  # 24 hours
+                )
+                logger.info(f"Generated signed URL for job {job_id}")
+            except Exception as e:
+                logger.error(f"Failed to generate signed URL for job {job_id}: {e}")
+                job.status = "failed"
+                job.error_message = f"Failed to generate access URL: {str(e)}"
+                job.save()
+                return
+            
+            # Submit to AssemblyAI with signed URL
+            tx_id = TranscriptionService.submit_transcription(signed_url)
 
             job.transcription_id = tx_id
             job.status = "transcribing"

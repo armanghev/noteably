@@ -7,7 +7,7 @@ from rest_framework.response import Response
 
 from .models import Job
 from .quota import check_user_quota
-from .supabase_storage import upload_to_supabase
+from .supabase_storage import upload_to_supabase, get_signed_url_from_storage_url
 from .serializers import ProcessUploadSerializer
 from .tasks import process_upload_task
 from .validators import get_file_duration, validate_file_size, validate_file_type
@@ -162,3 +162,43 @@ def get_job_status(request, job_id):
 
     serializer = JobSerializer(job)
     return Response(serializer.data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_signed_file_url(request, job_id):
+    """
+    Get a signed URL for accessing the job's uploaded file.
+    Useful for private buckets where public URLs don't work.
+    """
+    try:
+        job = Job.objects.get(id=job_id, user_id=request.user_id)
+    except Job.DoesNotExist:
+        return Response(
+            {"error": "Job not found or access denied"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    
+    if not job.storage_url:
+        return Response(
+            {"error": "File not found for this job"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    
+    try:
+        # Generate signed URL (expires in 24 hours)
+        signed_url = get_signed_url_from_storage_url(
+            job.storage_url,
+            expires_in=86400  # 24 hours
+        )
+        
+        return Response({
+            "signed_url": signed_url,
+            "expires_in": 86400,
+        })
+    except Exception as e:
+        logger.error(f"Failed to generate signed URL for job {job_id}: {e}")
+        return Response(
+            {"error": "Failed to generate file access URL"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

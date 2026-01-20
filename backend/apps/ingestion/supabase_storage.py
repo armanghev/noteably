@@ -151,6 +151,36 @@ def delete_from_supabase(storage_url: str, bucket: str = STORAGE_BUCKET) -> bool
         return False
 
 
+def extract_key_from_url(storage_url: str, bucket: str = STORAGE_BUCKET) -> Optional[str]:
+    """
+    Extract the storage key from a Supabase storage URL.
+    
+    Args:
+        storage_url: Full URL of the file (public or signed)
+        bucket: Bucket name (default: 'noteably')
+        
+    Returns:
+        Storage key (e.g., '{job_id}/upload/{filename}') or None if extraction fails
+    """
+    try:
+        # URL format: https://<project>.supabase.co/storage/v1/object/public/<bucket>/<key>
+        # or: https://<project>.supabase.co/storage/v1/object/sign/<bucket>/<key>?...
+        parts = storage_url.split(f"/{bucket}/")
+        if len(parts) < 2:
+            logger.warning(f"Could not extract key from URL: {storage_url}")
+            return None
+        
+        # Get the key part (everything after /bucket/)
+        key_with_params = parts[1]
+        # Remove query parameters if present (for signed URLs)
+        key = key_with_params.split('?')[0]
+        
+        return key
+    except Exception as e:
+        logger.error(f"Error extracting key from URL: {e}")
+        return None
+
+
 def get_signed_url(
     key: str,
     bucket: str = STORAGE_BUCKET,
@@ -190,3 +220,30 @@ def get_signed_url(
     except Exception as e:
         logger.error(f"Error generating signed URL: {e}")
         raise UploadError(f"Failed to generate signed URL: {str(e)}")
+
+
+def get_signed_url_from_storage_url(
+    storage_url: str,
+    bucket: str = STORAGE_BUCKET,
+    expires_in: int = 3600,
+) -> str:
+    """
+    Generate a signed URL from an existing storage URL.
+    Useful for converting public URLs to signed URLs for external services.
+    
+    Args:
+        storage_url: Full URL of the file (public or signed)
+        bucket: Bucket name (default: 'noteably')
+        expires_in: Expiration time in seconds (default: 1 hour)
+        
+    Returns:
+        Signed URL that expires after expires_in seconds
+        
+    Raises:
+        UploadError: If key extraction or signed URL generation fails
+    """
+    key = extract_key_from_url(storage_url, bucket)
+    if not key:
+        raise UploadError(f"Could not extract key from storage URL: {storage_url}")
+    
+    return get_signed_url(key, bucket, expires_in)

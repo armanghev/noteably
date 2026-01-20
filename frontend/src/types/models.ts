@@ -83,6 +83,14 @@ export interface JobListItem {
   summary_preview: string;
 }
 
+// Word-level timestamp from transcription
+export interface TranscriptionWord {
+  text: string;
+  start: number;  // Start time in seconds
+  end: number;    // End time in seconds
+  confidence: number;
+}
+
 // Full job type matching Job model and JobSerializer (for detail views)
 export interface Job {
   id: string;
@@ -97,6 +105,7 @@ export interface Job {
   progress: number;
   current_step: string;
   transcription_text: string | null;
+  transcription_words?: TranscriptionWord[] | null;
   error_message: string;
   retry_count: number;
   created_at: string;

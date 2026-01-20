@@ -58,8 +58,13 @@ Text:
 """
 
     elif type in ["quiz", "quizzes"]:
+        # Calculate number of questions based on transcript length
+        # Roughly 1 question per 100 words, with min 3 and max 15
+        word_count = len(text.split())
+        num_questions = max(3, min(15, round(word_count / 100)))
+        
         return f"""{base_instruction}
-Create a 5-question multiple choice quiz based on the text.
+Create a {num_questions}-question multiple choice quiz based on the text.
 Include the correct answer index (0-3).
 
 Return your response in JSON format:

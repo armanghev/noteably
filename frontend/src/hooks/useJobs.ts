@@ -75,3 +75,13 @@ export function useProcessUpload() {
     },
   });
 }
+
+export function useSignedFileUrl(jobId: string | undefined) {
+  return useQuery({
+    queryKey: ['jobs', jobId, 'signed-url'],
+    queryFn: () => jobsService.getSignedFileUrl(jobId!),
+    enabled: !!jobId,
+    staleTime: 23 * 60 * 60 * 1000, // 23 hours (signed URLs expire in 24 hours)
+    gcTime: 23 * 60 * 60 * 1000, // Keep in cache for 23 hours
+  });
+}
