@@ -1,6 +1,5 @@
 from django.test import TestCase
-from unittest.mock import patch
-from celery.exceptions import Retry
+from unittest.mock import patch, MagicMock
 from apps.ingestion.models import Job
 from apps.generation.models import GeneratedContent
 from apps.ingestion.tasks import process_upload_task
@@ -20,17 +19,26 @@ class GenerationPipelineTest(TestCase):
             status="queued",
         )
 
-    @patch("apps.transcription.service.TranscriptionService.submit_transcription")
-    @patch("apps.transcription.service.TranscriptionService.get_transcription_result")
+    @patch("apps.transcription.service.TranscriptionService.transcribe")
     @patch("apps.generation.service.GeminiService.generate_content")
-    def test_full_pipeline(self, mock_generate, mock_get_result, mock_submit):
-        # Mock Transcription Service
-        mock_submit.return_value = "tx_123"
-        mock_get_result.return_value = {
+    @patch("apps.ingestion.tasks.get_signed_url_from_storage_url")
+    def test_full_pipeline(self, mock_signed_url, mock_generate, mock_transcribe):
+        # Mock signed URL generation
+        mock_signed_url.return_value = "https://example.com/signed-url.mp3"
+        
+        # Mock Transcript object (simulating AssemblyAI SDK Transcript)
+        mock_transcript = MagicMock()
+        mock_transcript.id = "tx_123"
+        mock_transcript.text = "This is a lecture about Python."
+        mock_transcript.status = MagicMock()
+        mock_transcript.status.value = "completed"
+        # Mock model_dump() method (Pydantic v2) or dict() method (Pydantic v1)
+        mock_transcript.model_dump.return_value = {
             "id": "tx_123",
             "status": "completed",
             "text": "This is a lecture about Python.",
         }
+        mock_transcribe.return_value = mock_transcript
 
         # Mock Gemini Service
         mock_generate.side_effect = [
@@ -38,28 +46,13 @@ class GenerationPipelineTest(TestCase):
             {"questions": []},  # Second call (quiz)
         ]
 
-        # 1. First run: Submits to AssemblyAI (raises Retry)
-        try:
-            process_upload_task(self.job.id)
-        except Retry:
-            pass
-
-        self.job.refresh_from_db()
-        self.assertEqual(self.job.status, "transcribing")
-        self.assertEqual(self.job.transcription_id, "tx_123")
-        # Note: transcription_id is UUID in model but string in service.
-        # Wait, model definition says UUIDField.
-        # Check models.py: transcription_id = models.UUIDField(null=True, blank=True)
-        # Service returns string ID from AssemblyAI.
-        # This might be a bug if AssemblyAI IDs are not UUIDs.
-        # AssemblyAI IDs are usually strings like "6m5..." which are NOT UUIDs.
-
-        # 2. Second run: AssemblyAI returns completed, triggers Gemini
+        # Run the task (new method blocks until complete, no retry needed)
         process_upload_task(self.job.id)
 
         self.job.refresh_from_db()
         self.assertEqual(self.job.status, "completed")
         self.assertEqual(self.job.progress, 100)
+        self.assertEqual(self.job.transcription_id, "tx_123")
 
         # Verify content generated
         content = GeneratedContent.objects.filter(job=self.job)

@@ -42,7 +42,7 @@ def extract_pdf_text_from_url(url: str) -> str:
         raise
 
 @shared_task(bind=True, max_retries=3)
-def process_upload_task(self, job_id, temp_file_path=None):
+def process_upload_task(self, job_id, ):
     try:
         job = Job.objects.get(id=job_id)
     except Job.DoesNotExist:
@@ -53,35 +53,19 @@ def process_upload_task(self, job_id, temp_file_path=None):
         return
 
     try:
-        # Step 1: Upload file to Supabase Storage if in "uploading" status
-        if job.status == "uploading" and temp_file_path:
-            logger.info(f"Uploading file for job {job_id}")
-            try:
-                with open(temp_file_path, 'rb') as f:
-                    storage_url = upload_to_supabase(
-                        f,
-                        job.filename,
-                        job_id=str(job.id),
-                        content_type=job.file_type,
-                        subfolder="upload"
-                    )
-                job.storage_url = storage_url
-                job.status = "queued"
-                job.save(update_fields=['storage_url', 'status'])
-                logger.info(f"File uploaded for job {job_id}, storage_url: {storage_url}")
-
-                # Clean up temp file
-                os.remove(temp_file_path)
-                logger.info(f"Cleaned up temp file for job {job_id}")
-            except Exception as e:
-                logger.error(f"Upload failed for job {job_id}: {e}")
-                job.status = "failed"
-                job.error_message = f"Upload failed: {str(e)}"
-                job.save()
-                # Clean up on failure too
-                if temp_file_path and os.path.exists(temp_file_path):
-                    os.remove(temp_file_path)
-                return
+        # Step 1: Verify file is uploaded (should already be uploaded by web server)
+        if not job.storage_url:
+            logger.error(f"No storage URL for job {job_id}, upload may have failed")
+            job.status = "failed"
+            job.error_message = "File upload incomplete"
+            job.save()
+            return
+        
+        # If status is still "uploading", update to "queued" (file should be uploaded by now)
+        if job.status == "uploading":
+            job.status = "queued"
+            job.save(update_fields=['status'])
+            logger.info(f"Job {job_id} ready for processing")
 
         # Step 2: Transcription / Text Extraction
         if not hasattr(job, 'transcription') or job.transcription is None:
@@ -128,11 +112,29 @@ def process_upload_task(self, job_id, temp_file_path=None):
                 transcript = TranscriptionService.transcribe(signed_url)
 
                 # Create transcription record
+                # Convert Pydantic model to dict for JSONField storage
+                # Use model_dump() for Pydantic v2, fallback to dict() for v1
+                if hasattr(transcript, 'model_dump'):
+                    raw_response_data = transcript.model_dump()
+                elif hasattr(transcript, 'dict'):
+                    raw_response_data = transcript.dict()
+                else:
+                    # Fallback: convert to dict manually if neither method exists
+                    raw_response_data = {
+                        'id': transcript.id,
+                        'text': transcript.text,
+                        'status': transcript.status.value if hasattr(transcript.status, 'value') else str(transcript.status),
+                    }
+                    # Include other common attributes if they exist
+                    for attr in ['error', 'confidence', 'words', 'utterances', 'chapters', 'entities']:
+                        if hasattr(transcript, attr):
+                            raw_response_data[attr] = getattr(transcript, attr)
+
                 Transcription.objects.create(
                     job=job,
                     external_id=transcript.id,
                     text=transcript.text,
-                    raw_response=transcript.json_response,
+                    raw_response=raw_response_data,
                 )
                 job.transcription_id = transcript.id
                 job.save(update_fields=['transcription_id'])
@@ -177,14 +179,55 @@ def process_upload_task(self, job_id, temp_file_path=None):
                 job=job, type=material_type, content=content
             )
 
-        job.status = "completed"
-        job.progress = 100
-        job.completed_at = from_datetime()
-        job.save()
+        # Check if all requested materials were successfully generated
+        if errors:
+            # Some materials failed to generate
+            failed_types = [mt for mt, _ in errors]
+            error_messages = [f"{mt}: {msg}" for mt, msg in errors]
+            error_summary = "; ".join(error_messages)
+            
+            logger.warning(
+                f"Job {job_id} partially completed. "
+                f"Failed to generate: {failed_types}. "
+                f"Successfully generated: {list(results.keys())}"
+            )
+            
+            # Mark job as failed if no materials were generated at all
+            if not results:
+                job.status = "failed"
+                job.error_message = f"All content generation failed: {error_summary}"
+                job.save()
+                return
+            
+            # Mark as completed but log the partial failure
+            # The job is partially successful - some materials were generated
+            job.status = "completed"
+            job.progress = 100
+            job.completed_at = from_datetime()
+            job.error_message = f"Partial completion - failed: {', '.join(failed_types)}"
+            job.save()
+            logger.info(
+                f"Job {job_id} completed partially. "
+                f"Generated: {list(results.keys())}, Failed: {failed_types}"
+            )
+        else:
+            # All materials generated successfully
+            job.status = "completed"
+            job.progress = 100
+            job.completed_at = from_datetime()
+            job.save()
+            logger.info(f"Job {job_id} completed successfully with all materials")
 
         # Update cached content metadata for fast list queries
-        job.update_content_cache()
-        logger.info(f"Job {job_id} completed successfully")
+        # This is an optimization - failure shouldn't affect job status
+        try:
+            job.update_content_cache()
+        except Exception as cache_error:
+            logger.warning(
+                f"Failed to update content cache for job {job_id}: {cache_error}. "
+                "Job completed successfully but cache update failed."
+            )
+            # Don't re-raise - cache update is non-critical
 
     except Exception as e:
         logger.exception(f"Error processing job {job_id}")

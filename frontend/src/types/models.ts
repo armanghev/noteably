@@ -1,6 +1,17 @@
 // Core types matching backend Django models
 
-export type JobStatus = 'queued' | 'transcribing' | 'generating' | 'completed' | 'failed';
+export type JobStatus = 
+  | 'uploading' 
+  | 'queued' 
+  | 'transcribing' 
+  | 'extracting_text'
+  | 'generating_summary'
+  | 'generating_notes'
+  | 'generating_flashcards'
+  | 'generating_quiz'
+  | 'generating' 
+  | 'completed' 
+  | 'failed';
 // Note: Backend uses 'quiz' but API may return 'quizzes' - support both for compatibility
 export type MaterialType = 'summary' | 'notes' | 'flashcards' | 'quiz' | 'quizzes';
 

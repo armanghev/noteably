@@ -1,3 +1,5 @@
+import threading
+
 import assemblyai as aai
 from django.conf import settings
 from apps.core.exceptions import ThirdPartyServiceError
@@ -5,14 +7,19 @@ from apps.core.exceptions import ThirdPartyServiceError
 
 class TranscriptionService:
     _initialized = False
+    _lock = threading.Lock()
 
     @classmethod
     def _ensure_initialized(cls):
+        # Double-check locking pattern for thread-safe initialization
         if not cls._initialized:
-            if not settings.ASSEMBLYAI_API_KEY:
-                raise ThirdPartyServiceError("AssemblyAI API key not configured")
-            aai.settings.api_key = settings.ASSEMBLYAI_API_KEY
-            cls._initialized = True
+            with cls._lock:
+                # Check again inside the lock to prevent race condition
+                if not cls._initialized:
+                    if not settings.ASSEMBLYAI_API_KEY:
+                        raise ThirdPartyServiceError("AssemblyAI API key not configured")
+                    aai.settings.api_key = settings.ASSEMBLYAI_API_KEY
+                    cls._initialized = True
 
     @classmethod
     def transcribe(cls, audio_url: str) -> aai.Transcript:

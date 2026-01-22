@@ -417,7 +417,7 @@ export default function Upload() {
         desc: "Building study materials...",
       });
     }
-    if (selectedTypes.includes("quiz")) {
+    if (selectedTypes.includes("quiz") || selectedTypes.includes("quizzes")) {
       s.push({
         id: "generating_quiz",
         title: "Generating Quiz",
@@ -456,7 +456,18 @@ export default function Upload() {
       if (match) return match.index;
 
       // Fallback logic for generic states
-      if (status === "queued") return 0;
+      if (status === "queued") {
+        // Map "queued" to the first processing step (after upload)
+        // This is either "transcribing" or "extracting_text" depending on file type
+        const firstProcessingStep = steps.find(
+          (s) => s.id === "transcribing" || s.id === "extracting_text"
+        );
+        if (firstProcessingStep) {
+          return firstProcessingStep.index;
+        }
+        // If no processing step found, default to step 1 (after upload)
+        return 1;
+      }
       if (status === "completed") return steps.length - 1; // Finalizing/Done
 
       return prev;
@@ -477,7 +488,7 @@ export default function Upload() {
       }
       setError(job.error_message || "Processing failed. Please try again.");
     }
-  }, [job, jobId, navigate, queryClient]);
+  }, [job, jobId, navigate, queryClient, steps]);
 
   const handleDrag = (e: React.DragEvent<HTMLElement>) => {
     e.preventDefault();
@@ -573,7 +584,7 @@ export default function Upload() {
       });
 
       setJobId(response.job_id);
-      setJob({ id: response.job_id, status: "queued", progress: 0 });
+      setJob({ id: response.job_id, status: response.status, progress: 0 });
     } catch (err) {
       console.error("Upload failed", err);
       setError((err as Error).message || "Upload failed. Please try again.");

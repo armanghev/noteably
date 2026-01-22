@@ -1,11 +1,6 @@
 import logging
-import os
-import shutil
-import tempfile
 
 from apps.accounts.permissions import IsAuthenticated
-from django.conf import settings
-from django.core.files.uploadedfile import TemporaryUploadedFile
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -13,16 +8,11 @@ from rest_framework.response import Response
 from .models import Job
 from .quota import check_user_quota
 from .serializers import ProcessUploadSerializer
-from .supabase_storage import get_signed_url_from_storage_url
+from .supabase_storage import get_signed_url_from_storage_url, upload_to_supabase
 from .tasks import process_upload_task
 from .validators import get_file_duration, validate_file_size, validate_file_type
 
 logger = logging.getLogger(__name__)
-
-# Directory for temporary file storage before upload to Supabase
-TEMP_UPLOAD_DIR = getattr(
-    settings, "TEMP_UPLOAD_DIR", os.path.join(tempfile.gettempdir(), "noteably_uploads")
-)
 
 
 @api_view(["POST"])
@@ -44,34 +34,44 @@ def process_upload(request):
     duration = get_file_duration(file)
     check_user_quota(request.user_id, duration, file.size / (1024 * 1024))
 
-    # Create job first to get job_id for temp file path
+    # Create job first to get job_id for storage path
     job = Job.objects.create(
         user_id=request.user_id,
         filename=file.name,
         file_size_bytes=file.size,
         file_type=file.content_type,
-        storage_url="",  # Will be updated after upload in task
+        storage_url="",  # Will be updated after upload
         material_types=material_types,
         options=options,
         status="uploading",  # Start with uploading status
     )
+    
+    # Upload file to Supabase Storage synchronously (works in Docker with separate containers)
+    # This ensures the file is available to Celery workers without shared filesystem
+    try:
+        storage_url = upload_to_supabase(
+            file,
+            file.name,
+            job_id=str(job.id),
+            content_type=file.content_type,
+            subfolder="upload"
+        )
+        job.storage_url = storage_url
+        job.status = "queued"  # File uploaded, ready for processing
+        job.save(update_fields=['storage_url', 'status'])
+        logger.info(f"File uploaded for job {job.id}, storage_url: {storage_url}")
+    except Exception as e:
+        logger.error(f"Upload failed for job {job.id}: {e}")
+        job.status = "failed"
+        job.error_message = f"Upload failed: {str(e)}"
+        job.save()
+        return Response(
+            {"error": f"Upload failed: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
-    # Save file temporarily for the Celery task to upload
-    os.makedirs(TEMP_UPLOAD_DIR, exist_ok=True)
-    temp_file_path = os.path.join(TEMP_UPLOAD_DIR, f"{job.id}_{file.name}")
-
-    # Optimize file transfer based on upload type
-    if isinstance(file, TemporaryUploadedFile):
-        # Large files: Django already wrote to temp file, just move it (instant)
-        shutil.move(file.temporary_file_path(), temp_file_path)
-    else:
-        # Small files (InMemoryUploadedFile): use efficient copyfileobj
-        with open(temp_file_path, "wb") as dest:
-            file.seek(0)
-            shutil.copyfileobj(file, dest)
-
-    # Trigger Celery task with temp file path
-    process_upload_task.delay(str(job.id), temp_file_path)
+    # Trigger Celery task
+    process_upload_task.delay(str(job.id))
 
     return Response(
         {
