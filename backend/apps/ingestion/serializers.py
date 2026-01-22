@@ -113,17 +113,17 @@ class JobSerializer(serializers.ModelSerializer):
             }
             for word in words
         ]
-        read_only_fields = [
-            "id",
-            "storage_url",
-            "status",
-            "progress",
-            "current_step",
-            "error_message",
-            "created_at",
-            "started_at",
-            "completed_at",
-        ]
+    read_only_fields = [
+        "id",
+        "storage_url",
+        "status",
+        "progress",
+        "current_step",
+        "error_message",
+        "created_at",
+        "started_at",
+        "completed_at",
+    ]
 
 
 class ProcessUploadSerializer(serializers.Serializer):

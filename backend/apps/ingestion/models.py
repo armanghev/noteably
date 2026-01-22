@@ -1,6 +1,7 @@
 """Models for job tracking and file management."""
 
 import uuid
+
 from django.db import models
 
 
@@ -8,9 +9,15 @@ class Job(models.Model):
     """Central job tracking for upload-to-materials pipeline."""
 
     STATUS_CHOICES = [
+        ("uploading", "Uploading"),
         ("queued", "Queued"),
         ("transcribing", "Transcribing"),
-        ("generating", "Generating"),
+        ("extracting_text", "Extracting Text"),
+        ("generating_summary", "Generating Summary"),
+        ("generating_notes", "Generating Notes"),
+        ("generating_flashcards", "Generating Flashcards"),
+        ("generating_quiz", "Generating Quiz"),
+        ("generating", "Generating"),  # Fallback/General
         ("completed", "Completed"),
         ("failed", "Failed"),
     ]
@@ -112,17 +119,24 @@ class Job(models.Model):
             elif content.type == "summary":
                 summary_title = content.content.get("title", "")[:500]
                 summary = content.content.get("summary", "")
-                summary_preview = (summary[:197] + "...") if len(summary) > 200 else summary[:250]
+                summary_preview = (
+                    (summary[:197] + "...") if len(summary) > 200 else summary[:250]
+                )
 
         self.cached_content_types = content_types
         self.cached_flashcard_count = flashcard_count
         self.cached_quiz_count = quiz_count
         self.cached_summary_title = summary_title
         self.cached_summary_preview = summary_preview
-        self.save(update_fields=[
-            'cached_content_types',
-            'cached_flashcard_count',
-            'cached_quiz_count',
-            'cached_summary_title',
-            'cached_summary_preview',
-        ])
+        self.save(
+            update_fields=[
+                "cached_content_types",
+                "cached_flashcard_count",
+                "cached_quiz_count",
+                "cached_summary_title",
+                "cached_summary_preview",
+            ]
+        )
+
+
+# Import signals to ensure they are registered when models are loaded

@@ -2,8 +2,8 @@
 Django settings for Noteably project.
 """
 
-from pathlib import Path
 import os
+from pathlib import Path
 
 # Load environment variables from .env file
 from dotenv import load_dotenv
@@ -23,6 +23,7 @@ ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 # Application definition
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.postgres",  # For ArrayField
     "django.contrib.admin",
     "django.contrib.auth",
@@ -33,17 +34,26 @@ INSTALLED_APPS = [
     # Third-party apps
     "rest_framework",
     "corsheaders",
+    "channels",
     # Noteably apps
     "apps.core",
     "apps.accounts",
     "apps.ingestion",
     "apps.transcription",
     "apps.generation",
-    "apps.storage",
-    "apps.tasks",
-    "apps.analytics",
     "apps.export",
 ]
+
+ASGI_APPLICATION = "config.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [os.getenv("REDIS_URL", "redis://localhost:6379/0")],
+        },
+    },
+}
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -218,3 +228,6 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Redis Settings
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+# Temporary upload directory (must be shared between web and Celery workers)
+TEMP_UPLOAD_DIR = os.getenv("TEMP_UPLOAD_DIR", str(BASE_DIR / "tmp_uploads"))

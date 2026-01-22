@@ -1,10 +1,11 @@
-import { RouterProvider } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider } from './contexts/AuthContext';
-import { router } from './router';
-import './index.css';
-import { ThemeProvider } from './components/theme/theme-provider';
-import { Toaster } from 'sonner';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { RouterProvider } from "react-router-dom";
+import { Toaster } from "sonner";
+import { ThemeProvider } from "./components/theme/theme-provider";
+import { AuthProvider } from "./contexts/AuthContext";
+import { WebSocketProvider } from "./contexts/WebSocketContext";
+import "./index.css";
+import { router } from "./router";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,8 +22,10 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light" storageKey="noteably-theme">
         <AuthProvider>
-          <RouterProvider router={router} />
-          <Toaster />
+          <WebSocketProvider>
+            <RouterProvider router={router} />
+            <Toaster />
+          </WebSocketProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
@@ -30,4 +33,3 @@ function App() {
 }
 
 export default App;
-

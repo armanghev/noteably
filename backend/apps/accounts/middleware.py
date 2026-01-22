@@ -1,16 +1,12 @@
 """Middleware for Supabase JWT authentication."""
 
-import logging
-
 from apps.core.exceptions import AuthenticationError, InvalidTokenError
 from apps.core.supabase_client import supabase_client
 from django.http import JsonResponse
-from django.utils.decorators import sync_and_async_middleware
+import logging
 
 logger = logging.getLogger(__name__)
 
-
-@sync_and_async_middleware
 def supabase_auth_middleware(get_response):
     """
     Middleware to validate Supabase JWT tokens and attach user to request.

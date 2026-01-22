@@ -1,6 +1,6 @@
 // Component prop types
 
-import type { MaterialType } from './models';
+import type { MaterialType } from "./models";
 
 export interface FileUploadProps {
   file: File | null;
@@ -24,7 +24,7 @@ export interface ProcessingProps {
 }
 
 export interface ProcessingStep {
-  id: number;
+  id: string | number;
   title: string;
   desc: string;
 }

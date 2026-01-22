@@ -1,18 +1,28 @@
 import logging
+import os
+import shutil
+import tempfile
 
 from apps.accounts.permissions import IsAuthenticated
+from django.conf import settings
+from django.core.files.uploadedfile import TemporaryUploadedFile
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
 from .models import Job
 from .quota import check_user_quota
-from .supabase_storage import upload_to_supabase, get_signed_url_from_storage_url
 from .serializers import ProcessUploadSerializer
+from .supabase_storage import get_signed_url_from_storage_url
 from .tasks import process_upload_task
 from .validators import get_file_duration, validate_file_size, validate_file_type
 
 logger = logging.getLogger(__name__)
+
+# Directory for temporary file storage before upload to Supabase
+TEMP_UPLOAD_DIR = getattr(
+    settings, "TEMP_UPLOAD_DIR", os.path.join(tempfile.gettempdir(), "noteably_uploads")
+)
 
 
 @api_view(["POST"])
@@ -34,33 +44,34 @@ def process_upload(request):
     duration = get_file_duration(file)
     check_user_quota(request.user_id, duration, file.size / (1024 * 1024))
 
-    # Create job first to get job_id for storage path
+    # Create job first to get job_id for temp file path
     job = Job.objects.create(
         user_id=request.user_id,
         filename=file.name,
         file_size_bytes=file.size,
         file_type=file.content_type,
-        storage_url="",  # Will be updated after upload
+        storage_url="",  # Will be updated after upload in task
         material_types=material_types,
         options=options,
-        status="queued",
+        status="uploading",  # Start with uploading status
     )
 
-    # Upload to Supabase Storage in job's directory
-    storage_url = upload_to_supabase(
-        file, 
-        file.name, 
-        job_id=str(job.id),
-        content_type=file.content_type,
-        subfolder="upload"
-    )
-    
-    # Update job with storage URL
-    job.storage_url = storage_url
-    job.save(update_fields=['storage_url'])
+    # Save file temporarily for the Celery task to upload
+    os.makedirs(TEMP_UPLOAD_DIR, exist_ok=True)
+    temp_file_path = os.path.join(TEMP_UPLOAD_DIR, f"{job.id}_{file.name}")
 
-    # Trigger Celery task
-    process_upload_task.delay(str(job.id))
+    # Optimize file transfer based on upload type
+    if isinstance(file, TemporaryUploadedFile):
+        # Large files: Django already wrote to temp file, just move it (instant)
+        shutil.move(file.temporary_file_path(), temp_file_path)
+    else:
+        # Small files (InMemoryUploadedFile): use efficient copyfileobj
+        with open(temp_file_path, "wb") as dest:
+            file.seek(0)
+            shutil.copyfileobj(file, dest)
+
+    # Trigger Celery task with temp file path
+    process_upload_task.delay(str(job.id), temp_file_path)
 
     return Response(
         {
@@ -84,15 +95,15 @@ def list_jobs(request):
 
     jobs = (
         Job.objects.filter(user_id=request.user_id)
-        .prefetch_related('generated_content')
+        .prefetch_related("generated_content")
         .order_by("-created_at")
     )
 
     # Optional limit parameter
-    limit = request.query_params.get('limit')
+    limit = request.query_params.get("limit")
     if limit:
         try:
-            jobs = jobs[:int(limit)]
+            jobs = jobs[: int(limit)]
         except (ValueError, TypeError):
             pass
 
@@ -107,7 +118,7 @@ def dashboard_data(request):
     Lightweight endpoint for dashboard - returns recent jobs and aggregate stats.
     Optimized to avoid loading full generated_content.
     """
-    from django.db.models import Count, Sum
+    from django.db.models import Sum
     from django.db.models.functions import Coalesce
 
     user_jobs = Job.objects.filter(user_id=request.user_id)
@@ -118,30 +129,28 @@ def dashboard_data(request):
 
     # Sum cached flashcard counts (or 0 if not populated yet)
     stats = completed_jobs.aggregate(
-        total_flashcards=Coalesce(Sum('cached_flashcard_count'), 0)
+        total_flashcards=Coalesce(Sum("cached_flashcard_count"), 0)
     )
 
     # Get only the 5 most recent completed jobs with minimal fields
-    recent_jobs = (
-        completed_jobs
-        .order_by("-created_at")[:5]
-        .values(
-            "id",
-            "filename",
-            "file_type",
-            "status",
-            "created_at",
-            "cached_flashcard_count",
-        )
+    recent_jobs = completed_jobs.order_by("-created_at")[:5].values(
+        "id",
+        "filename",
+        "file_type",
+        "status",
+        "created_at",
+        "cached_flashcard_count",
     )
 
-    return Response({
-        "stats": {
-            "total_notes": total_notes,
-            "total_flashcards": stats["total_flashcards"],
-        },
-        "recent_jobs": list(recent_jobs),
-    })
+    return Response(
+        {
+            "stats": {
+                "total_notes": total_notes,
+                "total_flashcards": stats["total_flashcards"],
+            },
+            "recent_jobs": list(recent_jobs),
+        }
+    )
 
 
 @api_view(["GET"])
@@ -178,24 +187,26 @@ def get_signed_file_url(request, job_id):
             {"error": "Job not found or access denied"},
             status=status.HTTP_404_NOT_FOUND,
         )
-    
+
     if not job.storage_url:
         return Response(
             {"error": "File not found for this job"},
             status=status.HTTP_404_NOT_FOUND,
         )
-    
+
     try:
         # Generate signed URL (expires in 24 hours)
         signed_url = get_signed_url_from_storage_url(
             job.storage_url,
-            expires_in=86400  # 24 hours
+            expires_in=86400,  # 24 hours
         )
-        
-        return Response({
-            "signed_url": signed_url,
-            "expires_in": 86400,
-        })
+
+        return Response(
+            {
+                "signed_url": signed_url,
+                "expires_in": 86400,
+            }
+        )
     except Exception as e:
         logger.error(f"Failed to generate signed URL for job {job_id}: {e}")
         return Response(

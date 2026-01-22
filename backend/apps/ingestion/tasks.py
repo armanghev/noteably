@@ -1,15 +1,16 @@
 import io
 import logging
+import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
 from apps.generation.models import GeneratedContent
 from apps.generation.service import GeminiService
 from apps.ingestion.models import Job
-from apps.ingestion.supabase_storage import get_signed_url_from_storage_url
+from apps.ingestion.supabase_storage import get_signed_url_from_storage_url, upload_to_supabase
 from apps.transcription.models import Transcription
 from apps.transcription.service import TranscriptionService
 from celery import shared_task
-from celery.exceptions import Retry
 from django.utils.timezone import now as from_datetime
 from pypdf import PdfReader
 
@@ -26,7 +27,7 @@ def extract_pdf_text_from_url(url: str) -> str:
         except Exception:
             # If URL extraction fails, try using the original URL (might be public)
             url_to_use = url
-        
+
         response = requests.get(url_to_use)
         response.raise_for_status()
 
@@ -40,9 +41,8 @@ def extract_pdf_text_from_url(url: str) -> str:
         logger.error(f"Error extracting PDF text: {e}")
         raise
 
-
-@shared_task(bind=True, max_retries=100)
-def process_upload_task(self, job_id):
+@shared_task(bind=True, max_retries=3)
+def process_upload_task(self, job_id, temp_file_path=None):
     try:
         job = Job.objects.get(id=job_id)
     except Job.DoesNotExist:
@@ -53,154 +53,141 @@ def process_upload_task(self, job_id):
         return
 
     try:
-        if not job.transcription_id:
-            # Check if it is a PDF
-            if job.file_type == "application/pdf" or job.filename.lower().endswith(
-                ".pdf"
-            ):
-                logger.info(f"Processing PDF for job {job_id}")
-                try:
-                    raw_text = extract_pdf_text_from_url(job.storage_url)
-
-                    # Clean up the raw PDF text using Gemini
-                    logger.info(f"Cleaning up PDF text for job {job_id}")
-                    cleaned_text = GeminiService.generate_content(raw_text, "cleanup")
-
-                    # Create transcription record immediately with cleaned text
-                    Transcription.objects.create(
-                        job=job,
-                        external_id="pdf",
-                        text=cleaned_text,
-                        raw_response={
-                            "type": "pdf_extraction",
-                            "raw_text_length": len(raw_text),
-                        },
-                    )
-
-                    job.transcription_id = "pdf"
-                    job.status = "transcribing"  # Will be picked up as completed in next block/loop
-                    job.save()
-
-                    # Continue immediately to next phase
-                    process_upload_task.delay(job_id)
-                    return
-                except Exception as e:
-                    job.status = "failed"
-                    job.error_message = f"PDF extraction failed: {str(e)}"
-                    job.save()
-                    return
-
-            logger.info(f"Submitting job {job_id} to AssemblyAI")
-            # Generate a signed URL for AssemblyAI (expires in 24 hours)
-            # This is needed because the bucket is private and AssemblyAI needs to download the file
+        # Step 1: Upload file to Supabase Storage if in "uploading" status
+        if job.status == "uploading" and temp_file_path:
+            logger.info(f"Uploading file for job {job_id}")
             try:
-                signed_url = get_signed_url_from_storage_url(
-                    job.storage_url,
-                    expires_in=86400  # 24 hours
-                )
-                logger.info(f"Generated signed URL for job {job_id}")
-            except Exception as e:
-                logger.error(f"Failed to generate signed URL for job {job_id}: {e}")
-                job.status = "failed"
-                job.error_message = f"Failed to generate access URL: {str(e)}"
-                job.save()
-                return
-            
-            # Submit to AssemblyAI with signed URL
-            tx_id = TranscriptionService.submit_transcription(signed_url)
-
-            job.transcription_id = tx_id
-            job.status = "transcribing"
-            job.save()
-
-            # Use retry for polling delay
-            raise self.retry(countdown=10)
-
-        else:
-            # Check status
-            if job.transcription_id == "pdf":
-                # PDF processing is always "instant" and "completed" if we got here
-                status = "completed"
-                # Result is already in DB, but we get the Transciption obj below
-                # Dummy result dict for below logic
-                result = {
-                    "text": job.transcription.text,
-                    "status": "completed",
-                    "id": "pdf",
-                }
-            else:
-                logger.info(
-                    f"Checking status for job {job_id}, tx_id {job.transcription_id}"
-                )
-                result = TranscriptionService.get_transcription_result(
-                    str(job.transcription_id)
-                )
-                status = result.get("status")
-
-            if status == "completed":
-                logger.info(f"Transcription/Extraction completed for job {job_id}")
-
-                # Check if transcription record already exists to avoid duplicates on retry
-                if not hasattr(job, "transcription"):
-                    Transcription.objects.create(
-                        job=job,
-                        external_id=result.get("id", "unknown"),
-                        text=result.get("text", ""),
-                        raw_response=result,
+                with open(temp_file_path, 'rb') as f:
+                    storage_url = upload_to_supabase(
+                        f,
+                        job.filename,
+                        job_id=str(job.id),
+                        content_type=job.file_type,
+                        subfolder="upload"
                     )
+                job.storage_url = storage_url
+                job.status = "queued"
+                job.save(update_fields=['storage_url', 'status'])
+                logger.info(f"File uploaded for job {job_id}, storage_url: {storage_url}")
 
-                # Start Generation Phase
-                job.status = "generating"
-                job.progress = 50
-                job.save()
-
-                # Generate formatted text from transcript
-                transcript_text = job.transcription.text
-
-                for material_type in job.material_types:
-                    try:
-                        logger.info(f"Generating {material_type} for job {job_id}")
-                        content = GeminiService.generate_content(
-                            transcript_text, material_type
-                        )
-
-                        GeneratedContent.objects.create(
-                            job=job, type=material_type, content=content
-                        )
-                    except Exception as e:
-                        logger.error(
-                            f"Failed to generate {material_type} for job {job.id}: {e}"
-                        )
-                        # We continue generating other types even if one fails
-
-                job.status = "completed"
-                job.progress = 100
-                job.completed_at = from_datetime()
-                job.save()
-
-                # Update cached content metadata for fast list queries
-                job.update_content_cache()
-
-            elif status == "error":
-                error_msg = result.get("error")
-                logger.error(f"Transcription failed for job {job_id}: {error_msg}")
+                # Clean up temp file
+                os.remove(temp_file_path)
+                logger.info(f"Cleaned up temp file for job {job_id}")
+            except Exception as e:
+                logger.error(f"Upload failed for job {job_id}: {e}")
                 job.status = "failed"
-                job.error_message = str(error_msg)
+                job.error_message = f"Upload failed: {str(e)}"
                 job.save()
+                # Clean up on failure too
+                if temp_file_path and os.path.exists(temp_file_path):
+                    os.remove(temp_file_path)
+                return
+
+        # Step 2: Transcription / Text Extraction
+        if not hasattr(job, 'transcription') or job.transcription is None:
+            # Check if it is a PDF
+            if job.file_type == "application/pdf" or job.filename.lower().endswith(".pdf"):
+                logger.info(f"Processing PDF for job {job_id}")
+                job.status = "extracting_text"
+                job.save()
+
+                raw_text = extract_pdf_text_from_url(job.storage_url)
+
+                # Clean up the raw PDF text using Gemini
+                logger.info(f"Cleaning up PDF text for job {job_id}")
+                cleaned_text = GeminiService.generate_content(raw_text, "cleanup")
+
+                # Create transcription record with cleaned text
+                Transcription.objects.create(
+                    job=job,
+                    external_id="pdf",
+                    text=cleaned_text,
+                    raw_response={
+                        "type": "pdf_extraction",
+                        "raw_text_length": len(raw_text),
+                    },
+                )
+                job.transcription_id = "pdf"
+                job.save(update_fields=['transcription_id'])
 
             else:
-                # queued or processing
+                # Audio/Video file - use AssemblyAI
+                logger.info(f"Transcribing audio/video for job {job_id}")
+                job.status = "transcribing"
                 job.progress = 25
                 job.save()
-                raise self.retry(countdown=10)
 
-    except Retry:
-        raise
+                # Generate a signed URL for AssemblyAI (expires in 24 hours)
+                signed_url = get_signed_url_from_storage_url(
+                    job.storage_url,
+                    expires_in=86400,
+                )
+                logger.info(f"Generated signed URL for job {job_id}")
+
+                # Transcribe using SDK (blocks until complete, handles polling automatically)
+                transcript = TranscriptionService.transcribe(signed_url)
+
+                # Create transcription record
+                Transcription.objects.create(
+                    job=job,
+                    external_id=transcript.id,
+                    text=transcript.text,
+                    raw_response=transcript.json_response,
+                )
+                job.transcription_id = transcript.id
+                job.save(update_fields=['transcription_id'])
+                logger.info(f"Transcription completed for job {job_id}")
+
+        # Step 3: Content Generation
+        logger.info(f"Starting content generation for job {job_id}")
+        job.status = "generating"
+        job.progress = 50
+        job.save()
+
+        transcript_text = job.transcription.text
+
+        # Generate all material types in parallel
+        def generate_single(material_type):
+            logger.info(f"Generating {material_type} for job {job_id}")
+            content = GeminiService.generate_content(transcript_text, material_type)
+            return material_type, content
+
+        results = {}
+        errors = []
+
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {
+                executor.submit(generate_single, mt): mt
+                for mt in job.material_types
+            }
+
+            for future in as_completed(futures):
+                material_type = futures[future]
+                try:
+                    mt, content = future.result()
+                    results[mt] = content
+                    logger.info(f"Completed generating {mt} for job {job_id}")
+                except Exception as e:
+                    logger.error(f"Failed to generate {material_type} for job {job_id}: {e}")
+                    errors.append((material_type, str(e)))
+
+        # Save all generated content
+        for material_type, content in results.items():
+            GeneratedContent.objects.create(
+                job=job, type=material_type, content=content
+            )
+
+        job.status = "completed"
+        job.progress = 100
+        job.completed_at = from_datetime()
+        job.save()
+
+        # Update cached content metadata for fast list queries
+        job.update_content_cache()
+        logger.info(f"Job {job_id} completed successfully")
+
     except Exception as e:
         logger.exception(f"Error processing job {job_id}")
-        # Only mark failed if we haven't exceeded retries handled by Celery for other exceptions
-        # But since we use bind=True and managing our own polling loop, we should probably fail here
-        # if it's not a polling retry.
         job.status = "failed"
-        job.error_message = f"Internal error: {str(e)}"
+        job.error_message = f"Processing failed: {str(e)}"
         job.save()
