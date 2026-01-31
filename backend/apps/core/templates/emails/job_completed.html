@@ -1,0 +1,306 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Study Materials Ready - Noteably</title>
+    <style>
+      body {
+        font-family:
+          "Inter",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f5f4;
+        color: #1f1f1f;
+      }
+      .container {
+        max-width: 600px;
+        margin: 40px auto;
+        background-color: #ffffff;
+        border-radius: 24px;
+        padding: 40px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      }
+      .logo {
+        font-family: "Playfair Display", serif;
+        font-size: 28px;
+        font-weight: 700;
+        color: #4a6b50;
+        margin-bottom: 30px;
+        text-align: center;
+      }
+      h1 {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: #1f1f1f;
+        text-align: center;
+      }
+      p {
+        font-size: 16px;
+        line-height: 1.6;
+        margin-bottom: 16px;
+        color: #374151;
+      }
+      .success-banner {
+        background-color: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        color: #065f46;
+        padding: 12px;
+        border-radius: 12px;
+        text-align: center;
+        margin-bottom: 24px;
+        font-weight: 500;
+      }
+
+      .material-item {
+        background-color: #f9faf9;
+        padding: 12px;
+        border-radius: 8px;
+        text-align: center;
+        font-size: 14px;
+        color: #4b5563;
+        border: 1px solid #f3f4f6;
+      }
+      .cta-container {
+        text-align: center;
+        margin: 32px 0;
+      }
+      .button {
+        display: inline-block;
+        background-color: #4a6b50;
+        color: #ffffff !important;
+        padding: 14px 32px;
+        border-radius: 99px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 16px;
+        box-shadow: 0 4px 6px -1px rgba(74, 107, 80, 0.3);
+      }
+      .link-text {
+        font-size: 12px;
+        color: #9ca3af;
+        word-break: break-all;
+        margin-top: 10px;
+      }
+      .footer {
+        margin-top: 40px;
+        text-align: center;
+        font-size: 12px;
+        color: #9ca3af;
+        border-top: 1px solid #e5e7eb;
+        padding-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="logo">Noteably</div>
+
+      <div class="success-banner">✨ Processing Completed</div>
+
+      <p>Hello,</p>
+
+      <p>
+        Great news! Your study materials for <strong>{{ filename }}</strong> are
+        ready.
+      </p>
+
+      <p>
+        You can now view your {{ materials_text_natural }} in the Noteably
+        dashboard.
+      </p>
+
+      <!-- Table-based list for robust email client support -->
+      <table
+        width="100%"
+        cellpadding="0"
+        cellspacing="0"
+        border="0"
+        style="margin: 24px 0"
+      >
+        {% if "summary" in material_types %}
+        <tr>
+          <td>
+            <table
+              width="100%"
+              cellpadding="0"
+              cellspacing="0"
+              border="0"
+              style="
+                background-color: #f9faf9;
+                border-radius: 8px;
+                margin-bottom: 8px;
+                border: 1px solid #f3f4f6;
+              "
+            >
+              <tr>
+                <td
+                  width="50"
+                  align="center"
+                  valign="middle"
+                  style="padding: 12px 0 12px 16px"
+                >
+                  <span style="font-size: 24px">📝</span>
+                </td>
+                <td
+                  align="left"
+                  valign="middle"
+                  style="
+                    padding: 12px 16px 12px 0;
+                    color: #000000;
+                    font-family: &quot;Inter&quot;, sans-serif;
+                  "
+                >
+                  <strong style="font-size: 18px">Summary</strong>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        {% endif %} {% if "notes" in material_types %}
+        <tr>
+          <td>
+            <table
+              width="100%"
+              cellpadding="0"
+              cellspacing="0"
+              border="0"
+              style="
+                background-color: #f9faf9;
+                border-radius: 8px;
+                margin-bottom: 8px;
+                border: 1px solid #f3f4f6;
+              "
+            >
+              <tr>
+                <td
+                  width="50"
+                  align="center"
+                  valign="middle"
+                  style="padding: 12px 0 12px 16px"
+                >
+                  <span style="font-size: 24px">📚</span>
+                </td>
+                <td
+                  align="left"
+                  valign="middle"
+                  style="
+                    padding: 12px 16px 12px 0;
+                    color: #000000;
+                    font-family: &quot;Inter&quot;, sans-serif;
+                  "
+                >
+                  <strong style="font-size: 18px">Notes</strong>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        {% endif %} {% if "flashcards" in material_types %}
+        <tr>
+          <td>
+            <table
+              width="100%"
+              cellpadding="0"
+              cellspacing="0"
+              border="0"
+              style="
+                background-color: #f9faf9;
+                border-radius: 8px;
+                margin-bottom: 8px;
+                border: 1px solid #f3f4f6;
+              "
+            >
+              <tr>
+                <td
+                  width="50"
+                  align="center"
+                  valign="middle"
+                  style="padding: 12px 0 12px 16px"
+                >
+                  <span style="font-size: 24px">🔄</span>
+                </td>
+                <td
+                  align="left"
+                  valign="middle"
+                  style="
+                    padding: 12px 16px 12px 0;
+                    color: #000000;
+                    font-family: &quot;Inter&quot;, sans-serif;
+                  "
+                >
+                  <strong style="font-size: 18px">Flashcards</strong>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        {% endif %} {% if "quizzes" in material_types %}
+        <tr>
+          <td>
+            <table
+              width="100%"
+              cellpadding="0"
+              cellspacing="0"
+              border="0"
+              style="
+                background-color: #f9faf9;
+                border-radius: 8px;
+                margin-bottom: 8px;
+                border: 1px solid #f3f4f6;
+              "
+            >
+              <tr>
+                <td
+                  width="50"
+                  align="center"
+                  valign="middle"
+                  style="padding: 12px 0 12px 16px"
+                >
+                  <span style="font-size: 24px">❓</span>
+                </td>
+                <td
+                  align="left"
+                  valign="middle"
+                  style="
+                    padding: 12px 16px 12px 0;
+                    color: #000000;
+                    font-family: &quot;Inter&quot;, sans-serif;
+                  "
+                >
+                  <strong style="font-size: 18px">Quizzes</strong>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        {% endif %}
+      </table>
+
+      <div class="cta-container">
+        <a href="{{ link }}" class="button">View Study Set</a>
+        <div class="link-text">
+          Or click here:
+          <a href="{{ link }}" style="color: #9ca3af">{{ link }}</a>
+        </div>
+      </div>
+
+      <br />
+      <p>Best regards,<br />The Noteably Team</p>
+
+      <div class="footer">
+        &copy; 2026 Noteably. All rights reserved.<br />
+        You received this email because you uploaded a file to Noteably.<br />
+        <span style="color: #e5e7eb; font-size: 10px">Ref: {{ ref_id }}</span>
+      </div>
+    </div>
+  </body>
+</html>

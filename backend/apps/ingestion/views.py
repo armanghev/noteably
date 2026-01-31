@@ -45,7 +45,7 @@ def process_upload(request):
         options=options,
         status="uploading",  # Start with uploading status
     )
-    
+
     # Upload file to Supabase Storage synchronously (works in Docker with separate containers)
     # This ensures the file is available to Celery workers without shared filesystem
     try:
@@ -54,11 +54,11 @@ def process_upload(request):
             file.name,
             job_id=str(job.id),
             content_type=file.content_type,
-            subfolder="upload"
+            subfolder="upload",
         )
         job.storage_url = storage_url
         job.status = "queued"  # File uploaded, ready for processing
-        job.save(update_fields=['storage_url', 'status'])
+        job.save(update_fields=["storage_url", "status"])
         logger.info(f"File uploaded for job {job.id}, storage_url: {storage_url}")
     except Exception as e:
         logger.error(f"Upload failed for job {job.id}: {e}")
@@ -67,11 +67,25 @@ def process_upload(request):
         job.save()
         return Response(
             {"error": f"Upload failed: {str(e)}"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
     # Trigger Celery task
-    process_upload_task.delay(str(job.id))
+    # Safely get email - request.user is a dict from Supabase middleware
+    user_email = request.user.get("email") if isinstance(request.user, dict) else None
+
+    logger.info(
+        f"Process upload request - User type: {type(request.user)}, Email: {user_email}"
+    )
+
+    process_upload_task.delay(str(job.id), user_email=user_email)
+
+    # Send receipt email
+    if user_email:
+        logger.info(f"Sending receipt email to {user_email}")
+        from apps.core.utils.email import send_upload_received_email
+
+        send_upload_received_email(user_email, file.name)
 
     return Response(
         {

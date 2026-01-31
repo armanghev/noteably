@@ -45,7 +45,11 @@ def extract_pdf_text_from_url(url: str) -> str:
 def process_upload_task(
     self,
     job_id,
+    user_email=None,
 ):
+    logger.info(
+        f"Task process_upload_task started for job {job_id}. Email: {user_email}"
+    )
     try:
         job = Job.objects.get(id=job_id)
     except Job.DoesNotExist:
@@ -274,6 +278,14 @@ def process_upload_task(
             job.completed_at = from_datetime()
             job.save()
             logger.info(f"Job {job_id} completed successfully with all materials")
+
+            # Send completion email
+            if user_email:
+                from apps.core.utils.email import send_job_completed_email
+
+                send_job_completed_email(
+                    user_email, str(job.id), job.filename, list(results.keys())
+                )
 
         # Update cached content metadata for fast list queries
         # This is an optimization - failure shouldn't affect job status

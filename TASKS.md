@@ -17,6 +17,7 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
   - [x] Set up environment variable management
   - [x] Configure Django REST Framework
   - [x] Set up CORS configuration
+  - [x] Implement email notifications (Resend.com) for uploads & completion
 
 - [x] 2. **Implement core error handling and resilience patterns**
   - [x] Create custom exception classes in `core/exceptions.py`
@@ -782,6 +783,7 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
 ### Summary of Current Implementation
 
 **✅ Completed (Backend):**
+
 - Django project with DRF, CORS, Celery, Redis configured
 - Core error handling and Supabase client integration
 - JWT authentication middleware and permissions
@@ -798,6 +800,7 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
 - WebSocket infrastructure (Django Channels, Redis, consumers, middleware)
 
 **✅ Completed (Frontend):**
+
 - Vite + React project with Tailwind CSS and React Router
 - Layout component with navigation
 - Refactored Landing Page with modern UI
@@ -813,6 +816,7 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
 - ExportButton component with format selector (Markdown, JSON, PDF)
 
 **⚠️ In Progress:**
+
 - WebSocket real-time updates (infrastructure exists but using polling)
 - Registration page (backend ready, frontend page missing)
 - Content deletion endpoint
@@ -820,6 +824,7 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
 - Task queue management with priorities
 
 **❌ Not Started:**
+
 - WebSocket event emission in tasks (Task 32)
 - Frontend WebSocket hooks and components (Task 50-52)
 - User subscription/Stripe integration (Task 41-43)
@@ -831,7 +836,6 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
 - Analytics dashboard (Task 73-76)
 - Testing suite (Task 77-81)
 - Documentation and deployment (Task 82-91)
-
 
 ---
 
@@ -863,101 +867,105 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
 
 ## Task Priority & Dependency Chart
 
- ----------------------------------------------------
-| TASK | PRIORITY |              DEPS                |
- ----------------------------------------------------
-|  1   |   HIGH   |   NONE                           |
-|  2   |   HIGH   |   1                              |
-|  3   |   HIGH   |   1                              |
-|  4   |   HIGH   |   1                              |
-|  5   |   HIGH   |   1,4                            |
-|  6   |   HIGH   |   2,3                            |
-|  7   |   HIGH   |   6                              |
-|  8   |   HIGH   |   7                              |
-|  9   |   HIGH   |   2                              |
-|  10  |   HIGH   |   3,9                            |
-|  11  |   MED    |   10                             |
-|  12  |   HIGH   |   8,9                            |
-|  13  |   HIGH   |   12                             |
-|  14  |   MED    |   12                             |
-|  15  |   HIGH   |   3                              |
-|  16  |   HIGH   |   2,9                            |
-|  17  |   HIGH   |   5,16                           |
-|  18  |   MED    |   16                             |
-|  19  |   MED    |   16                             |
-|  20  |   HIGH   |   16                             |
-|  21  |   HIGH   |   3,16                           |
-|  22  |   HIGH   |   2                              |
-|  23  |   HIGH   |   22                             |
-|  24  |   HIGH   |   23                             |
-|  25  |   HIGH   |   23                             |
-|  26  |   HIGH   |   23                             |
-|  27  |   HIGH   |   23                             |
-|  28  |   HIGH   |   24,25,26,27                    |
-|  29  |   HIGH   |   22                             |
-|  30  |   HIGH   |   3,28                           |
-|  31  |   HIGH   |   4,15,17,21,28,30               |
-|  32  |   HIGH   |   5,31                           |
-|  33  |   MED    |   4,31                           |
-|  34  |   HIGH   |   15,30                          |
-|  35  |   HIGH   |   34                             |
-|  36  |   HIGH   |   34                             |
-|  37  |   MED    |   34                             |
-|  38  |   MED    |   34                             |
-|  39  |   MED    |   34                             |
-|  40  |   MED    |   38,39,41                       |
-|  41  |   HIGH   |   3                              |
-|  42  |   HIGH   |   41,12                          |
-|  43  |   MED    |   41                             |
-|  44  |   HIGH   |   NONE                           |
-|  45  |   HIGH   |   44,7                           |
-|  46  |   HIGH   |   44                             |
-|  47  |   HIGH   |   46                             |
-|  48  |   HIGH   |   47                             |
-|  49  |   HIGH   |   48                             |
-|  50  |   HIGH   |   44,5                           |
-|  51  |   HIGH   |   50                             |
-|  52  |   HIGH   |   50                             |
-|  53  |   HIGH   |   46                             |
-|  54  |   HIGH   |   53                             |
-|  55  |   HIGH   |   53                             |
-|  56  |   HIGH   |   53                             |
-|  57  |   HIGH   |   53                             |
-|  58  |   MED    |   53,38,39,40                    |
-|  59  |   MED    |   46,34                          |
-|  60  |   LOW    |   53,31                          |
-|  61  |   MED    |   3                              |
-|  62  |   MED    |   61,8                           |
-|  63  |   MED    |   22,62                          |
-|  64  |   MED    |   63                             |
-|  65  |   MED    |   46,62                          |
-|  66  |   MED    |   65                             |
-|  67  |   LOW    |   8                              |
-|  68  |   LOW    |   67                             |
-|  69  |   LOW    |   68,12                          |
-|  70  |   LOW    |   3                              |
-|  71  |   LOW    |   46,67                          |
-|  72  |   LOW    |   71,68                          |
-|  73  |   LOW    |   3,8                            |
-|  74  |   LOW    |   73                             |
-|  75  |   LOW    |   73,31                          |
-|  76  |   MED    |   1                              |
-|  77  |   MED    |   31                             |
-|  78  |   MED    |   77                             |
-|  79  |   MED    |   57                             |
-|  80  |   MED    |   79                             |
-|  81  |   MED    |   78,80                          |
-|  82  |   MED    |   36                             |
-|  83  |   MED    |   82                             |
-|  84  |   HIGH   |   78,80                          |
-|  85  |   HIGH   |   84                             |
-|  86  |   HIGH   |   84                             |
-|  87  |   HIGH   |   78                             |
-|  88  |   HIGH   |   8,42                           |
-|  89  |   HIGH   |   87                             |
-|  90  |   MED    |   57                             |
-|  91  |   HIGH   |   85,86,87,88,89,90              |
- ----------------------------------------------------
+---
+
+| TASK | PRIORITY | DEPS |
+
+---
+
+| 1 | HIGH | NONE |
+| 2 | HIGH | 1 |
+| 3 | HIGH | 1 |
+| 4 | HIGH | 1 |
+| 5 | HIGH | 1,4 |
+| 6 | HIGH | 2,3 |
+| 7 | HIGH | 6 |
+| 8 | HIGH | 7 |
+| 9 | HIGH | 2 |
+| 10 | HIGH | 3,9 |
+| 11 | MED | 10 |
+| 12 | HIGH | 8,9 |
+| 13 | HIGH | 12 |
+| 14 | MED | 12 |
+| 15 | HIGH | 3 |
+| 16 | HIGH | 2,9 |
+| 17 | HIGH | 5,16 |
+| 18 | MED | 16 |
+| 19 | MED | 16 |
+| 20 | HIGH | 16 |
+| 21 | HIGH | 3,16 |
+| 22 | HIGH | 2 |
+| 23 | HIGH | 22 |
+| 24 | HIGH | 23 |
+| 25 | HIGH | 23 |
+| 26 | HIGH | 23 |
+| 27 | HIGH | 23 |
+| 28 | HIGH | 24,25,26,27 |
+| 29 | HIGH | 22 |
+| 30 | HIGH | 3,28 |
+| 31 | HIGH | 4,15,17,21,28,30 |
+| 32 | HIGH | 5,31 |
+| 33 | MED | 4,31 |
+| 34 | HIGH | 15,30 |
+| 35 | HIGH | 34 |
+| 36 | HIGH | 34 |
+| 37 | MED | 34 |
+| 38 | MED | 34 |
+| 39 | MED | 34 |
+| 40 | MED | 38,39,41 |
+| 41 | HIGH | 3 |
+| 42 | HIGH | 41,12 |
+| 43 | MED | 41 |
+| 44 | HIGH | NONE |
+| 45 | HIGH | 44,7 |
+| 46 | HIGH | 44 |
+| 47 | HIGH | 46 |
+| 48 | HIGH | 47 |
+| 49 | HIGH | 48 |
+| 50 | HIGH | 44,5 |
+| 51 | HIGH | 50 |
+| 52 | HIGH | 50 |
+| 53 | HIGH | 46 |
+| 54 | HIGH | 53 |
+| 55 | HIGH | 53 |
+| 56 | HIGH | 53 |
+| 57 | HIGH | 53 |
+| 58 | MED | 53,38,39,40 |
+| 59 | MED | 46,34 |
+| 60 | LOW | 53,31 |
+| 61 | MED | 3 |
+| 62 | MED | 61,8 |
+| 63 | MED | 22,62 |
+| 64 | MED | 63 |
+| 65 | MED | 46,62 |
+| 66 | MED | 65 |
+| 67 | LOW | 8 |
+| 68 | LOW | 67 |
+| 69 | LOW | 68,12 |
+| 70 | LOW | 3 |
+| 71 | LOW | 46,67 |
+| 72 | LOW | 71,68 |
+| 73 | LOW | 3,8 |
+| 74 | LOW | 73 |
+| 75 | LOW | 73,31 |
+| 76 | MED | 1 |
+| 77 | MED | 31 |
+| 78 | MED | 77 |
+| 79 | MED | 57 |
+| 80 | MED | 79 |
+| 81 | MED | 78,80 |
+| 82 | MED | 36 |
+| 83 | MED | 82 |
+| 84 | HIGH | 78,80 |
+| 85 | HIGH | 84 |
+| 86 | HIGH | 84 |
+| 87 | HIGH | 78 |
+| 88 | HIGH | 8,42 |
+| 89 | HIGH | 87 |
+| 90 | MED | 57 |
+| 91 | HIGH | 85,86,87,88,89,90 |
+
+---
 
 ---
 
@@ -966,4 +974,4 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
 **Status:** 45 done | 40 pending | 7 in progress
 **Completion:** ~49% (45/92 tasks completed)
 
-*Note: Tasks marked with `[x]` are done, `[~]` are in progress, and `[ ]` are pending. Run `node taskman/tasks-cli.js` for an interactive progress view.*
+_Note: Tasks marked with `[x]` are done, `[~]` are in progress, and `[ ]` are pending. Run `node taskman/tasks-cli.js` for an interactive progress view._

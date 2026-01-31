@@ -5,25 +5,33 @@ import { useErrorHandler } from "@/hooks/useErrorHandler";
 import type { ApiError } from "@/types";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
-export default function Login() {
+export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { login, loading } = useAuth();
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const { register, loading } = useAuth();
   const { handleError } = useErrorHandler();
   const navigate = useNavigate();
-  const location = useLocation();
-
-  const from = location.state?.from?.pathname || "/dashboard";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (password !== confirmPassword) {
+      handleError({ message: "Passwords do not match" });
+      return;
+    }
+
     try {
-      await login({ email, password });
-      navigate(from, { replace: true });
+      await register({ email, password });
+      navigate("/login", {
+        replace: true,
+        state: {
+          message: "Account created! Please check your email to verify.",
+        },
+      });
     } catch (error) {
-      // Handle both ApiError and generic Error types
       if (error && typeof error === "object" && "message" in error) {
         handleError(error as ApiError);
       } else {
@@ -44,10 +52,10 @@ export default function Login() {
 
         <div className="text-center mb-10 mt-4">
           <h1 className="text-3xl font-serif text-foreground mb-3">
-            Welcome back
+            Create an account
           </h1>
           <p className="text-muted-foreground">
-            Enter your details to access your account.
+            Enter your details to get started.
           </p>
         </div>
 
@@ -86,6 +94,26 @@ export default function Login() {
               placeholder="••••••••"
               required
               disabled={loading}
+              minLength={6}
+            />
+          </div>
+          <div>
+            <label
+              className="block text-sm font-medium text-foreground mb-2"
+              htmlFor="confirmPassword"
+            >
+              Confirm Password
+            </label>
+            <input
+              id="confirmPassword"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-input border border-border focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary transition-all"
+              placeholder="••••••••"
+              required
+              disabled={loading}
+              minLength={6}
             />
           </div>
 
@@ -97,21 +125,21 @@ export default function Login() {
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Signing in...
+                Creating account...
               </>
             ) : (
-              "Sign In"
+              "Sign Up"
             )}
           </Button>
         </form>
 
         <p className="text-center mt-8 text-sm text-muted-foreground">
-          Don't have an account?{" "}
+          Already have an account?{" "}
           <Link
-            to="/signup"
+            to="/login"
             className="text-primary font-semibold hover:underline"
           >
-            Sign up
+            Sign in
           </Link>
         </p>
       </Card>

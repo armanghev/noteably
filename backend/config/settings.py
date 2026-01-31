@@ -144,7 +144,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Django REST Framework
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ("apps.accounts.permissions.IsAuthenticated",),
-    "DEFAULT_AUTHENTICATION_CLASSES": [],  # Using custom Supabase auth
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "apps.accounts.authentication.SupabaseAuthentication",
+    ),
     "DEFAULT_RENDERER_CLASSES": ("rest_framework.renderers.JSONRenderer",),
     "DEFAULT_PARSER_CLASSES": (
         "rest_framework.parsers.JSONParser",
@@ -230,4 +232,6 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 # Temporary upload directory (must be shared between web and Celery workers)
-TEMP_UPLOAD_DIR = os.getenv("TEMP_UPLOAD_DIR", str(BASE_DIR / "tmp_uploads"))
+# Resend Email Settings
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "onboarding@resend.dev")

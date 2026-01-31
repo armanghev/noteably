@@ -23,6 +23,7 @@ def supabase_auth_middleware(get_response):
             "/admin/",
             "/health/",
             "/api/auth/login",
+            "/api/auth/signup",
             "/api/auth/register",
         ]
 
@@ -38,7 +39,9 @@ def supabase_auth_middleware(get_response):
 
         if not token:
             # Allow requests without token (will be handled by view permissions)
-            request.user = None
+            # IMPORTANT: Explicitly set to None to override AnonymousUser from Django middleware
+            if not hasattr(request, "user") or request.user.is_anonymous:
+                request.user = None
             request.user_id = None
             return get_response(request)
 
@@ -94,8 +97,14 @@ def supabase_auth_middleware(get_response):
             if not user_data.get("id"):
                 raise AuthenticationError("User data missing ID")
 
+            # Force set request.user to the dict from Supabase
+            # This overrides any Django User object or LazyObject
             request.user = user_data
             request.user_id = user_data.get("id")
+
+            logger.info(
+                f"Supabase Auth: User set to {user_data.get('email')} (ID: {user_data.get('id')})"
+            )
 
         except (AuthenticationError, InvalidTokenError) as e:
             logger.warning(f"Authentication failed: {e}")

@@ -10,11 +10,99 @@ import logging
 from apps.core.supabase_client import supabase_client
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from .permissions import IsAuthenticated
 
 logger = logging.getLogger(__name__)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def signup(request):
+    """
+    Register a new user via Supabase Auth.
+    """
+    email = request.data.get("email")
+    password = request.data.get("password")
+
+    if not email or not password:
+        return Response(
+            {"error": "Email and password are required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        # Sign up with Supabase
+        response = supabase_client.client.auth.sign_up(
+            {"email": email, "password": password}
+        )
+
+        if not response.user:
+            return Response(
+                {"error": "Signup failed. Please try again."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "message": "Signup successful. Please check your email for verification.",
+                "user": response.user.model_dump(),
+                # Note: Session might be None if email confirmation is enabled
+                "session": response.session.model_dump() if response.session else None,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    except Exception as e:
+        logger.error(f"Signup failed for {email}: {e}")
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def login(request):
+    """
+    Login user via Supabase Auth.
+    """
+    email = request.data.get("email")
+    password = request.data.get("password")
+
+    if not email or not password:
+        return Response(
+            {"error": "Email and password are required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        # Sign in with Supabase
+        response = supabase_client.client.auth.sign_in_with_password(
+            {"email": email, "password": password}
+        )
+
+        if not response.user or not response.session:
+            return Response(
+                {"error": "Login failed. Invalid credentials."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        return Response(
+            {
+                "user": response.user.model_dump(),
+                "session": response.session.model_dump(),
+            },
+            status=status.HTTP_200_OK,
+        )
+    except Exception as e:
+        logger.error(f"Login failed for {email}: {e}")
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
 
 @api_view(["GET"])
