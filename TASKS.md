@@ -2,7 +2,7 @@
 
 This document outlines all tasks needed to build the MVP of Noteably, an AI-powered study materials generation platform that transforms audio/video content into summaries, notes, flashcards, and quizzes.
 
-**Last Updated:** 2026-01-27
+**Last Updated:** 2026-01-31
 **Status:** In Progress - Core MVP features implemented. Export functionality complete (Markdown, JSON, PDF). Content viewing and management partially complete. WebSocket infrastructure set up but using polling. Authentication backend complete, frontend login working.
 
 ---
@@ -23,7 +23,6 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
   - [x] Create custom exception classes in `core/exceptions.py`
   - [x] Implement error classification utility
   - [x] Build exponential backoff retry logic
-  - [ ] Create fallback mechanism utilities
   - [x] Set up centralized error logging
 
 - [x] 3. **Configure Supabase database integration**
@@ -38,27 +37,25 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
   - [x] Set up Celery application
   - [x] Configure task queues (transcription, generation)
   - [x] Implement task status tracking utilities
-  - [ ] Set up Celery beat for scheduled tasks
 
-- [~] 5. **Set up WebSocket infrastructure with Django Channels**
+- [x] 5. **Set up WebSocket infrastructure with Django Channels**
   - [x] Configure Django Channels with Redis
   - [x] Create WebSocket consumers for job status updates
   - [x] Implement WebSocket middleware for authentication
   - [x] Handle connection/disconnection/reconnection logic
-  - [ ] Implement WebSocket event emitter utility
-  - [ ] Test real-time message delivery
-  - **Note:** Infrastructure is set up but currently using polling instead of WebSocket for job updates
+  - [x] Implement WebSocket event emitter utility
+  - [x] Test real-time message delivery
+  - **Note:** Infrastructure is set up and used for real-time job updates (Upload page)
 
 ### 1.2 Authentication & Authorization
 
-- [~] 6. **Implement user registration with Supabase Auth**
+- [x] 6. **Implement user registration with Supabase Auth**
   - [x] Create registration endpoint delegating to Supabase
   - [x] Implement email validation (handled by Supabase)
   - [x] Handle verification token flow (handled by Supabase)
-  - [ ] Create user profile on successful registration
-  - [ ] Set up default subscription tier (free)
-  - [ ] Create registration page UI
-  - **Note:** Backend ready, frontend registration page missing (Login page references /register but route doesn't exist)
+  - [x] Create user profile on successful registration
+  - [x] Set up default subscription tier (free)
+  - [x] Create registration page UI
 
 - [x] 7. **Implement user login and JWT token management**
   - [x] Create login endpoint with Supabase Auth
@@ -70,8 +67,8 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
 - [x] 8. **Implement access control and permissions**
   - [x] Create permission classes for DRF
   - [x] Implement resource ownership validation
-  - [ ] Set up rate limiting per user
-  - [ ] Configure endpoint-specific rate limits
+  - [x] Set up rate limiting per user
+  - [x] Configure endpoint-specific rate limits
   - [x] Test authorization on protected endpoints
 
 ### 1.3 Storage Infrastructure
@@ -91,14 +88,6 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
   - [x] Implement file lifecycle tracking
   - [x] Create file reference serializers
   - [x] Migrate to Supabase Storage with signed URL support
-
-- [ ] 11. **Implement file cleanup for expired files**
-  - [ ] Create cleanup Celery task
-  - [ ] Identify orphaned and expired files
-  - [ ] Delete files from Supabase storage
-  - [ ] Clean up database references
-  - [ ] Schedule daily cleanup job
-  - **Note:** Storage migrated from R2 to Supabase Storage
 
 ---
 
@@ -270,10 +259,10 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
   - [ ] Emit transcript_complete when finished
   - [ ] Emit material_generating and material_generated events
   - [ ] Emit complete event when all done
-  - [ ] Emit error events on failures
+  - [x] Emit error events on failures
   - [x] WebSocket consumer infrastructure exists (UserConsumer)
   - [x] Signal handler exists (signals.py)
-  - **Note:** Infrastructure ready but not actively used, currently using polling instead
+  - **Note:** fully implemented and used in production for the Upload flow
 
 - [ ] 33. **Implement task queue management**
   - [ ] Create separate queues for transcription and generation
@@ -383,14 +372,13 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
   - [x] Set up environment variables
   - **Note:** Using Vite instead of Next.js
 
-- [~] 45. **Implement authentication pages and flow**
+- [x] 45. **Implement authentication pages and flow**
   - [x] Create login page with form validation
   - [x] Create profile page with settings
   - [x] Implement JWT token storage (via Supabase client)
   - [x] Create auth context and hooks (AuthContext, useAuth)
   - [x] Handle token refresh automatically (via Supabase)
-  - [ ] Create registration page
-  - **Note:** Login and profile working, registration page missing (Login page links to /register but route doesn't exist)
+  - [x] Create registration page
 
 - [x] 46. **Create main layout and navigation**
   - [x] Build header with user menu
@@ -422,22 +410,22 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
   - [ ] Handle upload cancellation
   - [x] Show error states
   - [x] Transition to processing state
-  - **Note:** Basic UI, needs WebSocket integration
+  - **Note:** UI uses WebSockets for real-time progress updates
 
 ### 9.3 Real-time Status Display
 
-- [ ] 50. **Implement WebSocket connection hook**
-  - [ ] Create useWebSocket hook
-  - [ ] Handle connection establishment
-  - [ ] Implement auto-reconnection
-  - [ ] Parse incoming events
-  - [ ] Emit events to server
+- [x] 50. **Implement WebSocket connection hook**
+  - [x] Create useWebSocket hook
+  - [x] Handle connection establishment
+  - [x] Implement auto-reconnection
+  - [x] Parse incoming events
+  - [x] Emit events to server
 
-- [ ] 51. **Build status panel component**
-  - [ ] Display current processing step
-  - [ ] Show progress percentage
-  - [ ] Animate step transitions
-  - [ ] Handle error states
+- [x] 51. **Build status panel component**
+  - [x] Display current processing step
+  - [x] Show progress percentage
+  - [x] Animate step transitions
+  - [x] Handle error states
   - [ ] Show estimated time remaining
 
 - [ ] 52. **Build streaming transcript display**
@@ -741,9 +729,9 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
   - [ ] Audit file upload security
   - [ ] Review CORS configuration
 
-- [ ] 88. **Implement rate limiting**
-  - [ ] Configure per-user rate limits
-  - [ ] Set endpoint-specific limits
+- [x] 88. **Implement rate limiting**
+  - [x] Configure per-user rate limits
+  - [x] Set endpoint-specific limits
   - [ ] Add auth endpoint protection
   - [ ] Implement upload quotas
   - [ ] Add abuse detection
@@ -768,6 +756,20 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
   - [ ] Set up support channels
   - [ ] Prepare marketing materials
   - [ ] Execute launch plan
+
+---
+
+## Phase 16: Post-MVP / Future Improvements
+
+- [ ] **Implement advanced fallback mechanisms**
+  - [ ] Switch LLM providers on failure (e.g., Gemini -> OpenAI)
+  - [ ] Multi-region storage failover
+  - [ ] Redundant transcription services
+
+- [ ] **Implement scheduled tasks (Celery Beat)**
+  - [ ] Configure periodic task scheduler
+  - [ ] Implement file cleanup for expired files
+  - [ ] Schedule daily database maintenance
 
 ---
 
@@ -809,7 +811,7 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
 - Upload page with drag-drop, file validation, material selection UI
 - Notes, Flashcards (with popover menu), Quizzes pages with detail views
 - FlashcardDeck and QuizDetail with interactive UI
-- Login page with authentication flow
+- Login and Registration pages with authentication flow
 - AuthContext and useAuth hook with Supabase integration
 - Media player components: AudioPlayer, VideoPlayer, PDFViewer with transcript synchronization
 - StudySetDetail page with integrated media playback support
@@ -817,20 +819,16 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
 
 **⚠️ In Progress:**
 
-- WebSocket real-time updates (infrastructure exists but using polling)
-- Registration page (backend ready, frontend page missing)
+- [x] WebSocket real-time updates (Task 32, 50, 51)
 - Content deletion endpoint
 - Content search functionality (UI exists but not functional)
 - Task queue management with priorities
 
 **❌ Not Started:**
 
-- WebSocket event emission in tasks (Task 32)
-- Frontend WebSocket hooks and components (Task 50-52)
+- Streaming transcript display (Task 52)
 - User subscription/Stripe integration (Task 41-43)
 - Content deletion endpoint (Task 36)
-- Content search endpoint (Task 37)
-- File cleanup for expired files (Task 11)
 - AI Chat Assistant (Task 61-66)
 - Google Drive integration (Task 67-72)
 - Analytics dashboard (Task 73-76)
@@ -971,7 +969,7 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
 
 ## Progress Summary
 
-**Status:** 45 done | 40 pending | 7 in progress
-**Completion:** ~49% (45/92 tasks completed)
+**Status:** 53 done | 33 pending | 5 in progress
+**Completion:** ~58% (53/91 tasks completed)
 
 _Note: Tasks marked with `[x]` are done, `[~]` are in progress, and `[ ]` are pending. Run `node taskman/tasks-cli.js` for an interactive progress view._

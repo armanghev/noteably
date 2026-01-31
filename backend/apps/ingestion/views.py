@@ -1,8 +1,9 @@
 import logging
 
 from apps.accounts.permissions import IsAuthenticated
+from apps.core.throttling import BurstRateThrottle, UploadRateThrottle
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.response import Response
 
 from .models import Job
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([UploadRateThrottle])
 def process_upload(request):
     serializer = ProcessUploadSerializer(data=request.data)
     if not serializer.is_valid():
@@ -169,6 +171,7 @@ def dashboard_data(request):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([BurstRateThrottle])
 def get_job_status(request, job_id):
     """
     Get current status of a job.
