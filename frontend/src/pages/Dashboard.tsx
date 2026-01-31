@@ -1,4 +1,4 @@
-import Layout from '../components/layout/Layout';
+import Layout from '@/components/layout/Layout';
 import { Upload, FileText, Clock, ArrowRight, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';

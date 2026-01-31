@@ -45,7 +45,7 @@ import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
-import Layout from "../components/layout/Layout";
+import Layout from "@/components/layout/Layout";
 
 // Helper functions to extract and type content
 function getSummaryContent(job: Job): SummaryContent | null {

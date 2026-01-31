@@ -6,11 +6,12 @@ These endpoints are for checking auth status and user info.
 """
 
 import logging
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework import status
 
 from apps.core.supabase_client import supabase_client
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+
 from .permissions import IsAuthenticated
 
 logger = logging.getLogger(__name__)
@@ -72,3 +73,75 @@ def get_subscription_status(request):
 def health_check(request):
     """Health check endpoint (no auth required)."""
     return Response({"status": "healthy", "service": "noteably-api"})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def create_api_key(request):
+    """
+    Create a new API key.
+    Returns the full key string ONLY ONCE.
+    """
+    from .api_key_utils import (
+        generate_api_key_prefix,
+        generate_full_key_string,
+        generate_secret_key,
+        hash_key,
+    )
+    from .models import APIKey
+    from .serializers import APIKeySerializer, CreateAPIKeySerializer
+
+    serializer = CreateAPIKeySerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    name = serializer.validated_data["name"]
+    prefix = generate_api_key_prefix()
+    secret = generate_secret_key()
+    hashed_key = hash_key(secret)
+    full_key = generate_full_key_string(prefix, secret)
+
+    api_key = APIKey.objects.create(
+        user_id=request.user_id,
+        name=name,
+        prefix=prefix,
+        hashed_key=hashed_key,
+    )
+
+    # Return the full key and the key object
+    return Response(
+        {
+            "key": full_key,
+            "api_key": APIKeySerializer(api_key).data,
+            "warning": "This is the only time the full key will be shown. Please save it securely.",
+        },
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def list_api_keys(request):
+    """List all API keys for the user."""
+    from .models import APIKey
+    from .serializers import APIKeySerializer
+
+    keys = APIKey.objects.filter(user_id=request.user_id)
+    serializer = APIKeySerializer(keys, many=True)
+    return Response(serializer.data)
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def revoke_api_key(request, key_id):
+    """Revoke (delete) an API key."""
+    from .models import APIKey
+
+    try:
+        key = APIKey.objects.get(id=key_id, user_id=request.user_id)
+        key.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    except APIKey.DoesNotExist:
+        return Response(
+            {"error": "API key not found"}, status=status.HTTP_404_NOT_FOUND
+        )

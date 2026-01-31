@@ -1,4 +1,4 @@
-import Layout from '../components/layout/Layout';
+import Layout from '@/components/layout/Layout';
 import { useState } from 'react';
 import { Plus, Brain, MoreVertical, Edit2, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';

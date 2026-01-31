@@ -1,11 +1,13 @@
 """Middleware for Supabase JWT authentication."""
 
+import logging
+
 from apps.core.exceptions import AuthenticationError, InvalidTokenError
 from apps.core.supabase_client import supabase_client
 from django.http import JsonResponse
-import logging
 
 logger = logging.getLogger(__name__)
+
 
 def supabase_auth_middleware(get_response):
     """
@@ -40,6 +42,51 @@ def supabase_auth_middleware(get_response):
             request.user_id = None
             return get_response(request)
 
+        # CHECK FOR API KEY (sk_...)
+        if token.startswith("sk_"):
+            try:
+                from django.utils import timezone
+
+                from .api_key_utils import hash_key, split_key_string
+                from .models import APIKey
+
+                key_parts = split_key_string(token)
+                if not key_parts:
+                    raise AuthenticationError("Invalid API key format")
+
+                prefix, secret = key_parts
+                hashed = hash_key(secret)
+
+                # Find key in DB
+                api_key = APIKey.objects.get(
+                    prefix=prefix, hashed_key=hashed, is_active=True
+                )
+
+                # Update usage stats
+                api_key.last_used_at = timezone.now()
+                api_key.save(update_fields=["last_used_at"])
+
+                # Set user data from Supabase (to mimic JWT auth)
+                # We need to fetch the user to get the 'app_metadata' etc. if needed later
+                # For now, we construct a basic user object
+                user_data = {
+                    "id": str(api_key.user_id),
+                    "aud": "authenticated",
+                    "role": "authenticated",
+                    "app_metadata": {"provider": "api_key", "key_name": api_key.name},
+                }
+
+                request.user = user_data
+                request.user_id = str(api_key.user_id)
+                return get_response(request)
+
+            except APIKey.DoesNotExist:
+                return JsonResponse({"error": "Invalid API key"}, status=401)
+            except Exception as e:
+                logger.error(f"API Key auth error: {e}", exc_info=True)
+                return JsonResponse({"error": "Authentication error"}, status=500)
+
+        # STANDARD JWT AUTH
         try:
             # Verify token with Supabase
             user_data = supabase_client.verify_token(token)

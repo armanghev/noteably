@@ -15,12 +15,30 @@ export const jobKeys = {
 
 export type { DashboardData, JobListItem };
 
-export function useJob(jobId: string | undefined) {
+export interface UseJobOptions {
+  stopPollingWhenComplete?: boolean;
+}
+
+export function useJob(jobId: string | undefined, options?: UseJobOptions) {
   return useQuery({
     queryKey: jobKeys.detail(jobId!),
     queryFn: () => jobsService.getJob(jobId!),
     enabled: !!jobId,
-    refetchInterval: false,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      // Default to true (poll until complete) if not specified
+      // Use explicit false check to disable polling (as requested in consumer components)
+      const shouldPoll = options?.stopPollingWhenComplete ?? true;
+
+      if (shouldPoll === false) {
+        return false;
+      }
+
+      if (data?.status === "completed" || data?.status === "failed") {
+        return false;
+      }
+      return 1000;
+    },
   });
 }
 

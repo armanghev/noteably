@@ -29,13 +29,7 @@ Do NOT just reproduce the text. Synthesize the information into a format optimiz
 - Group related concepts together.
 - Add "Key Takeaways" sections to summarize major topics.
 
-Format the output as a valid JSON object with a single key "content" containing the Markdown string. 
-Ensure all newlines and quotes in the content are strictly escaped for JSON.
-
-Return your response in JSON format:
-{{
-    "content": "# Study Guide\\n\\n## Section 1..."
-}}
+Format the output as clean Markdown. Do NOT wrap it in JSON.
 
 Text:
 {text}
@@ -62,7 +56,7 @@ Text:
         # Roughly 1 question per 100 words, with min 3 and max 15
         word_count = len(text.split())
         num_questions = max(3, min(15, round(word_count / 100)))
-        
+
         return f"""{base_instruction}
 Create a {num_questions}-question multiple choice quiz based on the text.
 Include the correct answer index (0-3).

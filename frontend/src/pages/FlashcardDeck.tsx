@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeft, RotateCw, ArrowRight, ArrowLeft as PrevIcon, LayoutGrid, Layers, Loader2 } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
-import Layout from '../components/layout/Layout';
+import { useParams } from 'react-router-dom';
+import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ExportButton } from '@/components/export/ExportButton';
@@ -19,7 +19,6 @@ function getFlashcardsContent(job: NonNullable<ReturnType<typeof useJob>['data']
 }
 
 export default function FlashcardDeck() {
-  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   // Disable polling for detail pages since jobs are already completed
   const { data: job, isLoading } = useJob(id, { stopPollingWhenComplete: false });

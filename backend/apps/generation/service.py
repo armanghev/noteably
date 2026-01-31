@@ -1,10 +1,10 @@
 import json
 import logging
 
-from google import genai
-from google.genai import types
 from apps.core.exceptions import ThirdPartyServiceError
 from django.conf import settings
+from google import genai
+from google.genai import types
 
 from .prompts import get_prompt_for_type
 
@@ -34,7 +34,8 @@ class GeminiService:
             prompt = get_prompt_for_type(type, text)
 
             # Request JSON response for structured types, plain text for cleanup
-            if type != "cleanup":
+            # Request JSON response for structured types, plain text for cleanup and notes
+            if type not in ["cleanup", "notes"]:
                 config = types.GenerateContentConfig(
                     response_mime_type="application/json"
                 )
@@ -42,9 +43,7 @@ class GeminiService:
                 config = None
 
             response = client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=prompt,
-                config=config
+                model="gemini-2.0-flash", contents=prompt, config=config
             )
 
             # Use the convenience .text property
@@ -52,6 +51,9 @@ class GeminiService:
 
             if type == "cleanup":
                 return response_text
+
+            if type == "notes":
+                return {"content": response_text}
 
             # Parse JSON
             try:
