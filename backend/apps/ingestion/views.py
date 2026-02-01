@@ -10,7 +10,7 @@ from .models import Job
 from .quota import check_user_quota
 from .serializers import ProcessUploadSerializer
 from .supabase_storage import get_signed_url_from_storage_url, upload_to_supabase
-from .tasks import process_upload_task
+from .tasks import orchestrate_job_task
 from .validators import get_file_duration, validate_file_size, validate_file_type
 
 logger = logging.getLogger(__name__)
@@ -73,14 +73,17 @@ def process_upload(request):
         )
 
     # Trigger Celery task
-    # Safely get email - request.user is a dict from Supabase middleware
-    user_email = request.user.get("email") if isinstance(request.user, dict) else None
+    # Safely get email - request.user is now a SupabaseUser object or dict
+    if isinstance(request.user, dict):
+        user_email = request.user.get("email")
+    else:
+        user_email = getattr(request.user, "email", None)
 
     logger.info(
         f"Process upload request - User type: {type(request.user)}, Email: {user_email}"
     )
 
-    process_upload_task.delay(str(job.id), user_email=user_email)
+    orchestrate_job_task.delay(str(job.id), user_email=user_email)
 
     # Send receipt email
     if user_email:
@@ -230,3 +233,36 @@ def get_signed_file_url(request, job_id):
             {"error": "Failed to generate file access URL"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def cancel_job(request, job_id):
+    """
+    Cancel an ongoing job.
+    Revokes the currently running Celery task (transcription or generation).
+    """
+    try:
+        job = Job.objects.get(id=job_id, user_id=request.user_id)
+    except Job.DoesNotExist:
+        return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if job.status in ["completed", "failed", "cancelled"]:
+        return Response(
+            {"error": f"Job is already {job.status}"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if job.celery_task_id:
+        try:
+            from config.celery import app
+
+            app.control.revoke(job.celery_task_id, terminate=True)
+            logger.info(f"Revoked task {job.celery_task_id} for job {job.id}")
+        except Exception as e:
+            logger.error(f"Failed to revoke task for job {job.id}: {e}")
+
+    job.status = "cancelled"
+    job.save(update_fields=["status"])
+
+    return Response({"status": "cancelled", "job_id": str(job.id)})

@@ -1,25 +1,31 @@
 // Core types matching backend Django models
 
-export type JobStatus = 
-  | 'uploading' 
-  | 'queued' 
-  | 'transcribing' 
-  | 'extracting_text'
-  | 'generating_summary'
-  | 'generating_notes'
-  | 'generating_flashcards'
-  | 'generating_quiz'
-  | 'generating' 
-  | 'completed' 
-  | 'failed';
+export type JobStatus =
+  | "uploading"
+  | "queued"
+  | "transcribing"
+  | "extracting_text"
+  | "generating_summary"
+  | "generating_notes"
+  | "generating_flashcards"
+  | "generating_quiz"
+  | "generating"
+  | "completed"
+  | "failed"
+  | "cancelled";
 // Note: Backend uses 'quiz' but API may return 'quizzes' - support both for compatibility
-export type MaterialType = 'summary' | 'notes' | 'flashcards' | 'quiz' | 'quizzes';
+export type MaterialType =
+  | "summary"
+  | "notes"
+  | "flashcards"
+  | "quiz"
+  | "quizzes";
 
 export interface JobOptions {
-  summary_length?: 'short' | 'medium' | 'long';
+  summary_length?: "short" | "medium" | "long";
   flashcard_count?: number;
   quiz_question_count?: number;
-  difficulty?: 'easy' | 'medium' | 'hard';
+  difficulty?: "easy" | "medium" | "hard";
   [key: string]: unknown;
 }
 
@@ -53,7 +59,7 @@ export interface Flashcard {
   id?: string | number;
   front: string;
   back: string;
-  difficulty?: 'easy' | 'medium' | 'hard';
+  difficulty?: "easy" | "medium" | "hard";
   tags?: string[];
 }
 
@@ -97,8 +103,8 @@ export interface JobListItem {
 // Word-level timestamp from transcription
 export interface TranscriptionWord {
   text: string;
-  start: number;  // Start time in seconds
-  end: number;    // End time in seconds
+  start: number; // Start time in seconds
+  end: number; // End time in seconds
   confidence: number;
 }
 

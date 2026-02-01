@@ -21,6 +21,7 @@ export interface ProcessingProps {
   progress: number;
   steps: ProcessingStep[];
   currentStep: number;
+  onCancel?: () => void;
 }
 
 export interface ProcessingStep {

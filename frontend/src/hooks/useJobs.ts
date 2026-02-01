@@ -1,7 +1,7 @@
 import {
-  jobsService,
-  type DashboardData,
-  type ProcessUploadParams,
+    jobsService,
+    type DashboardData,
+    type ProcessUploadParams,
 } from "@/lib/api/services/jobs";
 import type { JobListItem } from "@/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -34,7 +34,11 @@ export function useJob(jobId: string | undefined, options?: UseJobOptions) {
         return false;
       }
 
-      if (data?.status === "completed" || data?.status === "failed") {
+      if (
+        data?.status === "completed" ||
+        data?.status === "failed" ||
+        data?.status === "cancelled"
+      ) {
         return false;
       }
       return 1000;
@@ -70,6 +74,18 @@ export function useProcessUpload() {
     mutationFn: (params: ProcessUploadParams) =>
       jobsService.processUpload(params),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: jobKeys.all });
+    },
+  });
+}
+
+export function useCancelJob() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (jobId: string) => jobsService.cancelJob(jobId),
+    onSuccess: (_, jobId) => {
+      queryClient.invalidateQueries({ queryKey: jobKeys.detail(jobId) });
       queryClient.invalidateQueries({ queryKey: jobKeys.all });
     },
   });

@@ -1,19 +1,33 @@
-import { useRef, useState, useEffect, useMemo } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Settings } from 'lucide-react';
-import { Button } from './button';
-import { ScrubBarContainer, ScrubBarTrack, ScrubBarProgress, ScrubBarThumb, ScrubBarTimeLabel } from './scrub-bar';
-import { toast } from 'sonner';
+import {
+  Maximize,
+  Minimize,
+  Pause,
+  Play,
+  Settings,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { Button } from "./button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from './dropdown-menu';
+} from "./dropdown-menu";
+import {
+  ScrubBarContainer,
+  ScrubBarProgress,
+  ScrubBarThumb,
+  ScrubBarTimeLabel,
+  ScrubBarTrack,
+} from "./scrub-bar";
 
 export interface TranscriptionWord {
   text: string;
-  start: number;  // Start time in seconds
-  end: number;    // End time in seconds
+  start: number; // Start time in seconds
+  end: number; // End time in seconds
   confidence: number;
 }
 
@@ -38,7 +52,7 @@ export function VideoPlayer({
   fileSizeBytes,
   transcript,
   transcriptWords,
-  className = '',
+  className = "",
   poster,
   autoPlay = false,
   loop = false,
@@ -56,11 +70,13 @@ export function VideoPlayer({
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const [highlightedWordIndex, setHighlightedWordIndex] = useState<number | null>(null);
+  const [highlightedWordIndex, setHighlightedWordIndex] = useState<
+    number | null
+  >(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const userScrolledRef = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Use actual word timestamps if available, otherwise estimate
   const wordsWithTiming = useMemo(() => {
     // If we have word-level timestamps from AssemblyAI, use those
@@ -73,17 +89,17 @@ export function VideoPlayer({
         confidence: word.confidence,
       }));
     }
-    
+
     // Fallback: estimate timings from transcript text
     if (!transcript || !duration) return [];
-    
-    const words = transcript.split(/(\s+)/).filter(w => w.trim().length > 0);
+
+    const words = transcript.split(/(\s+)/).filter((w) => w.trim().length > 0);
     const wordCount = words.length;
     if (wordCount === 0) return [];
-    
+
     // Estimate time per word (average speaking rate is ~150 words per minute = 2.5 words per second)
     const timePerWord = duration / wordCount;
-    
+
     return words.map((word, index) => ({
       word,
       startTime: index * timePerWord,
@@ -91,12 +107,15 @@ export function VideoPlayer({
       index,
     }));
   }, [transcript, transcriptWords, duration]);
-  
+
   // Helper function to check if element is visible in viewport
-  const isElementVisible = (element: HTMLElement, container: HTMLElement): boolean => {
+  const isElementVisible = (
+    element: HTMLElement,
+    container: HTMLElement,
+  ): boolean => {
     const containerRect = container.getBoundingClientRect();
     const elementRect = element.getBoundingClientRect();
-    
+
     return (
       elementRect.top >= containerRect.top &&
       elementRect.bottom <= containerRect.bottom &&
@@ -108,24 +127,27 @@ export function VideoPlayer({
   // Update highlighted word based on current time
   useEffect(() => {
     if (!isPlaying || isScrubbing || wordsWithTiming.length === 0) return;
-    
+
     const currentWord = wordsWithTiming.find(
-      (w) => currentTime >= w.startTime && currentTime < w.endTime
+      (w) => currentTime >= w.startTime && currentTime < w.endTime,
     );
-    
+
     if (currentWord) {
       setHighlightedWordIndex(currentWord.index);
-      
+
       // Auto-scroll only if user hasn't manually scrolled and word is not visible
       if (!userScrolledRef.current && transcriptRef.current) {
         const wordElement = transcriptRef.current.querySelector(
-          `[data-word-index="${currentWord.index}"]`
+          `[data-word-index="${currentWord.index}"]`,
         ) as HTMLElement;
-        
-        if (wordElement && !isElementVisible(wordElement, transcriptRef.current)) {
+
+        if (
+          wordElement &&
+          !isElementVisible(wordElement, transcriptRef.current)
+        ) {
           wordElement.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
+            behavior: "smooth",
+            block: "center",
           });
         }
       }
@@ -139,20 +161,20 @@ export function VideoPlayer({
 
     const handleScroll = () => {
       userScrolledRef.current = true;
-      
+
       if (scrollTimeoutRef.current) {
         clearTimeout(scrollTimeoutRef.current);
       }
-      
+
       scrollTimeoutRef.current = setTimeout(() => {
         userScrolledRef.current = false;
       }, 2000);
     };
 
-    container.addEventListener('scroll', handleScroll);
-    
+    container.addEventListener("scroll", handleScroll);
+
     return () => {
-      container.removeEventListener('scroll', handleScroll);
+      container.removeEventListener("scroll", handleScroll);
       if (scrollTimeoutRef.current) {
         clearTimeout(scrollTimeoutRef.current);
       }
@@ -165,12 +187,12 @@ export function VideoPlayer({
       userScrolledRef.current = false;
     }
   }, [isPlaying]);
-  
+
   // Reset highlight when scrubbing
   useEffect(() => {
     if (isScrubbing && wordsWithTiming.length > 0) {
       const currentWord = wordsWithTiming.find(
-        (w) => currentTime >= w.startTime && currentTime < w.endTime
+        (w) => currentTime >= w.startTime && currentTime < w.endTime,
       );
       setHighlightedWordIndex(currentWord?.index ?? null);
     }
@@ -226,13 +248,13 @@ export function VideoPlayer({
     };
 
     const handleError = (e: Event) => {
-      console.error('Video load error:', e);
+      console.error("Video load error:", e);
       const error = video.error;
       if (error) {
-        console.error('Video error code:', error.code);
-        console.error('Video error message:', error.message);
+        console.error("Video error code:", error.code);
+        console.error("Video error message:", error.message);
       }
-      toast.error('Failed to load video file. The file may not be accessible.');
+      toast.error("Failed to load video file. The file may not be accessible.");
     };
 
     const handleCanPlay = () => {
@@ -243,15 +265,15 @@ export function VideoPlayer({
       setIsFullscreen(!!document.fullscreenElement);
     };
 
-    video.addEventListener('timeupdate', updateTime);
-    video.addEventListener('loadedmetadata', updateDuration);
-    video.addEventListener('canplay', handleCanPlay);
-    video.addEventListener('play', handlePlay);
-    video.addEventListener('pause', handlePause);
-    video.addEventListener('ended', handleEnded);
-    video.addEventListener('volumechange', handleVolumeChange);
-    video.addEventListener('error', handleError);
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    video.addEventListener("timeupdate", updateTime);
+    video.addEventListener("loadedmetadata", updateDuration);
+    video.addEventListener("canplay", handleCanPlay);
+    video.addEventListener("play", handlePlay);
+    video.addEventListener("pause", handlePause);
+    video.addEventListener("ended", handleEnded);
+    video.addEventListener("volumechange", handleVolumeChange);
+    video.addEventListener("error", handleError);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
 
     // Set initial volume and muted state
     video.volume = volume;
@@ -264,15 +286,15 @@ export function VideoPlayer({
     }
 
     return () => {
-      video.removeEventListener('timeupdate', updateTime);
-      video.removeEventListener('loadedmetadata', updateDuration);
-      video.removeEventListener('canplay', handleCanPlay);
-      video.removeEventListener('play', handlePlay);
-      video.removeEventListener('pause', handlePause);
-      video.removeEventListener('ended', handleEnded);
-      video.removeEventListener('volumechange', handleVolumeChange);
-      video.removeEventListener('error', handleError);
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      video.removeEventListener("timeupdate", updateTime);
+      video.removeEventListener("loadedmetadata", updateDuration);
+      video.removeEventListener("canplay", handleCanPlay);
+      video.removeEventListener("play", handlePlay);
+      video.removeEventListener("pause", handlePause);
+      video.removeEventListener("ended", handleEnded);
+      video.removeEventListener("volumechange", handleVolumeChange);
+      video.removeEventListener("error", handleError);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, [isScrubbing, src, volume, isMuted, playbackRate]);
 
@@ -288,8 +310,8 @@ export function VideoPlayer({
         await video.play();
       }
     } catch (error) {
-      console.error('Playback error:', error);
-      toast.error('Failed to play video. Please try again.');
+      console.error("Playback error:", error);
+      toast.error("Failed to play video. Please try again.");
     }
   };
 
@@ -314,7 +336,7 @@ export function VideoPlayer({
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const video = videoRef.current;
     if (!video) return;
-    
+
     const newVolume = parseFloat(e.target.value);
     video.volume = newVolume;
     setVolume(newVolume);
@@ -324,7 +346,7 @@ export function VideoPlayer({
   const handleMuteToggle = () => {
     const video = videoRef.current;
     if (!video) return;
-    
+
     video.muted = !video.muted;
     setIsMuted(video.muted);
   };
@@ -332,7 +354,7 @@ export function VideoPlayer({
   const handlePlaybackRateChange = (rate: number) => {
     const video = videoRef.current;
     if (!video) return;
-    
+
     video.playbackRate = rate;
     setPlaybackRate(rate);
   };
@@ -348,21 +370,21 @@ export function VideoPlayer({
         await document.exitFullscreen();
       }
     } catch (error) {
-      console.error('Fullscreen error:', error);
-      toast.error('Failed to toggle fullscreen mode.');
+      console.error("Fullscreen error:", error);
+      toast.error("Failed to toggle fullscreen mode.");
     }
   };
 
   const handleWordClick = (startTime: number) => {
     const video = videoRef.current;
     if (!video || !duration) return;
-    
+
     video.currentTime = startTime;
     setCurrentTime(startTime);
-    
+
     if (!isPlaying) {
       video.play().catch((error) => {
-        console.error('Failed to play video:', error);
+        console.error("Failed to play video:", error);
       });
     }
   };
@@ -380,7 +402,7 @@ export function VideoPlayer({
   };
 
   const formatFileSize = (bytes?: number): string => {
-    if (!bytes) return '';
+    if (!bytes) return "";
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
@@ -412,13 +434,15 @@ export function VideoPlayer({
             muted={isMuted}
             playsInline
             onError={(e) => {
-              console.error('Video load error:', e);
+              console.error("Video load error:", e);
               const error = videoRef.current?.error;
               if (error) {
-                console.error('Video error code:', error.code);
-                console.error('Video error message:', error.message);
+                console.error("Video error code:", error.code);
+                console.error("Video error message:", error.message);
               }
-              toast.error('Failed to load video file. The file may not be accessible.');
+              toast.error(
+                "Failed to load video file. The file may not be accessible.",
+              );
             }}
             onLoadedMetadata={() => {
               if (videoRef.current) {
@@ -434,7 +458,7 @@ export function VideoPlayer({
           {/* Controls Overlay */}
           <div
             className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent transition-opacity duration-300 ${
-              showControls ? 'opacity-100' : 'opacity-0'
+              showControls ? "opacity-100" : "opacity-0"
             } pointer-events-none`}
           >
             {/* Center Play/Pause Button */}
@@ -551,7 +575,10 @@ export function VideoPlayer({
                         <Settings className="w-5 h-5" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="bg-card border-border">
+                    <DropdownMenuContent
+                      align="start"
+                      className="bg-card border-border"
+                    >
                       {playbackRates.map((rate) => (
                         <DropdownMenuItem
                           key={rate}
@@ -559,7 +586,9 @@ export function VideoPlayer({
                             e.stopPropagation();
                             handlePlaybackRateChange(rate);
                           }}
-                          className={playbackRate === rate ? 'bg-primary/10' : ''}
+                          className={
+                            playbackRate === rate ? "bg-primary/10" : ""
+                          }
                         >
                           {rate}x
                         </DropdownMenuItem>
@@ -601,54 +630,85 @@ export function VideoPlayer({
           {(fileType || fileSizeBytes) && (
             <p>
               {fileType && `${fileType}`}
-              {fileType && fileSizeBytes && ' • '}
+              {fileType && fileSizeBytes && " • "}
               {fileSizeBytes && formatFileSize(fileSizeBytes)}
             </p>
           )}
         </div>
       )}
-      
+
       {/* Transcript with highlighting */}
       {transcript && duration > 0 && (
         <div className="mt-8 pt-8 border-t border-border">
-          <h3 className="text-lg font-medium text-foreground mb-4">Transcript</h3>
+          <h3 className="text-lg font-medium text-foreground mb-4">
+            Transcript
+          </h3>
           <div
             ref={transcriptRef}
             className="bg-card p-6 rounded-xl border border-border max-h-96 overflow-y-auto"
           >
-            <div className="text-muted-foreground leading-relaxed break-words whitespace-normal space-y-2">
-              {wordsWithTiming.map(({ word, index, startTime }, i) => {
-                const isSentenceEnd = /[.!?]$/.test(word.trim());
-                const isLastWord = i === wordsWithTiming.length - 1;
-                
-                return (
-                  <span key={index}>
-                    <span
-                      data-word-index={index}
-                      onClick={() => handleWordClick(startTime)}
-                      className={`transition-colors duration-200 cursor-pointer hover:bg-muted/50 px-0.5 rounded ${
-                        highlightedWordIndex === index
-                          ? 'bg-primary/20 text-primary font-medium'
-                          : ''
-                      }`}
-                    >
-                      {word}
+            <div className="space-y-1">
+              {(() => {
+                // Group words into sentences
+                const sentences: {
+                  start: number;
+                  words: typeof wordsWithTiming;
+                }[] = [];
+                let currentSentence: typeof wordsWithTiming = [];
+
+                wordsWithTiming.forEach((word) => {
+                  currentSentence.push(word);
+                  if (/[.!?]$/.test(word.word.trim())) {
+                    sentences.push({
+                      start: currentSentence[0].startTime,
+                      words: [...currentSentence],
+                    });
+                    currentSentence = [];
+                  }
+                });
+
+                // Add remaining words
+                if (currentSentence.length > 0) {
+                  sentences.push({
+                    start: currentSentence[0].startTime,
+                    words: currentSentence,
+                  });
+                }
+
+                // Format seconds to MM:SS
+                const formatTime = (seconds: number) => {
+                  const m = Math.floor(seconds / 60);
+                  const s = Math.floor(seconds % 60);
+                  return `${m}:${s.toString().padStart(2, "0")}`;
+                };
+
+                return sentences.map((sentence, sIdx) => (
+                  <div
+                    key={sIdx}
+                    className="flex gap-4 group hover:bg-muted/50 px-2 py-1 rounded-lg transition-colors"
+                  >
+                    <span className="text-xs font-mono text-muted-foreground pt-1 min-w-[50px] select-none">
+                      {formatTime(sentence.start)}
                     </span>
-                    {!isLastWord && (
-                      <>
-                        {isSentenceEnd ? (
-                          <>
-                            {' '}
-                            <br className="mb-1" />
-                          </>
-                        ) : (
-                          ' '
-                        )}
-                      </>
-                    )}
-                  </span>
-                );
-              })}
+                    <p className="text-sm text-foreground leading-relaxed">
+                      {sentence.words.map((w) => (
+                        <span
+                          key={w.index}
+                          data-word-index={w.index}
+                          onClick={() => handleWordClick(w.startTime)}
+                          className={`cursor-pointer rounded px-0.5 transition-colors ${
+                            highlightedWordIndex === w.index
+                              ? "bg-primary/20 text-primary font-medium"
+                              : "hover:text-primary"
+                          }`}
+                        >
+                          {w.word}{" "}
+                        </span>
+                      ))}
+                    </p>
+                  </div>
+                ));
+              })()}
             </div>
           </div>
         </div>

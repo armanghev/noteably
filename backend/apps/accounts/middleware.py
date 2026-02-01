@@ -9,6 +9,30 @@ from django.http import JsonResponse
 logger = logging.getLogger(__name__)
 
 
+class SupabaseUser:
+    """
+    Wrapper around Supabase user dictionary to mimic Django User object.
+    Needed for DRF throttling and permissions which expect .is_authenticated.
+    """
+
+    def __init__(self, data):
+        self.data = data
+        self.id = data.get("id")
+        self.pk = data.get("id")  # Django often matches pk to id
+        self.email = data.get("email")
+        self.is_authenticated = True
+        self.is_anonymous = False
+        self.is_active = True
+        self.is_staff = False
+        self.is_superuser = False
+
+    def __str__(self):
+        return self.email or self.id or "SupabaseUser"
+
+    def __getattr__(self, name):
+        return self.data.get(name)
+
+
 def supabase_auth_middleware(get_response):
     """
     Middleware to validate Supabase JWT tokens and attach user to request.
@@ -79,7 +103,7 @@ def supabase_auth_middleware(get_response):
                     "app_metadata": {"provider": "api_key", "key_name": api_key.name},
                 }
 
-                request.user = user_data
+                request.user = SupabaseUser(user_data)
                 request.user_id = str(api_key.user_id)
                 return get_response(request)
 
@@ -99,7 +123,7 @@ def supabase_auth_middleware(get_response):
 
             # Force set request.user to the dict from Supabase
             # This overrides any Django User object or LazyObject
-            request.user = user_data
+            request.user = SupabaseUser(user_data)
             request.user_id = user_data.get("id")
 
             logger.info(

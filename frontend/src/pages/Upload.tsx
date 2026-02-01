@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { useAuth } from "@/hooks/useAuth";
-import { jobKeys, useProcessUpload } from "@/hooks/useJobs";
+import { jobKeys, useCancelJob, useProcessUpload } from "@/hooks/useJobs";
 import type { FileUploadProps, MaterialType, ProcessingProps } from "@/types";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -228,6 +228,7 @@ const Processing: React.FC<ProcessingProps> = ({
   progress,
   steps,
   currentStep,
+  onCancel,
 }) => {
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-12 bg-background border border-primary rounded-3xl">
@@ -265,7 +266,7 @@ const Processing: React.FC<ProcessingProps> = ({
         </div>
 
         {/* Steps List */}
-        <div className="space-y-4">
+        <div className="space-y-4 mb-8">
           {steps.map((step, idx) => (
             <div
               key={step.id}
@@ -316,6 +317,7 @@ export default function Upload() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { session } = useAuth();
   const processUploadMutation = useProcessUpload();
+  const cancelJobMutation = useCancelJob();
   const queryClient = useQueryClient();
   const { lastMessage } = useWebSocket();
 
@@ -340,9 +342,6 @@ export default function Upload() {
       // Update the cache for this specific job
       if (jobId && updatedJob.id === jobId) {
         console.log("Updating job cache:", updatedJob);
-        // We do NOT update the query cache for detail here.
-        // We only rely on local state to prevent polluting the cache with partial data (missing generated_content)
-        // This ensures StudySetDetail fetches fresh, full data on mount.
       }
 
       // Update local job state directly from WS
@@ -363,7 +362,6 @@ export default function Upload() {
     }
   }, [lastMessage, jobId, queryClient]);
 
-  // const { data: job } = useJob(jobId);
   // We use local state updated by WebSocket to avoid redundant fetching
   const [job, setJob] = useState<any>(null);
 
@@ -396,32 +394,11 @@ export default function Upload() {
       });
     }
 
-    if (selectedTypes.includes("summary")) {
+    if (selectedTypes.length > 0) {
       s.push({
-        id: "generating_summary",
-        title: "Generating Summary",
-        desc: "Analyzing key concepts...",
-      });
-    }
-    if (selectedTypes.includes("notes")) {
-      s.push({
-        id: "generating_notes",
-        title: "Generating Notes",
-        desc: "Compiling detailed notes...",
-      });
-    }
-    if (selectedTypes.includes("flashcards")) {
-      s.push({
-        id: "generating_flashcards",
-        title: "Creating Flashcards",
-        desc: "Building study materials...",
-      });
-    }
-    if (selectedTypes.includes("quiz") || selectedTypes.includes("quizzes")) {
-      s.push({
-        id: "generating_quiz",
-        title: "Generating Quiz",
-        desc: "Preparing practice questions...",
+        id: "generating",
+        title: "Generating Materials",
+        desc: "Creating your study set simultaneously...",
       });
     }
 
@@ -447,8 +424,6 @@ export default function Upload() {
 
       // Handle "generating" fallback or specific mapping if needed
       if (status === "generating") {
-        // If we get generic generating, map to the first generating step that hasn't finished?
-        // Or just map to summary as a safe default if it exists
         stepId = "generating_summary";
       }
 
@@ -457,15 +432,12 @@ export default function Upload() {
 
       // Fallback logic for generic states
       if (status === "queued") {
-        // Map "queued" to the first processing step (after upload)
-        // This is either "transcribing" or "extracting_text" depending on file type
         const firstProcessingStep = steps.find(
-          (s) => s.id === "transcribing" || s.id === "extracting_text"
+          (s) => s.id === "transcribing" || s.id === "extracting_text",
         );
         if (firstProcessingStep) {
           return firstProcessingStep.index;
         }
-        // If no processing step found, default to step 1 (after upload)
         return 1;
       }
       if (status === "completed") return steps.length - 1; // Finalizing/Done
@@ -478,9 +450,7 @@ export default function Upload() {
       if (jobId) {
         queryClient.cancelQueries({ queryKey: jobKeys.detail(jobId) });
       }
-      setTimeout(() => {
-        navigate(`/study-sets/${job.id}`, { state: { from: "/upload" } });
-      }, 1000);
+      navigate(`/study-sets/${job.id}`, { state: { from: "/upload" } });
     } else if (job.status === "failed") {
       // Cancel polling on failure
       if (jobId) {
@@ -591,6 +561,21 @@ export default function Upload() {
     }
   };
 
+  const handleCancel = async () => {
+    if (!jobId) return;
+    try {
+      await cancelJobMutation.mutateAsync(jobId);
+      // Reset state to allow new upload
+      setJobId(undefined);
+      setJob(null);
+      setFile(null);
+      setCurrentStep(0);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (err) {
+      console.error("Failed to cancel job", err);
+    }
+  };
+
   const getFileIcon = (fileType: string): React.ReactNode => {
     if (fileType.includes("audio"))
       return <Music className="w-8 h-8 text-primary" />;
@@ -602,7 +587,7 @@ export default function Upload() {
   };
 
   const isProcessing =
-    !!jobId && job?.status !== "completed" && job?.status !== "failed";
+    (!!jobId && job?.status !== "failed") || processUploadMutation.isPending;
   const progress = job?.progress || 0;
 
   return (
@@ -642,6 +627,7 @@ export default function Upload() {
               progress={progress}
               steps={steps}
               currentStep={currentStep}
+              onCancel={handleCancel}
             />
           )}
         </Card>

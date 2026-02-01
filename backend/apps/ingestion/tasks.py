@@ -9,7 +9,7 @@ from apps.ingestion.models import Job
 from apps.ingestion.supabase_storage import get_signed_url_from_storage_url
 from apps.transcription.models import Transcription
 from apps.transcription.service import TranscriptionService
-from celery import shared_task
+from celery import chain, shared_task
 from django.utils.timezone import now as from_datetime
 from pypdf import PdfReader
 
@@ -41,265 +41,226 @@ def extract_pdf_text_from_url(url: str) -> str:
         raise
 
 
-@shared_task(bind=True, max_retries=3)
-def process_upload_task(
-    self,
-    job_id,
-    user_email=None,
-):
-    logger.info(
-        f"Task process_upload_task started for job {job_id}. Email: {user_email}"
-    )
+@shared_task(bind=True, queue="default")
+def orchestrate_job_task(self, job_id, user_email=None):
+    """
+    Entry point for the ingestion pipeline.
+    Chains the transcription and generation tasks.
+    """
+    logger.info(f"Orchestrating job {job_id}")
     try:
         job = Job.objects.get(id=job_id)
+        job.celery_task_id = self.request.id
+        job.status = "queued"
+        job.save(update_fields=["celery_task_id", "status"])
+
+        # Define the workflow chain
+        # transcribe -> generate
+        workflow = chain(
+            transcribe_media_task.s(job_id), generate_content_task.s(job_id, user_email)
+        )
+
+        # Execute the chain
+        # We start it immediately; the sub-tasks will run in their respective queues
+        workflow.apply_async()
+
     except Job.DoesNotExist:
-        logger.error(f"Job {job_id} not found")
-        return
-
-    if job.status in ["completed", "failed"]:
-        return
-
-    try:
-        # Step 1: Verify file is uploaded (should already be uploaded by web server)
-        if not job.storage_url:
-            logger.error(f"No storage URL for job {job_id}, upload may have failed")
+        logger.error(f"Job {job_id} not found during orchestration")
+    except Exception as e:
+        logger.exception(f"Error orchestrating job {job_id}")
+        # Attempt to fail the job if found
+        try:
+            job = Job.objects.get(id=job_id)
             job.status = "failed"
-            job.error_message = "File upload incomplete"
+            job.error_message = f"Orchestration error: {str(e)}"
             job.save()
+        except Exception:
+            pass
+
+
+@shared_task(bind=True, max_retries=3, queue="transcription")
+def transcribe_media_task(self, job_id):
+    """
+    Handle Step 1 & 2: Validation, PDF Extraction, or AssemblyAI Transcription
+    """
+    logger.info(f"Starting transcription task for job {job_id}")
+    try:
+        job = Job.objects.get(id=job_id)
+
+        # Update task ID for cancellation support
+        job.celery_task_id = self.request.id
+        job.save(update_fields=["celery_task_id"])
+
+        if job.status in ["completed", "failed", "cancelled"]:
+            return job_id
+
+        # Verify storage URL
+        if not job.storage_url:
+            raise ValueError("No storage URL provided")
+
+        # PDF Handling
+        if job.file_type == "application/pdf" or job.filename.lower().endswith(".pdf"):
+            logger.info(f"Processing PDF for job {job_id}")
+            job.status = "extracting_text"
+            job.save(update_fields=["status"])
+
+            raw_text = extract_pdf_text_from_url(job.storage_url)
+
+            logger.info(f"Cleaning up PDF text for job {job_id}")
+            cleaned_text = GeminiService.generate_content(raw_text, "cleanup")
+
+            Transcription.objects.create(
+                job=job,
+                external_id="pdf",
+                text=cleaned_text,
+                raw_response={
+                    "type": "pdf_extraction",
+                    "raw_text_length": len(raw_text),
+                },
+            )
+            job.transcription_id = "pdf"
+            job.save(update_fields=["transcription_id"])
+
+        else:
+            # AssemblyAI Handling
+            logger.info(f"Transcribing audio/video for job {job_id}")
+            job.status = "transcribing"
+            job.progress = 25
+            job.save(update_fields=["status", "progress"])
+
+            signed_url = get_signed_url_from_storage_url(
+                job.storage_url, expires_in=86400
+            )
+            transcript = TranscriptionService.transcribe(signed_url)
+
+            # Use raw_response directly if possible, or build it carefully
+            # ... (Simplified serialization logic) ...
+            raw_data = {}
+            if hasattr(transcript, "json_response"):
+                raw_data = transcript.json_response
+            elif hasattr(transcript, "dict"):
+                raw_data = transcript.dict()
+            else:
+                raw_data = {"id": transcript.id, "text": transcript.text}
+
+            Transcription.objects.create(
+                job=job,
+                external_id=transcript.external_id
+                if hasattr(transcript, "external_id")
+                else transcript.id,
+                text=transcript.text,
+                raw_response=raw_data,
+            )
+            job.transcription_id = transcript.id
+            job.save(update_fields=["transcription_id"])
+
+        logger.info(f"Transcription complete for job {job_id}")
+        return job_id
+
+    except Exception as e:
+        logger.exception(f"Error in transcription task for job {job_id}")
+        try:
+            job.status = "failed"
+            job.error_message = f"Transcription failed: {str(e)}"
+            job.save()
+        except Exception:
+            pass
+        raise e  # Retry enabled
+
+
+@shared_task(bind=True, max_retries=2, queue="generation")
+def generate_content_task(self, transcription_result, job_id, user_email=None):
+    """
+    Handle Step 3: Gemini Content Generation
+    """
+    logger.info(f"Starting generation task for job {job_id}")
+    try:
+        job = Job.objects.get(id=job_id)
+
+        # Update task ID for cancellation support
+        job.celery_task_id = self.request.id
+        job.save(update_fields=["celery_task_id"])
+
+        if job.status in ["completed", "failed", "cancelled"]:
             return
 
-        # If status is still "uploading", update to "queued" (file should be uploaded by now)
-        if job.status == "uploading":
-            job.status = "queued"
-            job.save(update_fields=["status"])
-            logger.info(f"Job {job_id} ready for processing")
-
-        # Step 2: Transcription / Text Extraction
-        if not hasattr(job, "transcription") or job.transcription is None:
-            # Check if it is a PDF
-            if job.file_type == "application/pdf" or job.filename.lower().endswith(
-                ".pdf"
-            ):
-                logger.info(f"Processing PDF for job {job_id}")
-                job.status = "extracting_text"
-                job.save()
-
-                raw_text = extract_pdf_text_from_url(job.storage_url)
-
-                # Clean up the raw PDF text using Gemini
-                logger.info(f"Cleaning up PDF text for job {job_id}")
-                cleaned_text = GeminiService.generate_content(raw_text, "cleanup")
-
-                # Create transcription record with cleaned text
-                Transcription.objects.create(
-                    job=job,
-                    external_id="pdf",
-                    text=cleaned_text,
-                    raw_response={
-                        "type": "pdf_extraction",
-                        "raw_text_length": len(raw_text),
-                    },
-                )
-                job.transcription_id = "pdf"
-                job.save(update_fields=["transcription_id"])
-
-            else:
-                # Audio/Video file - use AssemblyAI
-                logger.info(f"Transcribing audio/video for job {job_id}")
-                job.status = "transcribing"
-                job.progress = 25
-                job.save()
-
-                # Generate a signed URL for AssemblyAI (expires in 24 hours)
-                signed_url = get_signed_url_from_storage_url(
-                    job.storage_url,
-                    expires_in=86400,
-                )
-                logger.info(f"Generated signed URL for job {job_id}")
-
-                # Transcribe using SDK (blocks until complete, handles polling automatically)
-                transcript = TranscriptionService.transcribe(signed_url)
-
-                # Create transcription record
-                # Helper function to serialize AssemblyAI objects
-                def serialize_assemblyai_obj(obj):
-                    if isinstance(obj, list):
-                        return [serialize_assemblyai_obj(item) for item in obj]
-                    if hasattr(obj, "dict"):
-                        return obj.dict()
-                    if hasattr(obj, "__dict__"):
-                        return str(obj)  # Fallback for unknown objects
-                    return obj
-
-                if hasattr(transcript, "json_response"):
-                    # The SDK often provides the raw JSON response directly
-                    raw_response_data = transcript.json_response
-                elif hasattr(transcript, "model_dump"):
-                    raw_response_data = transcript.model_dump()
-                elif hasattr(transcript, "dict"):
-                    raw_response_data = transcript.dict()
-                else:
-                    # Fallback: convert to dict manually
-                    raw_response_data = {
-                        "id": transcript.id,
-                        "text": transcript.text,
-                        "status": transcript.status.value
-                        if hasattr(transcript.status, "value")
-                        else str(transcript.status),
-                    }
-                    # Include other common attributes and serialize them
-                    for attr in [
-                        "error",
-                        "confidence",
-                        "words",
-                        "utterances",
-                        "chapters",
-                        "entities",
-                    ]:
-                        if hasattr(transcript, attr):
-                            val = getattr(transcript, attr)
-                            if val is not None:
-                                # Ensure lists of objects (like Words) are serialized
-                                if isinstance(val, list):
-                                    raw_response_data[attr] = [
-                                        item.dict()
-                                        if hasattr(item, "dict")
-                                        else getattr(item, "__dict__", str(item))
-                                        for item in val
-                                    ]
-                                else:
-                                    raw_response_data[attr] = val
-
-                # Double check to ensure we have pure dicts
-                # (The error often comes from 'words' being a list of objects even if 'dict()' is called on parent sometimes)
-                # If we manually built it or if the SDK returned mixed types, let's try to verify.
-                # However, usually the SDK's .dict() or .json_response should work.
-                # The safest bet for AssemblyAI v2 SDK is often .json_response if available, or converting list items.
-
-                # Refined serialization for specific known list fields if they are still objects
-                if "words" in raw_response_data and isinstance(
-                    raw_response_data["words"], list
-                ):
-                    if raw_response_data["words"] and not isinstance(
-                        raw_response_data["words"][0], dict
-                    ):
-                        raw_response_data["words"] = [
-                            w.dict() if hasattr(w, "dict") else str(w)
-                            for w in raw_response_data["words"]
-                        ]
-
-                Transcription.objects.create(
-                    job=job,
-                    external_id=transcript.id,
-                    text=transcript.text,
-                    raw_response=raw_response_data,
-                )
-                job.transcription_id = transcript.id
-                job.save(update_fields=["transcription_id"])
-                logger.info(f"Transcription completed for job {job_id}")
-
-        # Step 3: Content Generation
-        logger.info(f"Starting content generation for job {job_id}")
         job.status = "generating"
         job.progress = 50
-        job.save()
+        job.save(update_fields=["status", "progress"])
 
-        transcript_text = job.transcription.text
+        # Fetch transcription text
+        try:
+            transcript_text = job.transcription.text
+        except Job.transcription.RelatedObjectDoesNotExist:
+            raise ValueError("Transcription not found for job")
 
-        # Generate all material types in parallel
-        def generate_single(material_type):
-            logger.info(f"Generating {material_type} for job {job_id}")
-            content = GeminiService.generate_content(transcript_text, material_type)
-            return material_type, content
-
+        # Parallel Generation
         results = {}
         errors = []
 
         with ThreadPoolExecutor(max_workers=4) as executor:
-            futures = {
-                executor.submit(generate_single, mt): mt for mt in job.material_types
-            }
+            # Helper to call service
+            def gen(mt):
+                return mt, GeminiService.generate_content(transcript_text, mt)
+
+            futures = {executor.submit(gen, mt): mt for mt in job.material_types}
 
             for future in as_completed(futures):
-                material_type = futures[future]
+                mt = futures[future]
                 try:
-                    mt, content = future.result()
-                    results[mt] = content
-                    logger.info(f"Completed generating {mt} for job {job_id}")
-                except Exception as e:
-                    logger.error(
-                        f"Failed to generate {material_type} for job {job_id}: {e}"
+                    res_mt, content = future.result()
+                    results[res_mt] = content
+                    # Save immediately so it's available
+                    GeneratedContent.objects.create(
+                        job=job, type=res_mt, content=content
                     )
-                    errors.append((material_type, str(e)))
+                    logger.info(f"Generated and saved {res_mt} for job {job_id}")
+                except Exception as e:
+                    logger.error(f"Failed to generate {mt}: {e}")
+                    errors.append((mt, str(e)))
 
-        # Save all generated content
-        for material_type, content in results.items():
-            GeneratedContent.objects.create(
-                job=job, type=material_type, content=content
-            )
+        # (Batch save loop removed)
 
-        # Check if all requested materials were successfully generated
-        if errors:
-            # Some materials failed to generate
-            failed_types = [mt for mt, _ in errors]
-            error_messages = [f"{mt}: {msg}" for mt, msg in errors]
-            error_summary = "; ".join(error_messages)
-
-            logger.warning(
-                f"Job {job_id} partially completed. "
-                f"Failed to generate: {failed_types}. "
-                f"Successfully generated: {list(results.keys())}"
-            )
-
-            # Mark job as failed if no materials were generated at all
-            if not results:
-                job.status = "failed"
-                job.error_message = f"All content generation failed: {error_summary}"
-                job.save()
-                return
-
-            # Mark as completed but log the partial failure
-            # The job is partially successful - some materials were generated
-            job.status = "completed"
-            job.progress = 100
-            job.completed_at = from_datetime()
-            job.error_message = (
-                f"Partial completion - failed: {', '.join(failed_types)}"
-            )
-            job.save()
-            logger.info(
-                f"Job {job_id} completed partially. "
-                f"Generated: {list(results.keys())}, Failed: {failed_types}"
-            )
+        # Handle Completion / Partial Failure
+        if not results:
+            job.status = "failed"
+            job.error_message = f"All generation failed. Errors: {errors}"
         else:
-            # All materials generated successfully
             job.status = "completed"
             job.progress = 100
             job.completed_at = from_datetime()
-            job.save()
-            logger.info(f"Job {job_id} completed successfully with all materials")
-
-            # Send completion email
-            if user_email:
-                from apps.core.utils.email import send_job_completed_email
-
-                send_job_completed_email(
-                    user_email, str(job.id), job.filename, list(results.keys())
+            if errors:
+                job.error_message = (
+                    f"Partial completion. Failed: {[e[0] for e in errors]}"
                 )
 
-        # Update cached content metadata for fast list queries
-        # This is an optimization - failure shouldn't affect job status
+            # Send email
+            if user_email:
+                try:
+                    from apps.core.utils.email import send_job_completed_email
+
+                    send_job_completed_email(
+                        user_email, str(job.id), job.filename, list(results.keys())
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to send email: {e}")
+
+        job.save()
+
+        # Update Cache
         try:
             job.update_content_cache()
-        except Exception as cache_error:
-            logger.warning(
-                f"Failed to update content cache for job {job_id}: {cache_error}. "
-                "Job completed successfully but cache update failed."
-            )
-            # Don't re-raise - cache update is non-critical
+        except Exception:
+            pass
+
+        return job_id
 
     except Exception as e:
-        logger.exception(f"Error processing job {job_id}")
-        job.status = "failed"
-        job.error_message = f"Processing failed: {str(e)}"
-        job.save()
+        logger.exception(f"Error in generation task for job {job_id}")
+        try:
+            job.status = "failed"
+            job.error_message = f"Generation failed: {str(e)}"
+            job.save()
+        except Exception:
+            pass
+        raise e

@@ -59,6 +59,11 @@ class Job(models.Model):
     error_message = models.TextField(blank=True)
     retry_count = models.IntegerField(default=0)
 
+    # Task Tracking
+    celery_task_id = models.CharField(
+        max_length=255, null=True, blank=True, db_index=True
+    )
+
     # Cached content metadata (denormalized for fast list queries)
     # Updated when content is generated - avoids loading GeneratedContent for lists
     cached_flashcard_count = models.IntegerField(default=0)

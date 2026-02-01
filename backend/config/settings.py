@@ -182,6 +182,19 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
 
+# Celery Queues and Routes
+CELERY_TASK_QUEUES = {
+    "default": {"exchange": "default", "routing_key": "default"},
+    "transcription": {"exchange": "transcription", "routing_key": "transcription"},
+    "generation": {"exchange": "generation", "routing_key": "generation"},
+}
+
+CELERY_TASK_ROUTES = {
+    "apps.ingestion.tasks.transcribe_media_task": {"queue": "transcription"},
+    "apps.ingestion.tasks.generate_content_task": {"queue": "generation"},
+    "apps.ingestion.tasks.orchestrate_job_task": {"queue": "default"},
+}
+
 # Logging
 LOGGING = {
     "version": 1,

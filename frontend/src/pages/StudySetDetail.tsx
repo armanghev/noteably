@@ -1,4 +1,5 @@
 import { ExportButton } from "@/components/export/ExportButton";
+import Layout from "@/components/layout/Layout";
 import { AudioPlayer } from "@/components/ui/audio-player";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -45,7 +46,6 @@ import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
-import Layout from "@/components/layout/Layout";
 
 // Helper functions to extract and type content
 function getSummaryContent(job: Job): SummaryContent | null {
@@ -82,11 +82,7 @@ function getQuizContent(job: Job): QuizQuestion[] {
 
 export default function StudySetDetail() {
   const { id } = useParams<{ id: string }>();
-  const {
-    data: job,
-    isLoading,
-    error: jobError,
-  } = useJob(id);
+  const { data: job, isLoading, error: jobError } = useJob(id);
   const { handleBack, backLabel } = useBackNavigation({
     defaultPath: "/study-sets",
     defaultLabel: "Back to Study Sets",
@@ -562,7 +558,67 @@ export default function StudySetDetail() {
                   </h2>
                 </div>
                 <div className="max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                  {transcriptText ? (
+                  {job.transcription_words &&
+                  job.transcription_words.length > 0 ? (
+                    <div className="space-y-1">
+                      {(() => {
+                        // Group words into sentences
+                        const sentences: { start: number; text: string }[] = [];
+                        let currentSentence: string[] = [];
+                        let currentStart = job.transcription_words[0].start;
+
+                        job.transcription_words.forEach((word) => {
+                          currentSentence.push(word.text);
+                          // Simple punctuation check for sentence break
+                          if (/[.!?]$/.test(word.text)) {
+                            sentences.push({
+                              start: currentStart,
+                              text: currentSentence.join(" "),
+                            });
+                            currentSentence = [];
+                            currentStart = -1; // Reset
+                          } else if (currentStart === -1) {
+                            currentStart = word.start;
+                          }
+                        });
+
+                        // Add any remaining words
+                        if (currentSentence.length > 0) {
+                          sentences.push({
+                            start:
+                              currentStart === -1
+                                ? job.transcription_words[
+                                    job.transcription_words.length -
+                                      currentSentence.length
+                                  ].start
+                                : currentStart,
+                            text: currentSentence.join(" "),
+                          });
+                        }
+
+                        // Format seconds to MM:SS
+                        const formatTime = (seconds: number) => {
+                          const m = Math.floor(seconds / 60);
+                          const s = Math.floor(seconds % 60);
+                          return `${m}:${s.toString().padStart(2, "0")}`;
+                        };
+
+                        return sentences.map((sentence, idx) => (
+                          <div
+                            key={idx}
+                            className="flex gap-4 group hover:bg-muted/50 px-2 py-1 rounded-lg transition-colors"
+                          >
+                            <span className="text-xs font-mono text-muted-foreground pt-1 min-w-[50px] select-none">
+                              {formatTime(sentence.start)}
+                            </span>
+                            <p className="text-sm text-foreground leading-relaxed">
+                              {sentence.text}
+                            </p>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  ) : transcriptText ? (
                     <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary leading-relaxed">
                       <ReactMarkdown components={markdownComponents}>
                         {transcriptText}
