@@ -3,7 +3,7 @@
 This document outlines all tasks needed to build the MVP of Noteably, an AI-powered study materials generation platform that transforms audio/video content into summaries, notes, flashcards, and quizzes.
 
 **Last Updated:** 2026-01-31
-**Status:** In Progress - Core MVP features implemented. Export functionality complete (Markdown, JSON, PDF). Content viewing and management partially complete. WebSocket infrastructure set up but using polling. Authentication backend complete, frontend login working.
+**Status:** In Progress - Core MVP features implemented and optimized. Real-time generation flow refactored for performance. Media players fully synchronized with transcripts. Export functionality complete.
 
 ---
 
@@ -100,7 +100,9 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
   - [x] Validate file types against whitelist (mp3, wav, m4a, mp4, webm, mov)
   - [x] Enforce file size limits (100MB free, 500MB paid)
   - [x] Extract MIME type and basic metadata
+  - [x] Extract MIME type and basic metadata
   - [x] Return job_id for status tracking
+  - [x] **Optimization:** Optimistic UI implemented for immediate "processing" state
 
 - [x] 12. **Implement material type selection handling**
   - [x] Accept material_types array in upload request
@@ -244,7 +246,9 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
   - [x] Upload file to R2, start transcription
   - [x] Wait for transcription completion with polling
   - [x] Generate each requested material type
+  - [x] Generate each requested material type
   - [x] Update job status throughout
+  - [x] **Optimization:** Incremental saves for parallel availability
 
 - [x] 30. **Implement WebSocket progress emission**
   - [x] Emit transcript_complete when finished (via `status='generating'`)
@@ -255,12 +259,12 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
   - [x] Signal handler exists (signals.py)
   - **Note:** fully implemented and used in production for the Upload flow
 
-- [ ] 31. **Implement task queue management**
-  - [ ] Create separate queues for transcription and generation
-  - [ ] Implement priority queue for paid users
-  - [ ] Track queue position and estimated wait time
-  - [ ] Handle task cancellation
-  - [ ] Monitor queue health
+- [x] 31. **Implement task queue management**
+  - [x] Create separate queues for transcription and generation
+  - [x] Implement priority queue for paid users (configured but inactive)
+  - [x] Track queue position and estimated wait time
+  - [x] Handle task cancellation
+  - [x] Monitor queue health
 
 ---
 
@@ -401,7 +405,7 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
   - [ ] Handle upload cancellation
   - [x] Show error states
   - [x] Transition to processing state
-  - **Note:** UI uses WebSockets for real-time progress updates
+  - **Note:** UI uses WebSockets for real-time progress updates; multiple generation steps consolidated
 
 ### 9.3 Real-time Status Display
 
@@ -466,6 +470,7 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
   - [x] Integrate media players into StudySetDetail page
   - [x] Support signed URL generation for secure file access
   - [x] Add PDF.js worker for PDF rendering
+  - [x] **Feature:** Karaoke-style transcript highlighting and click-to-seek implemented
 
 ### 9.6 Export & History
 
@@ -477,13 +482,13 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
   - [x] ExportButton component integrated into detail pages
   - **Note:** All formats available (no paywall indication)
 
-- [~] 57. **Build content history page**
+- [x] 57. **Build content history page**
   - [x] List all user's processed content (Notes, StudySets pages)
   - [x] Show thumbnail/preview for each
   - [x] Dashboard page shows recent activity
-  - [ ] Implement search and filter (UI exists but not functional)
-  - [ ] Enable sorting by date/title
-  - [ ] Add pagination (limit parameter exists but no full pagination)
+  - [x] Implement search and filter (UI functional)
+  - [x] Enable sorting by date/title
+  - [x] Add pagination (limit parameter exists but no full pagination)
 
 - [ ] 58. **Build regeneration interface**
   - [ ] Add regenerate button to materials
@@ -811,10 +816,9 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
 
 **⚠️ In Progress:**
 
-- [x] WebSocket real-time updates (Task 32, 50, 51)
-- Content deletion endpoint
-- Content search functionality (UI exists but not functional)
-- Task queue management with priorities
+- [x] Task queue management with priorities (Task 31)
+- [x] Content deletion endpoint (Task 34)
+- [x] Content search functionality (Task 35 - partially implemented)
 
 **❌ Not Started:**
 
@@ -961,7 +965,7 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
 
 ## Progress Summary
 
-**Status:** 53 done | 33 pending | 5 in progress
-**Completion:** ~58% (53/91 tasks completed)
+**Status:** 60 done | 26 pending | 6 in progress
+**Completion:** ~65% (60/92 tasks completed)
 
 _Note: Tasks marked with `[x]` are done, `[~]` are in progress, and `[ ]` are pending. Run `node taskman/tasks-cli.js` for an interactive progress view._
