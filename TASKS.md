@@ -287,12 +287,12 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
   - [x] Handle not found errors
   - **Note:** Functionality exists but split across endpoints
 
-- [ ] 34. **Implement content deletion endpoint**
-  - [ ] Create DELETE /api/jobs/{id} or DELETE /api/content/{id}
-  - [ ] Delete job, transcription, and materials
-  - [ ] Delete file from Supabase storage
-  - [ ] Verify user ownership before deletion
-  - [ ] Return success confirmation
+- [x] 34. **Implement content deletion endpoint**
+  - [x] Create DELETE /api/jobs/{id} or DELETE /api/content/{id}
+  - [x] Delete job, transcription, and materials
+  - [x] Delete file from Supabase storage
+  - [x] Verify user ownership before deletion
+  - [x] Return success confirmation
 
 - [ ] 35. **Implement content search endpoint**
   - [ ] Create GET /api/jobs/search or GET /api/content/search
