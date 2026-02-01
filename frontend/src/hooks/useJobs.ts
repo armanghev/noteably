@@ -1,7 +1,7 @@
 import {
-    jobsService,
-    type DashboardData,
-    type ProcessUploadParams,
+  jobsService,
+  type DashboardData,
+  type ProcessUploadParams,
 } from "@/lib/api/services/jobs";
 import type { JobListItem } from "@/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";

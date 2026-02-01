@@ -4,10 +4,12 @@ import { Card } from "@/components/ui/card";
 import { useJobs } from "@/hooks/useJobs";
 import { formatFileType } from "@/lib/utils";
 import { FileText, Filter, Loader2, Search } from "lucide-react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function Notes() {
   const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState("");
   const { data: jobs, isLoading } = useJobs();
 
   // Helper function to format date
@@ -20,7 +22,19 @@ export default function Notes() {
   };
 
   // Filter for completed jobs only
-  const completedJobs = jobs?.filter((job) => job.status === "completed") || [];
+  const completedJobs =
+    jobs?.filter((job) => {
+      if (job.status !== "completed") return false;
+
+      if (!searchQuery.trim()) return true;
+
+      const query = searchQuery.toLowerCase();
+      return (
+        job.filename?.toLowerCase().includes(query) ||
+        job.summary_title?.toLowerCase().includes(query) ||
+        job.summary_preview?.toLowerCase().includes(query)
+      );
+    }) || [];
 
   if (isLoading) {
     return (
@@ -42,6 +56,8 @@ export default function Notes() {
             <input
               type="text"
               placeholder="Search notes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 pr-4 py-2 rounded-full border border-border focus:outline-none focus:border-primary w-64 bg-background"
             />
           </div>

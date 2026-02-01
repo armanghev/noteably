@@ -228,7 +228,6 @@ const Processing: React.FC<ProcessingProps> = ({
   progress,
   steps,
   currentStep,
-  onCancel,
 }) => {
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-12 bg-background border border-primary rounded-3xl">

@@ -768,6 +768,11 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
   - [ ] Implement file cleanup for expired files
   - [ ] Schedule daily database maintenance
 
+- [ ] **Advanced Search Infrastructure**
+  - [ ] Evaluate Elasticsearch/OpenSearch for fuzzy matching
+  - [ ] Implement complex search filters and analytics
+  - [ ] Scale search beyond Postgres capabilities (>1M records)
+
 ---
 
 ## Progress Tracking

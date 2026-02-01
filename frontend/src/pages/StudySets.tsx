@@ -15,6 +15,7 @@ import {
   StickyNote,
   Zap,
 } from "lucide-react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 // Icon mapping for content types
@@ -39,6 +40,7 @@ const contentTypeLabels: Record<MaterialType, string> = {
 
 export default function StudySets() {
   const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState("");
   const { data: jobs, isLoading } = useJobs();
 
   // Helper function to format date
@@ -51,7 +53,19 @@ export default function StudySets() {
   };
 
   // Filter for completed jobs only - show all study sets regardless of content type
-  const completedJobs = jobs?.filter((job) => job.status === "completed") || [];
+  const completedJobs =
+    jobs?.filter((job) => {
+      if (job.status !== "completed") return false;
+
+      if (!searchQuery.trim()) return true;
+
+      const query = searchQuery.toLowerCase();
+      return (
+        job.filename?.toLowerCase().includes(query) ||
+        job.summary_title?.toLowerCase().includes(query) ||
+        job.summary_preview?.toLowerCase().includes(query)
+      );
+    }) || [];
 
   // Navigate to study set detail page
   const getNavigationPath = (job: JobListItem) => {
@@ -78,6 +92,8 @@ export default function StudySets() {
             <input
               type="text"
               placeholder="Search study sets..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 pr-4 py-2 rounded-full border border-border focus:outline-none focus:border-primary w-64 bg-background"
             />
           </div>

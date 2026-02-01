@@ -213,7 +213,7 @@ export default function Quizzes() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {jobsWithQuizzes.map((job, index) => {
             const questionCount = job.quiz_count;
-            const title = job.filename || 'Quiz';
+            const title = job.summary_title || 'Quiz';
             const attempts = attemptsQueries[index];
             const scores = getQuizScores(attempts);
             const quizContent = contentQueries[index]?.data;
