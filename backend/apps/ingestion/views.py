@@ -150,13 +150,17 @@ def dashboard_data(request):
     )
 
     # Get only the 5 most recent completed jobs with minimal fields
-    recent_jobs = completed_jobs.order_by("-created_at")[:5].values(
-        "id",
-        "filename",
-        "file_type",
-        "status",
-        "created_at",
-        "cached_flashcard_count",
+    recent_jobs = (
+        user_jobs.filter(status="completed")
+        .order_by("-created_at")[:5]
+        .values(
+            "id",
+            "filename",
+            "file_type",
+            "status",
+            "created_at",
+            "cached_flashcard_count",
+        )
     )
 
     return Response(
@@ -290,4 +294,48 @@ def cancel_job(request, job_id):
     job.status = "cancelled"
     job.save(update_fields=["status"])
 
-    return Response({"status": "cancelled", "job_id": str(job.id)})
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def retry_job(request, job_id):
+    """
+    Retry a failed job.
+    Resets status to queued and restarts orchestration.
+    """
+    try:
+        job = Job.objects.get(id=job_id, user_id=request.user_id)
+    except Job.DoesNotExist:
+        return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if job.status not in ["failed", "cancelled"]:
+        return Response(
+            {"error": f"Job is in '{job.status}' state and cannot be retried."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Reset job fields
+    job.status = "queued"
+    job.progress = 0
+    job.error_message = ""
+    job.retry_count += 1
+    job.save()
+
+    # Get user email
+    if isinstance(request.user, dict):
+        user_email = request.user.get("email")
+    else:
+        user_email = getattr(request.user, "email", None)
+
+    logger.info(f"Retrying job {job.id} for user {request.user_id}")
+
+    # Re-trigger orchestrate_job_task
+    orchestrate_job_task.delay(str(job.id), user_email=user_email)
+
+    return Response(
+        {
+            "job_id": str(job.id),
+            "status": "queued",
+            "message": "Job has been successfully restarted.",
+        },
+        status=status.HTTP_200_OK,
+    )

@@ -44,6 +44,7 @@ import type { JobListItem, SortOption } from "@/types";
  */
 export function getAvailableFileTypes(jobs: JobListItem[]): string[] {
   const fileTypes = new Set<string>();
+  if (!Array.isArray(jobs)) return [];
   jobs.forEach((job) => {
     if (job.file_type) {
       fileTypes.add(job.file_type);

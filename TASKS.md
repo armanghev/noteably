@@ -359,13 +359,12 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
 
 ### 9.1 Project Setup
 
-- [x] 42. **Set up Next.js project structure**
-  - [x] Initialize Next.js 14+ project
+- [x] 42. **Set up Vite project structure**
+  - [x] Initialize Vite project
   - [x] Configure Tailwind CSS
-  - [ ] Set up TanStack Query for data fetching
-  - [ ] Configure API client service
+  - [x] Set up TanStack Query for data fetching
+  - [x] Configure API client service
   - [x] Set up environment variables
-  - **Note:** Using Vite instead of Next.js
 
 - [x] 43. **Implement authentication pages and flow**
   - [x] Create login page with form validation

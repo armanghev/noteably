@@ -81,8 +81,11 @@ export default function StudySets() {
 
   // Flatten paginated results
   const jobs = useMemo(() => {
-    if (!infiniteData) return [];
-    return infiniteData.pages.flatMap((page) => page.results);
+    if (!infiniteData || !infiniteData.pages) return [];
+    return infiniteData.pages.flatMap((page) => {
+      if (!page || !page.results) return [];
+      return page.results;
+    });
   }, [infiniteData]);
 
   // Filter state - initialize with all options selected

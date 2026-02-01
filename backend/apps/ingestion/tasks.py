@@ -56,6 +56,11 @@ def orchestrate_job_task(self, job_id, user_email=None):
 
         # Define the workflow chain
         # transcribe -> generate
+
+        # MANUAL TEST TRIGGER: Fail job if filename is 'fail_test.txt'
+        if job.filename == "fail_test.txt":
+            raise Exception("Manual test failure triggered")
+
         workflow = chain(
             transcribe_media_task.s(job_id), generate_content_task.s(job_id, user_email)
         )
@@ -109,13 +114,15 @@ def transcribe_media_task(self, job_id):
             logger.info(f"Cleaning up PDF text for job {job_id}")
             cleaned_text = GeminiService.generate_content(raw_text, "cleanup")
 
-            Transcription.objects.create(
+            Transcription.objects.update_or_create(
                 job=job,
-                external_id="pdf",
-                text=cleaned_text,
-                raw_response={
-                    "type": "pdf_extraction",
-                    "raw_text_length": len(raw_text),
+                defaults={
+                    "external_id": "pdf",
+                    "text": cleaned_text,
+                    "raw_response": {
+                        "type": "pdf_extraction",
+                        "raw_text_length": len(raw_text),
+                    },
                 },
             )
             job.transcription_id = "pdf"
@@ -143,13 +150,15 @@ def transcribe_media_task(self, job_id):
             else:
                 raw_data = {"id": transcript.id, "text": transcript.text}
 
-            Transcription.objects.create(
+            Transcription.objects.update_or_create(
                 job=job,
-                external_id=transcript.external_id
-                if hasattr(transcript, "external_id")
-                else transcript.id,
-                text=transcript.text,
-                raw_response=raw_data,
+                defaults={
+                    "external_id": transcript.external_id
+                    if hasattr(transcript, "external_id")
+                    else transcript.id,
+                    "text": transcript.text,
+                    "raw_response": raw_data,
+                },
             )
             job.transcription_id = transcript.id
             job.save(update_fields=["transcription_id"])
@@ -187,6 +196,11 @@ def generate_content_task(self, transcription_result, job_id, user_email=None):
         job.status = "generating"
         job.progress = 50
         job.save(update_fields=["status", "progress"])
+
+        # Clear existing generated content for retry
+        # This ensures we don't have duplicate or stale content if material types changed
+        # or if we're doing a full retry.
+        GeneratedContent.objects.filter(job=job).delete()
 
         # Fetch transcription text
         try:

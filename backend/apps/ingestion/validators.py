@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 # Allowed file types
 ALLOWED_AUDIO_TYPES = ["mp3", "wav", "m4a", "aac", "flac"]
 ALLOWED_VIDEO_TYPES = ["mp4", "webm", "mov", "avi", "mkv"]
-ALLOWED_DOCUMENT_TYPES = ["pdf"]
+ALLOWED_DOCUMENT_TYPES = ["pdf", "txt", "md", "doc", "docx"]
 ALLOWED_EXTENSIONS = ALLOWED_AUDIO_TYPES + ALLOWED_VIDEO_TYPES + ALLOWED_DOCUMENT_TYPES
 
 

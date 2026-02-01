@@ -1,13 +1,20 @@
 import {
-    jobsService,
-    type DashboardData,
-    type ProcessUploadParams,
+  jobsService,
+  type DashboardData,
+  type ProcessUploadParams,
 } from "@/lib/api/services/jobs";
 import type { JobListItem } from "@/types";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 export const jobKeys = {
   all: ["jobs"] as const,
+  list: () => ["jobs", "list"] as const,
+  infinite: () => ["jobs", "infinite"] as const,
   limited: (limit: number) => ["jobs", "limited", limit] as const,
   detail: (id: string) => ["jobs", id] as const,
   dashboard: ["dashboard"] as const,
@@ -48,7 +55,7 @@ export function useJob(jobId: string | undefined, options?: UseJobOptions) {
 
 export function useJobs() {
   return useQuery({
-    queryKey: jobKeys.all,
+    queryKey: jobKeys.list(),
     queryFn: async () => {
       try {
         const response = await jobsService.listJobs();
@@ -66,7 +73,7 @@ export function useJobs() {
 
 export function useInfiniteJobs() {
   return useInfiniteQuery({
-    queryKey: jobKeys.all,
+    queryKey: jobKeys.infinite(),
     queryFn: ({ pageParam }) => jobsService.listJobs(pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => {
@@ -110,6 +117,8 @@ export function useProcessUpload() {
       jobsService.processUpload(params),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: jobKeys.all });
+      queryClient.invalidateQueries({ queryKey: jobKeys.list() });
+      queryClient.invalidateQueries({ queryKey: jobKeys.infinite() });
     },
   });
 }
@@ -122,6 +131,22 @@ export function useCancelJob() {
     onSuccess: (_, jobId) => {
       queryClient.invalidateQueries({ queryKey: jobKeys.detail(jobId) });
       queryClient.invalidateQueries({ queryKey: jobKeys.all });
+      queryClient.invalidateQueries({ queryKey: jobKeys.list() });
+      queryClient.invalidateQueries({ queryKey: jobKeys.infinite() });
+    },
+  });
+}
+
+export function useRetryJob() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (jobId: string) => jobsService.retryJob(jobId),
+    onSuccess: (_, jobId) => {
+      queryClient.invalidateQueries({ queryKey: jobKeys.detail(jobId) });
+      queryClient.invalidateQueries({ queryKey: jobKeys.all });
+      queryClient.invalidateQueries({ queryKey: jobKeys.list() });
+      queryClient.invalidateQueries({ queryKey: jobKeys.infinite() });
     },
   });
 }

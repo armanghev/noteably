@@ -582,6 +582,7 @@ export default function StudySetDetail() {
               </div>
             </div>
           </header>
+
           {/* Summary & Notes Tab */}
           {hasSummaryOrNotes && (
             <TabsContent value="summary-notes" className="space-y-8">

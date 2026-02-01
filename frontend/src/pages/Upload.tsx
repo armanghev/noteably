@@ -3,7 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { useAuth } from "@/hooks/useAuth";
-import { jobKeys, useCancelJob, useProcessUpload } from "@/hooks/useJobs";
+import {
+  jobKeys,
+  useCancelJob,
+  useProcessUpload,
+  useRetryJob,
+} from "@/hooks/useJobs";
 import type { FileUploadProps, MaterialType, ProcessingProps } from "@/types";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -15,11 +20,13 @@ import {
   Layers,
   Loader2,
   Music,
+  RotateCw,
   ScrollText,
   StickyNote,
   Upload as UploadIcon,
   Video,
   Wand2,
+  XCircle,
 } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -228,83 +235,140 @@ const Processing: React.FC<ProcessingProps> = ({
   progress,
   steps,
   currentStep,
+  onCancel,
+  onRetry,
+  isRetrying,
+  status,
 }) => {
+  const isFailed = status === "failed";
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-12 bg-background border border-primary rounded-3xl">
       <div className="w-full max-w-md">
         {/* Progress Visual */}
         <div className="mb-10 text-center">
           <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 relative shadow-[0_0_15px_var(--primary)]">
-            <div className="absolute inset-0 rounded-full"></div>
-            <svg
-              className="absolute inset-0 w-full h-full rotate-[-90deg] text-primary"
-              viewBox="0 0 100 100"
-            >
-              <circle
-                cx="50"
-                cy="50"
-                r="46"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="4"
-                strokeDasharray="289" // 2 * pi * 46
-                strokeDashoffset={289 - (289 * progress) / 100}
-                strokeLinecap="round"
-                className="transition-all duration-300 ease-linear"
-              />
-            </svg>
-            <span className="text-lg font-bold text-primary">{progress}%</span>
+            {isFailed ? (
+              <XCircle className="w-10 h-10 text-destructive animate-pulse" />
+            ) : (
+              <>
+                <div className="absolute inset-0 rounded-full"></div>
+                <svg
+                  className="absolute inset-0 w-full h-full rotate-[-90deg] text-primary"
+                  viewBox="0 0 100 100"
+                >
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="46"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    strokeDasharray="289" // 2 * pi * 46
+                    strokeDashoffset={289 - (289 * progress) / 100}
+                    strokeLinecap="round"
+                    className="transition-all duration-300 ease-linear"
+                  />
+                </svg>
+                <span className="text-lg font-bold text-primary">
+                  {progress}%
+                </span>
+              </>
+            )}
           </div>
-          <h3 className="text-2xl font-serif text-foreground mb-2">
-            {steps[currentStep]?.title || "Processing..."}
+          <h3
+            className={`text-2xl font-serif mb-2 ${isFailed ? "text-destructive" : "text-foreground"}`}
+          >
+            {isFailed
+              ? "Processing Failed"
+              : steps[currentStep]?.title || "Processing..."}
           </h3>
-          <p className="text-foreground">
-            {steps[currentStep]?.desc ||
-              "Please wait while we process your file."}
+          <p className={isFailed ? "text-destructive/80" : "text-foreground"}>
+            {isFailed
+              ? "Something went wrong while generating your study set."
+              : steps[currentStep]?.desc ||
+                "Please wait while we process your file."}
           </p>
         </div>
 
         {/* Steps List */}
-        <div className="space-y-4 mb-8">
-          {steps.map((step, idx) => (
-            <div
-              key={step.id}
-              className={`flex items-center gap-4 p-3 rounded-xl transition-colors ${
-                idx === currentStep
-                  ? "bg-secondary border border-primary/20"
-                  : ""
-              }`}
-            >
+        {!isFailed && (
+          <div className="space-y-4 mb-8">
+            {steps.map((step, idx) => (
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
-                  idx < currentStep
-                    ? "bg-primary text-primary-foreground"
-                    : idx === currentStep
-                      ? "bg-card text-primary border border-primary"
-                      : "bg-muted text-muted-foreground/50"
+                key={step.id}
+                className={`flex items-center gap-4 p-3 rounded-xl transition-colors ${
+                  idx === currentStep
+                    ? "bg-secondary border border-primary/20"
+                    : ""
                 }`}
               >
-                {idx < currentStep ? (
-                  <CheckCircle2 className="w-5 h-5" />
-                ) : idx === currentStep ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <span className="text-sm font-medium">{idx + 1}</span>
-                )}
-              </div>
-              <div className="flex-1">
-                <p
-                  className={`text-sm font-medium ${
-                    idx <= currentStep
-                      ? "text-foreground"
-                      : "text-muted-foreground"
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+                    idx < currentStep
+                      ? "bg-primary text-primary-foreground"
+                      : idx === currentStep
+                        ? "bg-card text-primary border border-primary"
+                        : "bg-muted text-muted-foreground/50"
                   }`}
                 >
-                  {step.title}
-                </p>
+                  {idx < currentStep ? (
+                    <CheckCircle2 className="w-5 h-5" />
+                  ) : idx === currentStep ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <span className="text-sm font-medium">{idx + 1}</span>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <p
+                    className={`text-sm font-medium ${
+                      idx <= currentStep
+                        ? "text-foreground"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {step.title}
+                  </p>
+                </div>
               </div>
+            ))}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex flex-col gap-3">
+          {isFailed ? (
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={onCancel}
+                className="flex-1 h-12 rounded-xl"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={onRetry}
+                disabled={isRetrying}
+                className="flex-[2] h-12 rounded-xl bg-primary text-background hover:bg-primary/90 gap-2"
+              >
+                {isRetrying ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RotateCw className="w-4 h-4" />
+                )}
+                Retry Generation
+              </Button>
             </div>
-          ))}
+          ) : (
+            <Button
+              variant="outline"
+              onClick={onCancel}
+              className="w-full h-12 rounded-xl border border-primary/20 hover:bg-secondary text-muted-foreground hover:text-foreground"
+            >
+              Cancel Processing
+            </Button>
+          )}
         </div>
       </div>
     </div>
@@ -317,6 +381,7 @@ export default function Upload() {
   const { session } = useAuth();
   const processUploadMutation = useProcessUpload();
   const cancelJobMutation = useCancelJob();
+  const retryJobMutation = useRetryJob();
   const queryClient = useQueryClient();
   const { lastMessage } = useWebSocket();
 
@@ -455,7 +520,7 @@ export default function Upload() {
       if (jobId) {
         queryClient.cancelQueries({ queryKey: jobKeys.detail(jobId) });
       }
-      setError(job.error_message || "Processing failed. Please try again.");
+      // We don't set error here because we handle it in the Processing component
     }
   }, [job, jobId, navigate, queryClient, steps]);
 
@@ -575,6 +640,17 @@ export default function Upload() {
     }
   };
 
+  const handleRetry = async () => {
+    if (!jobId) return;
+    try {
+      await retryJobMutation.mutateAsync(jobId);
+      // Reset error if any, though it's handled in the UI
+      setError(null);
+    } catch (err) {
+      console.error("Retry failed", err);
+    }
+  };
+
   const getFileIcon = (fileType: string): React.ReactNode => {
     if (fileType.includes("audio"))
       return <Music className="w-8 h-8 text-primary" />;
@@ -586,7 +662,13 @@ export default function Upload() {
   };
 
   const isProcessing =
-    (!!jobId && job?.status !== "failed") || processUploadMutation.isPending;
+    (!!jobId && job?.status !== "failed" && job?.status !== "cancelled") ||
+    processUploadMutation.isPending ||
+    retryJobMutation.isPending;
+
+  // We show the processing screen even if it failed, so the user can retry
+  const showProcessingScreen =
+    !!jobId || processUploadMutation.isPending || retryJobMutation.isPending;
   const progress = job?.progress || 0;
 
   return (
@@ -604,7 +686,7 @@ export default function Upload() {
 
         {/* Main Content Area */}
         <Card className="rounded-3xl shadow-sm overflow-hidden mb-8 min-h-[400px] flex flex-col pt-0 pl-0 pr-0 pb-0 border-none">
-          {!isProcessing ? (
+          {!showProcessingScreen ? (
             // Upload State
             <FileUpload
               file={file}
@@ -627,6 +709,9 @@ export default function Upload() {
               steps={steps}
               currentStep={currentStep}
               onCancel={handleCancel}
+              onRetry={handleRetry}
+              isRetrying={retryJobMutation.isPending}
+              status={job?.status}
             />
           )}
         </Card>

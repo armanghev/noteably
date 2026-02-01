@@ -22,6 +22,9 @@ export interface ProcessingProps {
   steps: ProcessingStep[];
   currentStep: number;
   onCancel?: () => void;
+  onRetry?: () => void;
+  isRetrying?: boolean;
+  status?: string;
 }
 
 export interface ProcessingStep {

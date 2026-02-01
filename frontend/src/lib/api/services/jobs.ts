@@ -105,4 +105,15 @@ export const jobsService = {
     }>(`/jobs/${jobId}/`);
     return response.data;
   },
+
+  retryJob: async (
+    jobId: string,
+  ): Promise<{ status: string; job_id: string; message: string }> => {
+    const response = await apiClient.post<{
+      status: string;
+      job_id: string;
+      message: string;
+    }>(`/jobs/${jobId}/retry/`);
+    return response.data;
+  },
 };
