@@ -1,21 +1,31 @@
+import { FilterDropdown } from "@/components/filters/FilterDropdown";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useJobs } from "@/hooks/useJobs";
-import { formatFileType } from "@/lib/utils";
-import type { JobListItem, MaterialType } from "@/types";
+import {
+  filterByDateRange,
+  formatFileType,
+  getAvailableFileTypes,
+  sortJobs,
+} from "@/lib/utils";
+import type {
+  DateRangeFilter,
+  JobListItem,
+  MaterialType,
+  SortOption,
+} from "@/types";
 import {
   BookOpen,
   Brain,
   FileText,
-  Filter,
   Loader2,
   ScrollText,
   Search,
   StickyNote,
   Zap,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 // Icon mapping for content types
@@ -43,6 +53,31 @@ export default function StudySets() {
   const [searchQuery, setSearchQuery] = useState("");
   const { data: jobs, isLoading } = useJobs();
 
+  // Filter state - initialize with all options selected
+  const [selectedFileTypes, setSelectedFileTypes] = useState<string[]>([]);
+  const [selectedContentTypes, setSelectedContentTypes] = useState<
+    MaterialType[]
+  >(["flashcards", "quiz", "quizzes", "notes", "summary"]);
+  const [dateRange, setDateRange] = useState<DateRangeFilter>("all");
+  const [sortBy, setSortBy] = useState<SortOption>("newest");
+
+  // Track if file types have been initialized (using ref to avoid re-renders)
+  const fileTypesInitialized = useRef(false);
+
+  // Get available file types from jobs
+  const availableFileTypes = useMemo(
+    () => getAvailableFileTypes(jobs || []),
+    [jobs],
+  );
+
+  // Initialize file types filter when available types change
+  useEffect(() => {
+    if (availableFileTypes.length > 0 && !fileTypesInitialized.current) {
+      setSelectedFileTypes(availableFileTypes);
+      fileTypesInitialized.current = true;
+    }
+  }, [availableFileTypes]);
+
   // Helper function to format date
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -52,20 +87,51 @@ export default function StudySets() {
     });
   };
 
-  // Filter for completed jobs only - show all study sets regardless of content type
-  const completedJobs =
-    jobs?.filter((job) => {
-      if (job.status !== "completed") return false;
+  // Filter and sort completed jobs
+  const completedJobs = (() => {
+    let filtered =
+      jobs?.filter((job) => {
+        // Only show completed jobs
+        if (job.status !== "completed") return false;
 
-      if (!searchQuery.trim()) return true;
+        // Search query filter
+        if (searchQuery.trim()) {
+          const query = searchQuery.toLowerCase();
+          const matchesSearch =
+            job.filename?.toLowerCase().includes(query) ||
+            job.summary_title?.toLowerCase().includes(query) ||
+            job.summary_preview?.toLowerCase().includes(query);
+          if (!matchesSearch) return false;
+        }
 
-      const query = searchQuery.toLowerCase();
-      return (
-        job.filename?.toLowerCase().includes(query) ||
-        job.summary_title?.toLowerCase().includes(query) ||
-        job.summary_preview?.toLowerCase().includes(query)
-      );
-    }) || [];
+        // File type filter
+        if (
+          selectedFileTypes.length > 0 &&
+          !selectedFileTypes.includes(job.file_type)
+        ) {
+          return false;
+        }
+
+        // Content type filter - hide jobs with any unselected content types
+        // This means if you unselect "flashcards", any job with flashcards is hidden
+        if (selectedContentTypes.length > 0) {
+          const allTypesSelected = job.content_types.every(
+            (type: MaterialType) => selectedContentTypes.includes(type),
+          );
+          if (!allTypesSelected) return false;
+        }
+
+        // Date range filter
+        if (!filterByDateRange(job.created_at, dateRange)) {
+          return false;
+        }
+
+        return true;
+      }) || [];
+
+    // Apply sorting
+    return sortJobs(filtered, sortBy);
+  })();
 
   // Navigate to study set detail page
   const getNavigationPath = (job: JobListItem) => {
@@ -97,13 +163,30 @@ export default function StudySets() {
               className="pl-10 pr-4 py-2 rounded-full border border-border focus:outline-none focus:border-primary w-64 bg-background"
             />
           </div>
-          <Button
-            size="icon"
-            variant="outline"
-            className="rounded-full text-muted-foreground"
-          >
-            <Filter className="w-5 h-5" />
-          </Button>
+          <FilterDropdown
+            selectedFileTypes={selectedFileTypes}
+            onFileTypeChange={setSelectedFileTypes}
+            availableFileTypes={availableFileTypes}
+            selectedContentTypes={selectedContentTypes}
+            onContentTypeChange={setSelectedContentTypes}
+            showContentTypeFilters={true}
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            onReset={() => {
+              setSelectedFileTypes(availableFileTypes);
+              setSelectedContentTypes([
+                "flashcards",
+                "quiz",
+                "quizzes",
+                "notes",
+                "summary",
+              ]);
+              setDateRange("all");
+              setSortBy("newest");
+            }}
+          />
         </div>
       </header>
 
@@ -158,7 +241,7 @@ export default function StudySets() {
 
                   {/* Content Type Badges */}
                   <div className="flex flex-wrap gap-2 mb-4">
-                    {job.content_types.map((type) => {
+                    {job.content_types.map((type: MaterialType) => {
                       const Icon = contentTypeIcons[type];
                       const label = contentTypeLabels[type];
                       return (

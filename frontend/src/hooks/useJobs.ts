@@ -1,7 +1,7 @@
 import {
   jobsService,
   type DashboardData,
-  type ProcessUploadParams
+  type ProcessUploadParams,
 } from "@/lib/api/services/jobs";
 import type { JobListItem } from "@/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -50,9 +50,16 @@ export function useJobs() {
   return useQuery({
     queryKey: jobKeys.all,
     queryFn: async () => {
-      const response = await jobsService.listJobs();
-      // Return just the results array for backward compatibility
-      return response.results;
+      try {
+        const response = await jobsService.listJobs();
+        // Handle both paginated and non-paginated responses
+        // If response is an array, use it directly; otherwise use response.results
+        return Array.isArray(response) ? response : response.results;
+      } catch (error) {
+        console.error("Failed to fetch jobs:", error);
+        // Return empty array on error to satisfy React Query
+        return [];
+      }
     },
   });
 }
@@ -68,9 +75,14 @@ export function useRecentJobs(limit: number = 10) {
   return useQuery({
     queryKey: jobKeys.limited(limit),
     queryFn: async () => {
-      // Fetch first page and return limited results
-      const response = await jobsService.listJobs();
-      return response.results.slice(0, limit);
+      try {
+        const response = await jobsService.listJobs();
+        const results = Array.isArray(response) ? response : response.results;
+        return results.slice(0, limit);
+      } catch (error) {
+        console.error("Failed to fetch recent jobs:", error);
+        return [];
+      }
     },
   });
 }

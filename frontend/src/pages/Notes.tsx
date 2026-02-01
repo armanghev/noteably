@@ -1,16 +1,45 @@
+import { FilterDropdown } from "@/components/filters/FilterDropdown";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useJobs } from "@/hooks/useJobs";
-import { formatFileType } from "@/lib/utils";
-import { FileText, Filter, Loader2, Search } from "lucide-react";
-import { useState } from "react";
+import {
+  filterByDateRange,
+  formatFileType,
+  getAvailableFileTypes,
+  sortJobs,
+} from "@/lib/utils";
+import type { DateRangeFilter, SortOption } from "@/types";
+import { FileText, Loader2, Search } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function Notes() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const { data: jobs, isLoading } = useJobs();
+
+  // Filter state
+  const [selectedFileTypes, setSelectedFileTypes] = useState<string[]>([]);
+  const [dateRange, setDateRange] = useState<DateRangeFilter>("all");
+  const [sortBy, setSortBy] = useState<SortOption>("newest");
+
+  // Track initialization
+  const fileTypesInitialized = useRef(false);
+
+  // Get available file types from jobs
+  const availableFileTypes = useMemo(
+    () => getAvailableFileTypes(jobs || []),
+    [jobs],
+  );
+
+  // Initialize file types filter when available types change
+  useEffect(() => {
+    if (availableFileTypes.length > 0 && !fileTypesInitialized.current) {
+      setSelectedFileTypes(availableFileTypes);
+      fileTypesInitialized.current = true;
+    }
+  }, [availableFileTypes]);
 
   // Helper function to format date
   const formatDate = (dateString: string) => {
@@ -21,20 +50,42 @@ export default function Notes() {
     });
   };
 
-  // Filter for completed jobs only
-  const completedJobs =
-    jobs?.filter((job) => {
-      if (job.status !== "completed") return false;
+  // Filter and sort completed jobs
+  const completedJobs = (() => {
+    let filtered =
+      jobs?.filter((job) => {
+        // Only show completed jobs
+        if (job.status !== "completed") return false;
 
-      if (!searchQuery.trim()) return true;
+        // Search query filter
+        if (searchQuery.trim()) {
+          const query = searchQuery.toLowerCase();
+          const matchesSearch =
+            job.filename?.toLowerCase().includes(query) ||
+            job.summary_title?.toLowerCase().includes(query) ||
+            job.summary_preview?.toLowerCase().includes(query);
+          if (!matchesSearch) return false;
+        }
 
-      const query = searchQuery.toLowerCase();
-      return (
-        job.filename?.toLowerCase().includes(query) ||
-        job.summary_title?.toLowerCase().includes(query) ||
-        job.summary_preview?.toLowerCase().includes(query)
-      );
-    }) || [];
+        // File type filter
+        if (
+          selectedFileTypes.length > 0 &&
+          !selectedFileTypes.includes(job.file_type)
+        ) {
+          return false;
+        }
+
+        // Date range filter
+        if (!filterByDateRange(job.created_at, dateRange)) {
+          return false;
+        }
+
+        return true;
+      }) || [];
+
+    // Apply sorting
+    return sortJobs(filtered, sortBy);
+  })();
 
   if (isLoading) {
     return (
@@ -61,13 +112,20 @@ export default function Notes() {
               className="pl-10 pr-4 py-2 rounded-full border border-border focus:outline-none focus:border-primary w-64 bg-background"
             />
           </div>
-          <Button
-            size="icon"
-            variant="outline"
-            className="rounded-full text-muted-foreground"
-          >
-            <Filter className="w-5 h-5" />
-          </Button>
+          <FilterDropdown
+            selectedFileTypes={selectedFileTypes}
+            onFileTypeChange={setSelectedFileTypes}
+            availableFileTypes={availableFileTypes}
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            onReset={() => {
+              setSelectedFileTypes(availableFileTypes);
+              setDateRange("all");
+              setSortBy("newest");
+            }}
+          />
         </div>
       </header>
 
@@ -88,7 +146,7 @@ export default function Notes() {
               onClick={() =>
                 navigate(`/notes/${job.id}`, { state: { from: "/notes" } })
               }
-              className="p-6 cursor-pointer hover:shadow-md transition-shadow group bg-background border-border"
+              className="p-6 cursor-pointer hover:shadow-md transition-shadow group bg-background border-border flex flex-col justify-between"
             >
               <div className="flex justify-between items-start mb-4">
                 <div className="p-2 bg-secondary rounded-lg text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
