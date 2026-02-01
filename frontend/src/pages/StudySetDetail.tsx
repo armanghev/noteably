@@ -1,15 +1,23 @@
 import { ExportButton } from "@/components/export/ExportButton";
 import Layout from "@/components/layout/Layout";
+import { DeleteConfirmationDialog } from "@/components/shared/DeleteConfirmationDialog";
 import { AudioPlayer } from "@/components/ui/audio-player";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { JsonDisplay } from "@/components/ui/json-display";
 import { PDFViewer } from "@/components/ui/pdf-viewer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VideoPlayer } from "@/components/ui/video-player";
 import { useBackNavigation } from "@/hooks/useBackNavigation";
-import { useJob, useSignedFileUrl } from "@/hooks/useJobs";
+import { jobKeys, useJob, useSignedFileUrl } from "@/hooks/useJobs";
 import { useCreateQuizAttempt, useQuizAttempts } from "@/hooks/useQuizAttempts";
+import { jobsService } from "@/lib/api/services/jobs";
 import { formatFileType } from "@/lib/utils";
 import type {
   Flashcard,
@@ -21,19 +29,24 @@ import type {
   QuizQuestion,
   SummaryContent,
 } from "@/types";
+import { useQueryClient } from "@tanstack/react-query";
+
 import {
   ArrowLeft,
   ArrowRight as ArrowRightIcon,
   Brain,
   CheckCircle2,
+  Edit2,
   FileText,
   History,
   Loader2,
+  MoreVertical,
   Music,
   ArrowLeft as PrevIcon,
   RotateCw,
   ScrollText,
   StickyNote,
+  Trash2,
   Trophy,
   Upload,
   Video,
@@ -44,7 +57,7 @@ import { AnimatePresence, motion } from "motion/react";
 import React, { useState } from "react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
 // Helper functions to extract and type content
@@ -82,7 +95,11 @@ function getQuizContent(job: Job): QuizQuestion[] {
 
 export default function StudySetDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: job, isLoading, error: jobError } = useJob(id);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { handleBack, backLabel } = useBackNavigation({
     defaultPath: "/study-sets",
     defaultLabel: "Back to Study Sets",
@@ -436,6 +453,28 @@ export default function StudySetDetail() {
     setAttemptSaved(false);
   };
 
+  const handleDelete = async () => {
+    if (!id) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await jobsService.deleteJob(id);
+
+      // Invalidate queries to update the cache
+      queryClient.invalidateQueries({ queryKey: jobKeys.all });
+      queryClient.invalidateQueries({ queryKey: jobKeys.dashboard });
+
+      toast.success(response.message);
+      navigate("/study-sets");
+    } catch (err: any) {
+      console.error("Delete failed:", err);
+      toast.error(err.response?.data?.error || "Failed to delete study set.");
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+    }
+  };
+
   return (
     <Layout>
       <div className="max-w-7xl mx-auto">
@@ -507,12 +546,39 @@ export default function StudySetDetail() {
                   {generatedTitle}
                 </h1>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 <ExportButton
                   jobId={job.id}
                   materialTypes={job.material_types}
                   disabled={job.status !== "completed"}
                 />
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon" className="h-9 w-9">
+                      <MoreVertical className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="bg-background border-border p-3"
+                  >
+                    <DropdownMenuItem
+                      disabled
+                      className="text-muted-foreground"
+                    >
+                      <Edit2 className="w-4 h-4 mr-2" />
+                      Rename
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onSelect={() => setIsDeleteDialogOpen(true)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </header>
@@ -1147,6 +1213,15 @@ export default function StudySetDetail() {
           )}
         </Tabs>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        isOpen={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onConfirm={handleDelete}
+        itemName={generatedTitle}
+        isDeleting={isDeleting}
+      />
     </Layout>
   );
 }

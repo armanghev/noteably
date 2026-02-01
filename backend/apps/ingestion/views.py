@@ -1,16 +1,20 @@
 import logging
 
 from apps.accounts.permissions import IsAuthenticated
+from apps.core.pagination import StandardCursorPagination
 from apps.core.throttling import BurstRateThrottle, UploadRateThrottle
-from rest_framework import status
+from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.response import Response
-from apps.core.pagination import StandardCursorPagination
-from rest_framework import generics
+
 from .models import Job
 from .quota import check_user_quota
 from .serializers import ProcessUploadSerializer
-from .supabase_storage import get_signed_url_from_storage_url, upload_to_supabase
+from .supabase_storage import (
+    delete_job_folder,
+    get_signed_url_from_storage_url,
+    upload_to_supabase,
+)
 from .tasks import orchestrate_job_task
 from .validators import get_file_duration, validate_file_size, validate_file_type
 
@@ -103,8 +107,6 @@ def process_upload(request):
     )
 
 
-
-
 class JobListView(generics.ListAPIView):
     """
     List all jobs for the authenticated user with cursor-based pagination.
@@ -168,12 +170,13 @@ def dashboard_data(request):
     )
 
 
-@api_view(["GET"])
+@api_view(["GET", "DELETE"])
 @permission_classes([IsAuthenticated])
 @throttle_classes([BurstRateThrottle])
-def get_job_status(request, job_id):
+def job_detail(request, job_id):
     """
-    Get current status of a job.
+    GET: Get current status of a job.
+    DELETE: Permanently delete a job and its files.
     """
     try:
         job = Job.objects.get(id=job_id, user_id=request.user_id)
@@ -183,10 +186,36 @@ def get_job_status(request, job_id):
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    from .serializers import JobSerializer
+    if request.method == "GET":
+        from .serializers import JobSerializer
 
-    serializer = JobSerializer(job)
-    return Response(serializer.data)
+        serializer = JobSerializer(job)
+        return Response(serializer.data)
+
+    elif request.method == "DELETE":
+        # 1. Delete files from Supabase Storage
+        try:
+            storage_deleted = delete_job_folder(str(job.id))
+            if not storage_deleted:
+                logger.warning(
+                    f"Storage cleanup partially failed or skipped for job {job.id}"
+                )
+        except Exception as e:
+            logger.error(f"Error during storage cleanup for job {job.id}: {e}")
+
+        # 2. Delete the Job object from database
+        job_filename = job.filename
+        job.delete()
+
+        logger.info(f"User {request.user_id} deleted job {job_id} ({job_filename})")
+
+        return Response(
+            {
+                "message": f"Successfully deleted '{job_filename}'. Your dashboard has been updated.",
+                "job_id": str(job_id),
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 @api_view(["GET"])

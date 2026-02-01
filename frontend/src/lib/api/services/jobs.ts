@@ -1,8 +1,8 @@
 import type {
-  Job,
-  JobListItem,
-  MaterialType,
-  ProcessUploadResponse,
+    Job,
+    JobListItem,
+    MaterialType,
+    ProcessUploadResponse,
 } from "@/types";
 import apiClient from "../client";
 
@@ -93,6 +93,16 @@ export const jobsService = {
     const response = await apiClient.post<{ status: string; job_id: string }>(
       `/jobs/${jobId}/cancel/`,
     );
+    return response.data;
+  },
+
+  deleteJob: async (
+    jobId: string,
+  ): Promise<{ message: string; job_id: string }> => {
+    const response = await apiClient.delete<{
+      message: string;
+      job_id: string;
+    }>(`/jobs/${jobId}/`);
     return response.data;
   },
 };

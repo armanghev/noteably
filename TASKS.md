@@ -270,7 +270,7 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
 
 ## Phase 6: Content Management API
 
-- [~] 32. **Implement content listing endpoint**
+- [x] 32. **Implement content listing endpoint**
   - [x] Create GET /api/jobs/ with pagination (via limit parameter)
   - [x] Filter by user ownership
   - [x] Include job metadata and status

@@ -12,7 +12,7 @@ urlpatterns = [
         views.get_signed_file_url,
         name="get_signed_file_url",
     ),
-    path("jobs/<uuid:job_id>/", views.get_job_status, name="job_status"),
+    path("jobs/<uuid:job_id>/", views.job_detail, name="job_detail"),
     path("jobs/<uuid:job_id>/cancel/", views.cancel_job, name="cancel_job"),
     path("jobs/", views.JobListView.as_view(), name="list_jobs"),
 ]

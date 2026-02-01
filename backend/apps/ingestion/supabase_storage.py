@@ -1,13 +1,13 @@
 """Supabase Storage utilities for file uploads and management."""
 
-import uuid
-import logging
 import io
-from typing import Optional, BinaryIO
-from django.conf import settings
+import logging
+from typing import BinaryIO, Optional
+
 from apps.core.error_handler import retry_with_backoff
 from apps.core.exceptions import UploadError
 from apps.core.supabase_client import supabase_client
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ def upload_to_supabase(
 ) -> str:
     """
     Upload a file to Supabase Storage in the job's directory.
-    
+
     Args:
         file: File-like object to upload
         filename: Name of the file
@@ -34,24 +34,24 @@ def upload_to_supabase(
         bucket: Bucket name (default: 'noteably')
         content_type: MIME type of the file
         subfolder: Subfolder within job directory (default: 'upload' for uploads, 'exports' for exports)
-        
+
     Returns:
         Public URL of the uploaded file
-        
+
     Raises:
         UploadError: If upload fails
     """
     try:
         # Structure: {job_id}/{subfolder}/{filename}
         key = f"{job_id}/{subfolder}/{filename}"
-        
+
         # Read file content
-        if hasattr(file, 'read'):
+        if hasattr(file, "read"):
             file.seek(0)  # Ensure we're at the start
             file_content = file.read()
         else:
             file_content = file
-        
+
         # Upload to Supabase Storage
         client = supabase_client.client
         response = client.storage.from_(bucket).upload(
@@ -60,25 +60,25 @@ def upload_to_supabase(
             file_options={
                 "content-type": content_type or "application/octet-stream",
                 "upsert": False,  # Don't overwrite existing files
-            }
+            },
         )
-        
+
         # Supabase upload returns a dict with 'path' on success
         # Check for errors
         if isinstance(response, dict) and response.get("error"):
             raise UploadError(f"Supabase upload failed: {response['error']}")
-        
+
         # Get public URL
         public_url_response = client.storage.from_(bucket).get_public_url(key)
-        
+
         # get_public_url returns a string URL
         if public_url_response:
             return public_url_response
-        
+
         # Fallback: construct URL manually
-        supabase_url = settings.SUPABASE_URL.rstrip('/')
+        supabase_url = settings.SUPABASE_URL.rstrip("/")
         return f"{supabase_url}/storage/v1/object/public/{bucket}/{key}"
-        
+
     except Exception as e:
         logger.error(f"Error uploading to Supabase: {e}")
         raise UploadError(f"Failed to upload file to Supabase: {str(e)}")
@@ -95,7 +95,7 @@ def upload_bytes_to_supabase(
 ) -> str:
     """
     Upload bytes content to Supabase Storage in the job's directory.
-    
+
     Args:
         content: Bytes content to upload
         filename: Name of the file
@@ -103,25 +103,27 @@ def upload_bytes_to_supabase(
         bucket: Bucket name (default: 'noteably')
         content_type: MIME type of the file
         subfolder: Subfolder within job directory (default: 'exports')
-        
+
     Returns:
         Public URL of the uploaded file
     """
     file_obj = io.BytesIO(content)
-    return upload_to_supabase(file_obj, filename, job_id, bucket, content_type, subfolder)
+    return upload_to_supabase(
+        file_obj, filename, job_id, bucket, content_type, subfolder
+    )
 
 
 def delete_from_supabase(storage_url: str, bucket: str = STORAGE_BUCKET) -> bool:
     """
     Delete a file from Supabase Storage.
-    
+
     Args:
         storage_url: Full URL of the file to delete
         bucket: Bucket name (default: 'noteably')
-        
+
     Returns:
         True if successful
-        
+
     Raises:
         UploadError: If deletion fails
     """
@@ -132,33 +134,35 @@ def delete_from_supabase(storage_url: str, bucket: str = STORAGE_BUCKET) -> bool
         if len(parts) < 2:
             logger.warning(f"Could not extract key from URL: {storage_url}")
             return False
-        
+
         key = parts[1]
-        
+
         # Delete from Supabase Storage
         client = supabase_client.client
         response = client.storage.from_(bucket).remove([key])
-        
+
         # Check for errors (response is typically a list or dict)
         if isinstance(response, dict) and response.get("error"):
             logger.error(f"Error deleting from Supabase: {response['error']}")
             return False
-        
+
         return True
-        
+
     except Exception as e:
         logger.error(f"Error deleting from Supabase: {e}")
         return False
 
 
-def extract_key_from_url(storage_url: str, bucket: str = STORAGE_BUCKET) -> Optional[str]:
+def extract_key_from_url(
+    storage_url: str, bucket: str = STORAGE_BUCKET
+) -> Optional[str]:
     """
     Extract the storage key from a Supabase storage URL.
-    
+
     Args:
         storage_url: Full URL of the file (public or signed)
         bucket: Bucket name (default: 'noteably')
-        
+
     Returns:
         Storage key (e.g., '{job_id}/upload/{filename}') or None if extraction fails
     """
@@ -169,12 +173,12 @@ def extract_key_from_url(storage_url: str, bucket: str = STORAGE_BUCKET) -> Opti
         if len(parts) < 2:
             logger.warning(f"Could not extract key from URL: {storage_url}")
             return None
-        
+
         # Get the key part (everything after /bucket/)
         key_with_params = parts[1]
         # Remove query parameters if present (for signed URLs)
-        key = key_with_params.split('?')[0]
-        
+        key = key_with_params.split("?")[0]
+
         return key
     except Exception as e:
         logger.error(f"Error extracting key from URL: {e}")
@@ -188,12 +192,12 @@ def get_signed_url(
 ) -> str:
     """
     Generate a signed URL for a file in Supabase Storage.
-    
+
     Args:
         key: File path/key in the bucket (e.g., '{job_id}/exports/{filename}')
         bucket: Bucket name (default: 'noteably')
         expires_in: Expiration time in seconds (default: 1 hour)
-        
+
     Returns:
         Signed URL that expires after expires_in seconds
     """
@@ -203,20 +207,20 @@ def get_signed_url(
             path=key,
             expires_in=expires_in,
         )
-        
+
         # Check for errors
         if isinstance(response, dict) and response.get("error"):
             raise UploadError(f"Failed to create signed URL: {response['error']}")
-        
+
         # Extract signed URL from response
         if isinstance(response, dict):
             return response.get("signedURL", "")
-        elif hasattr(response, 'signedURL'):
+        elif hasattr(response, "signedURL"):
             return response.signedURL
         else:
             # If response is a string, return it
             return str(response) if response else ""
-        
+
     except Exception as e:
         logger.error(f"Error generating signed URL: {e}")
         raise UploadError(f"Failed to generate signed URL: {str(e)}")
@@ -230,20 +234,82 @@ def get_signed_url_from_storage_url(
     """
     Generate a signed URL from an existing storage URL.
     Useful for converting public URLs to signed URLs for external services.
-    
+
     Args:
         storage_url: Full URL of the file (public or signed)
         bucket: Bucket name (default: 'noteably')
         expires_in: Expiration time in seconds (default: 1 hour)
-        
+
     Returns:
         Signed URL that expires after expires_in seconds
-        
+
     Raises:
         UploadError: If key extraction or signed URL generation fails
     """
     key = extract_key_from_url(storage_url, bucket)
     if not key:
         raise UploadError(f"Could not extract key from storage URL: {storage_url}")
-    
+
     return get_signed_url(key, bucket, expires_in)
+
+
+def delete_job_folder(job_id: str, bucket: str = STORAGE_BUCKET) -> bool:
+    """
+    Delete an entire job directory and all its contents from Supabase Storage.
+
+    Args:
+        job_id: The UUID of the job whose folder should be deleted
+        bucket: Bucket name (default: 'noteably')
+
+    Returns:
+        True if all files were deleted or the folder was already empty
+    """
+    try:
+        client = supabase_client.client
+
+        # Structure: {job_id}/{subfolder}/{filename}
+        # We need to list files recursively or known subfolders.
+        folders_to_clean = ["upload", "exports/markdown", "exports/json", "exports/pdf"]
+        all_keys_to_delete = []
+
+        for folder in folders_to_clean:
+            path = f"{job_id}/{folder}"
+            try:
+                files = client.storage.from_(bucket).list(path)
+                if files:
+                    for f in files:
+                        if f.get("name") != ".emptyFolderPlaceholder":
+                            all_keys_to_delete.append(f"{path}/{f['name']}")
+            except Exception as e:
+                logger.debug(f"Path {path} not found or error listing: {e}")
+
+        # Also check for files in the root of the job folder
+        try:
+            root_files = client.storage.from_(bucket).list(job_id)
+            if root_files:
+                for f in root_files:
+                    # In Supabase SDK, files have 'id', folders usually don't or have specific metadata
+                    if f.get("id") and f.get("name") != ".emptyFolderPlaceholder":
+                        all_keys_to_delete.append(f"{job_id}/{f['name']}")
+        except Exception as e:
+            logger.debug(f"Root path {job_id} not found: {e}")
+
+        if not all_keys_to_delete:
+            logger.info(f"No specific files found to delete for job {job_id}")
+            return True
+
+        # Perform bulk deletion
+        logger.info(
+            f"Deleting {len(all_keys_to_delete)} files from storage for job {job_id}"
+        )
+        response = client.storage.from_(bucket).remove(all_keys_to_delete)
+
+        if isinstance(response, dict) and response.get("error"):
+            logger.error(f"Error bulk deleting for job {job_id}: {response['error']}")
+            return False
+
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to delete job folder {job_id}: {e}")
+        return False

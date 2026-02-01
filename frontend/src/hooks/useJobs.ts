@@ -1,10 +1,10 @@
 import {
-  jobsService,
-  type DashboardData,
-  type ProcessUploadParams,
+    jobsService,
+    type DashboardData,
+    type ProcessUploadParams,
 } from "@/lib/api/services/jobs";
 import type { JobListItem } from "@/types";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export const jobKeys = {
   all: ["jobs"] as const,
@@ -65,9 +65,17 @@ export function useJobs() {
 }
 
 export function useInfiniteJobs() {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: jobKeys.all,
-    queryFn: () => jobsService.listJobs(),
+    queryFn: ({ pageParam }) => jobsService.listJobs(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage.next) return undefined;
+      // Extract cursor from the next URL
+      // The URL looks like: http://api/jobs/?cursor=cD0yMDI2LTAxLTMxKzIzJTNBMDclM0EwMS4wMDAwMDArMDAlM0EwMA%3D%3D
+      const url = new URL(lastPage.next);
+      return url.searchParams.get("cursor") || undefined;
+    },
   });
 }
 

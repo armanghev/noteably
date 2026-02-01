@@ -2,7 +2,7 @@ import { FilterDropdown } from "@/components/filters/FilterDropdown";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useJobs } from "@/hooks/useJobs";
+import { useInfiniteJobs } from "@/hooks/useJobs";
 import {
   filterByDateRange,
   formatFileType,
@@ -51,7 +51,39 @@ const contentTypeLabels: Record<MaterialType, string> = {
 export default function StudySets() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const { data: jobs, isLoading } = useJobs();
+  const {
+    data: infiniteData,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteJobs();
+
+  // Handle intersection observer for infinite scroll
+  const observerTarget = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 1.0 },
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Flatten paginated results
+  const jobs = useMemo(() => {
+    if (!infiniteData) return [];
+    return infiniteData.pages.flatMap((page) => page.results);
+  }, [infiniteData]);
 
   // Filter state - initialize with all options selected
   const [selectedFileTypes, setSelectedFileTypes] = useState<string[]>([]);
@@ -280,6 +312,26 @@ export default function StudySets() {
           })}
         </div>
       )}
+
+      {/* Infinite Scroll Trigger */}
+      <div
+        ref={observerTarget}
+        className="mt-12 mb-8 flex flex-col items-center justify-center min-h-[50px]"
+      >
+        {isFetchingNextPage && (
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">
+              Loading more study sets...
+            </p>
+          </div>
+        )}
+        {!hasNextPage && completedJobs.length > 0 && (
+          <p className="text-sm text-muted-foreground">
+            You've reached the end of your study sets.
+          </p>
+        )}
+      </div>
     </Layout>
   );
 }
