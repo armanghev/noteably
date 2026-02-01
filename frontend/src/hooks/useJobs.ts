@@ -1,7 +1,7 @@
 import {
   jobsService,
   type DashboardData,
-  type ProcessUploadParams,
+  type ProcessUploadParams
 } from "@/lib/api/services/jobs";
 import type { JobListItem } from "@/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -49,6 +49,17 @@ export function useJob(jobId: string | undefined, options?: UseJobOptions) {
 export function useJobs() {
   return useQuery({
     queryKey: jobKeys.all,
+    queryFn: async () => {
+      const response = await jobsService.listJobs();
+      // Return just the results array for backward compatibility
+      return response.results;
+    },
+  });
+}
+
+export function useInfiniteJobs() {
+  return useQuery({
+    queryKey: jobKeys.all,
     queryFn: () => jobsService.listJobs(),
   });
 }
@@ -56,7 +67,11 @@ export function useJobs() {
 export function useRecentJobs(limit: number = 10) {
   return useQuery({
     queryKey: jobKeys.limited(limit),
-    queryFn: () => jobsService.listJobs(limit),
+    queryFn: async () => {
+      // Fetch first page and return limited results
+      const response = await jobsService.listJobs();
+      return response.results.slice(0, limit);
+    },
   });
 }
 

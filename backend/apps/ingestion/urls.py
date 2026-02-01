@@ -14,5 +14,5 @@ urlpatterns = [
     ),
     path("jobs/<uuid:job_id>/", views.get_job_status, name="job_status"),
     path("jobs/<uuid:job_id>/cancel/", views.cancel_job, name="cancel_job"),
-    path("jobs/", views.list_jobs, name="list_jobs"),
+    path("jobs/", views.JobListView.as_view(), name="list_jobs"),
 ]

@@ -5,7 +5,8 @@ from apps.core.throttling import BurstRateThrottle, UploadRateThrottle
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.response import Response
-
+from apps.core.pagination import StandardCursorPagination
+from rest_framework import generics
 from .models import Job
 from .quota import check_user_quota
 from .serializers import ProcessUploadSerializer
@@ -102,32 +103,27 @@ def process_upload(request):
     )
 
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def list_jobs(request):
+
+
+class JobListView(generics.ListAPIView):
     """
-    List all jobs for the authenticated user.
-    Uses lightweight serializer - excludes transcription and full content.
-    Supports optional ?limit= parameter for pagination.
+    List all jobs for the authenticated user with cursor-based pagination.
     """
-    from .serializers import JobListSerializer
 
-    jobs = (
-        Job.objects.filter(user_id=request.user_id)
-        .prefetch_related("generated_content")
-        .order_by("-created_at")
-    )
+    permission_classes = [IsAuthenticated]
+    pagination_class = StandardCursorPagination
 
-    # Optional limit parameter
-    limit = request.query_params.get("limit")
-    if limit:
-        try:
-            jobs = jobs[: int(limit)]
-        except (ValueError, TypeError):
-            pass
+    def get_queryset(self):
+        return (
+            Job.objects.filter(user_id=self.request.user_id)
+            .prefetch_related("generated_content")
+            .order_by("-created_at")
+        )
 
-    serializer = JobListSerializer(jobs, many=True)
-    return Response(serializer.data)
+    def get_serializer_class(self):
+        from .serializers import JobListSerializer
+
+        return JobListSerializer
 
 
 @api_view(["GET"])

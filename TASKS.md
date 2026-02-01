@@ -275,10 +275,10 @@ This document outlines all tasks needed to build the MVP of Noteably, an AI-powe
   - [x] Filter by user ownership
   - [x] Include job metadata and status
   - [x] Sort by creation date
-  - [ ] Implement cursor-based pagination
-  - **Note:** Endpoint exists as /api/jobs/ but not unified as /api/content
+  - [x] Implement cursor-based pagination
+  - **Note:** Endpoint now uses `StandardCursorPagination` (cursor query param) instead of limit.
 
-- [~] 33. **Implement content detail endpoint**
+- [x] 33. **Implement content detail endpoint**
   - [x] Create GET /api/jobs/{id} (job status)
   - [x] Create GET /api/generation/content/{id} (full content with materials)
   - [x] Return full job details with all materials
