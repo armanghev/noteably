@@ -7,6 +7,10 @@ struct StudySetListView: View {
         _viewModel = State(initialValue: viewModel)
     }
 
+    private var completedJobs: [JobListItem] {
+        viewModel.filteredJobs.filter { $0.status == .completed }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
@@ -20,7 +24,7 @@ struct StudySetListView: View {
                     if viewModel.isLoading {
                         ProgressView()
                             .frame(maxWidth: .infinity, minHeight: 200)
-                    } else if viewModel.filteredJobs.isEmpty {
+                    } else if completedJobs.isEmpty {
                         EmptyStateView(
                             icon: "doc.text",
                             title: "No notes yet",
@@ -28,7 +32,7 @@ struct StudySetListView: View {
                         )
                     } else {
                         LazyVStack(spacing: 12) {
-                            ForEach(viewModel.filteredJobs) { job in
+                            ForEach(completedJobs) { job in
                                 NavigationLink(value: job.id) {
                                     JobCard(job: job)
                                 }

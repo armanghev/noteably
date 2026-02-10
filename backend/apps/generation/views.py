@@ -22,9 +22,13 @@ def get_job_content(request, job_id):
     # Get content
     contents = GeneratedContent.objects.filter(job=job)
 
+    # Normalize type keys (web frontend sends "quizzes" but canonical key is "quiz")
+    TYPE_ALIASES = {"quizzes": "quiz"}
+
     data = {}
     for item in contents:
-        data[item.type] = item.content
+        key = TYPE_ALIASES.get(item.type, item.type)
+        data[key] = item.content
 
     return Response({"job_id": job_id, "status": job.status, "content": data})
 

@@ -34,8 +34,10 @@ class JobListSerializer(serializers.ModelSerializer):
         summary_title = instance.filename
         summary_preview = ""
 
+        # Normalize type names (web frontend sends "quizzes" but canonical type is "quiz")
+        type_aliases = {"quizzes": "quiz"}
         for content in instance.generated_content.all():
-            content_types.append(content.type)
+            content_types.append(type_aliases.get(content.type, content.type))
 
             if content.type == "flashcards":
                 flashcards = content.content.get("flashcards", [])

@@ -20,6 +20,38 @@ struct ContentData: Codable {
     let notes: NotesContent?
     let flashcards: FlashcardsContent?
     let quiz: QuizContent?
+
+    // Backend may return quiz under "quiz" or "quizzes" key depending on how the job was created
+    enum CodingKeys: String, CodingKey {
+        case summary, notes, flashcards
+        case quiz
+        case quizzes
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        summary = try container.decodeIfPresent(SummaryContent.self, forKey: .summary)
+        notes = try container.decodeIfPresent(NotesContent.self, forKey: .notes)
+        flashcards = try container.decodeIfPresent(FlashcardsContent.self, forKey: .flashcards)
+        // Try "quiz" first, fall back to "quizzes"
+        quiz = try container.decodeIfPresent(QuizContent.self, forKey: .quiz)
+            ?? container.decodeIfPresent(QuizContent.self, forKey: .quizzes)
+    }
+
+    init(summary: SummaryContent? = nil, notes: NotesContent? = nil, flashcards: FlashcardsContent? = nil, quiz: QuizContent? = nil) {
+        self.summary = summary
+        self.notes = notes
+        self.flashcards = flashcards
+        self.quiz = quiz
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(summary, forKey: .summary)
+        try container.encodeIfPresent(notes, forKey: .notes)
+        try container.encodeIfPresent(flashcards, forKey: .flashcards)
+        try container.encodeIfPresent(quiz, forKey: .quiz)
+    }
 }
 
 // MARK: - Summary
