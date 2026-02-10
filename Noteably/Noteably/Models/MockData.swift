@@ -51,7 +51,7 @@ struct MockData {
         startedAt: "2023-10-25T10:00:05Z",
         completedAt: "2023-10-25T10:05:00Z",
         generatedContent: [
-            GeneratedContentItem(id: "content-1", type: "summary", content: .string("Summary content"), createdAt: "2023-10-25T10:05:00Z")
+            GeneratedContentItem(id: 1, type: "summary", content: .string("Summary content"), createdAt: "2023-10-25T10:05:00Z")
         ]
     )
     

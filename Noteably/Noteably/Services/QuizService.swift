@@ -11,7 +11,7 @@ final class QuizService {
     // MARK: - Get Attempts
 
     func getAttempts(jobId: String) async throws -> PaginatedResponse<QuizAttempt> {
-        try await api.get(path: "/api/content/\(jobId)/attempts")
+        try await api.get(path: "/api/quizzes/\(jobId)/attempts/")
     }
 
     // MARK: - Save Attempt
@@ -22,6 +22,6 @@ final class QuizService {
             totalQuestions: totalQuestions,
             answers: answers
         )
-        return try await api.post(path: "/api/content/\(jobId)/attempts", body: request)
+        return try await api.post(path: "/api/quizzes/\(jobId)/attempts/", body: request)
     }
 }

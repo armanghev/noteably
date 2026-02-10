@@ -158,7 +158,7 @@ struct PaginatedResponse<T: Codable>: Codable {
 // MARK: - Generated Content Item
 
 struct GeneratedContentItem: Codable, Identifiable {
-    let id: String
+    let id: Int
     let type: String
     let content: AnyCodableValue
     let createdAt: String

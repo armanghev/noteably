@@ -140,10 +140,7 @@ struct StudySetDetailView: View {
     private var notesTab: some View {
         VStack(alignment: .leading, spacing: 16) {
             if let notes = viewModel.notes {
-                Text(notes.content)
-                    .font(.noteablyBody(15))
-                    .foregroundStyle(Color.noteablyForeground)
-                    .lineSpacing(4)
+                MarkdownView(text: notes.content)
                     .textSelection(.enabled)
             } else {
                 EmptyStateView(

@@ -12,7 +12,7 @@ final class ContentService {
     // MARK: - Get Content
 
     func getContent(jobId: String) async throws -> ContentResponse {
-        let response: ContentResponse = try await api.get(path: "/api/content/\(jobId)")
+        let response: ContentResponse = try await api.get(path: "/api/content/\(jobId)/")
         cache.save(response, forKey: CacheService.contentKey(jobId: jobId))
         return response
     }
