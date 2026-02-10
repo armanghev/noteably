@@ -129,6 +129,8 @@ final class AuthService {
         // Extract avatar_url from user metadata
         if let avatarUrl = session.user.userMetadata["avatar_url"]?.stringValue {
             currentAvatarUrl = avatarUrl
+        } else {
+            currentAvatarUrl = nil
         }
         isAuthenticated = true
     }
