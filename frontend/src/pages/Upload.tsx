@@ -215,7 +215,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
                   : "Click to upload or drag and drop"}
               </h3>
               <p className="text-muted-foreground text-sm mb-6">
-                MP3, WAV, PDF, TXT, MP4, MOV up to 50MB
+                MP3, WAV, PDF, TXT, MP4, MOV
               </p>
               {error && (
                 <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 px-4 py-2 rounded-full mx-auto w-fit">
@@ -549,11 +549,6 @@ export default function Upload() {
       setError(
         "Unsupported file format. Please upload MP3, WAV, PDF, TXT, MP4, or MOV.",
       );
-      return false;
-    }
-    if (file.size > 50 * 1024 * 1024) {
-      // 50MB limit
-      setError("File size too large. Maximum size is 50MB.");
       return false;
     }
     return true;
