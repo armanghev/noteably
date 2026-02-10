@@ -11,7 +11,7 @@ struct NoteablyApp: App {
                 if appState.isAuthenticated {
                     MainTabView()
                 } else {
-                    LandingView()
+                    OnboardingView()
                 }
             }
             .environment(appState)
