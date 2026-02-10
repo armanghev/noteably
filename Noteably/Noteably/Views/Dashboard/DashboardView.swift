@@ -7,49 +7,52 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 20) {
-                    // Greeting
-                    greetingSection
-
-                    // Offline indicator
-                    if !appState.isConnected {
-                        OfflineIndicator()
-                    }
-
-                    // Stats
-                    statsSection
-
-                    // Quick upload
-                    quickUploadCard
-
-                    // Recent activity
-                    recentActivitySection
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
-                .padding(.bottom, 32)
-            }
-            .background(Color.noteablyBackground)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+            VStack(spacing: 0) {
+                // Custom header
+                HStack {
                     Text("Noteably")
                         .font(.noteablySerif(24, weight: .bold))
-                        .foregroundStyle(Color.noteablyForeground)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
+                        .foregroundStyle(Color.noteablyPrimary)
+                    Spacer()
                     Button {
                         showProfile = true
                     } label: {
                         Image(systemName: "person.circle.fill")
-                            .font(.system(size: 28, weight: .light))
+                            .font(.system(size: 35, weight: .medium))
                             .foregroundStyle(Color.noteablyPrimary)
+                            .frame(width: 35, height: 35)
+                            .contentShape(Rectangle())
                     }
-                    .padding(0)
-                    .background
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 20) {
+                        // Greeting
+                        greetingSection
+
+                        // Offline indicator
+                        if !appState.isConnected {
+                            OfflineIndicator()
+                        }
+
+                        // Stats
+                        statsSection
+
+                        // Quick upload
+                        quickUploadCard
+
+                        // Recent activity
+                        recentActivitySection
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 32)
                 }
             }
+            .background(Color.noteablyBackground)
+            .navigationBarHidden(true)
             .sheet(isPresented: $showProfile) {
                 ProfileView()
             }

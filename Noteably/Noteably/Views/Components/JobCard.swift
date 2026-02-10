@@ -160,8 +160,6 @@ struct MaterialTypeChip: View {
         HStack(spacing: 4) {
             Image(systemName: iconName)
                 .font(.system(size: 10))
-            Text(displayName)
-                .font(.noteablyBody(11, weight: .medium))
         }
         .foregroundStyle(Color.noteablyPrimary)
         .padding(.horizontal, 8)

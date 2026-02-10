@@ -28,3 +28,13 @@ struct MainTabView: View {
         .tint(Color.noteablyPrimary)
     }
 }
+
+#if DEBUG
+#Preview {
+    let appState = AppState()
+    appState.isAuthenticated = true
+    
+    return MainTabView()
+        .environment(appState)
+}
+#endif
