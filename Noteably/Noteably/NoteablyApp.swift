@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct NoteablyApp: App {
     @State private var appState = AppState()
+    @State private var authService = AuthService.shared
 
     var body: some Scene {
         WindowGroup {
@@ -14,6 +15,7 @@ struct NoteablyApp: App {
                 }
             }
             .environment(appState)
+            .environment(authService)
             .animation(.easeInOut(duration: 0.3), value: appState.isAuthenticated)
         }
     }

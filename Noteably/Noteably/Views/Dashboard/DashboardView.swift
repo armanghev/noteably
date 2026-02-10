@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DashboardView: View {
     @Environment(AppState.self) private var appState
+    @Environment(AuthService.self) private var authService
     @State private var viewModel = DashboardViewModel()
     @State private var showProfile = false
 
@@ -17,11 +18,30 @@ struct DashboardView: View {
                     Button {
                         showProfile = true
                     } label: {
-                        Image(systemName: "person.circle.fill")
-                            .font(.system(size: 35, weight: .medium))
-                            .foregroundStyle(Color.noteablyPrimary)
-                            .frame(width: 35, height: 35)
-                            .contentShape(Rectangle())
+                        if let avatarUrl = authService.currentAvatarUrl,
+                           let url = URL(string: avatarUrl) {
+                            AsyncImage(url: url) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 35, height: 35)
+                                        .clipShape(Circle())
+                                default:
+                                    Image(systemName: "person.circle.fill")
+                                        .font(.system(size: 35, weight: .medium))
+                                        .foregroundStyle(Color.noteablyPrimary)
+                                        .frame(width: 35, height: 35)
+                                }
+                            }
+                            .id(avatarUrl) // Force refresh when URL changes
+                        } else {
+                            Image(systemName: "person.circle.fill")
+                                .font(.system(size: 35, weight: .medium))
+                                .foregroundStyle(Color.noteablyPrimary)
+                                .frame(width: 35, height: 35)
+                        }
                     }
                     .buttonStyle(.plain)
                 }

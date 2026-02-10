@@ -1,16 +1,16 @@
 "use client";
 import { cn } from "@/lib/utils";
-import React, { useState, createContext, useContext, useMemo } from "react";
-import { motion } from "motion/react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { motion } from "motion/react";
+import React, { createContext, useContext, useMemo, useState } from "react";
 import { ThemeToggle } from "../theme/theme-toggle";
 // import { useQuery } from "@tanstack/react-query"; // Commented out until needed
 // import { userService } from "@/lib/api/services/user";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 // Removed AvatarImage since it's not being used
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { Link } from "react-router-dom";
 // import { ROUTES } from "@/router/routes"; // Commented out until needed
 
 interface Links {
@@ -26,7 +26,7 @@ interface SidebarContextProps {
 }
 
 const SidebarContext = createContext<SidebarContextProps | undefined>(
-  undefined
+  undefined,
 );
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -79,7 +79,11 @@ export const Sidebar = ({
   );
 };
 
-export const SidebarBody = (props: Omit<React.ComponentProps<typeof motion.div>, "children"> & { children?: React.ReactNode }) => {
+export const SidebarBody = (
+  props: Omit<React.ComponentProps<typeof motion.div>, "children"> & {
+    children?: React.ReactNode;
+  },
+) => {
   return (
     <>
       <DesktopSidebar {...props} />
@@ -91,15 +95,17 @@ export const DesktopSidebar = ({
   className,
   children,
   ...props
-}: Omit<React.ComponentProps<typeof motion.div>, "children"> & { children?: React.ReactNode }) => {
+}: Omit<React.ComponentProps<typeof motion.div>, "children"> & {
+  children?: React.ReactNode;
+}) => {
   const { open, animate } = useSidebar();
   const targetWidth = animate ? (open ? "250px" : "60px") : "250px";
-  
+
   // Get initial width from data attribute for first render
   const initialWidth = useMemo(() => {
-    if (typeof document === 'undefined') return targetWidth;
-    const dataAttr = document.documentElement.getAttribute('data-sidebar-open');
-    const isOpen = dataAttr === null ? true : dataAttr === 'true';
+    if (typeof document === "undefined") return targetWidth;
+    const dataAttr = document.documentElement.getAttribute("data-sidebar-open");
+    const isOpen = dataAttr === null ? true : dataAttr === "true";
     return isOpen ? "250px" : "60px";
   }, []);
 
@@ -109,7 +115,7 @@ export const DesktopSidebar = ({
         data-sidebar
         className={cn(
           "h-full px-4 py-4 hidden  md:flex md:flex-col bg-sidebar shrink-0",
-          className
+          className,
         )}
         initial={{
           width: initialWidth,
@@ -148,7 +154,7 @@ export const SidebarLink = ({
       to={link.href}
       className={cn(
         "flex items-center justify-start gap-2  group/sidebar py-2",
-        className
+        className,
       )}
       {...props}
     >
@@ -171,9 +177,7 @@ export const SidebarLink = ({
   );
 };
 
-
 export const SidebarToggle = () => {
-
   const { open, animate, setOpen } = useSidebar();
 
   return (
@@ -181,13 +185,15 @@ export const SidebarToggle = () => {
       variant="ghost"
       onClick={() => setOpen(!open)}
       className={cn(
-        "flex items-center justify-start gap-2 group/sidebar py-2 pl-0 hover:bg-transparent text-foreground hover:text-foreground font-normal"
+        "flex items-center justify-start gap-2 group/sidebar py-2 pl-0 hover:bg-transparent text-foreground hover:text-foreground font-normal",
       )}
     >
       <div className="w-5 h-5 shrink-0 flex items-center justify-center scale-125">
-        {open ?
-          <PanelLeftClose className="w-5 h-5" /> :
-          <PanelLeftOpen className="w-5 h-5" />}
+        {open ? (
+          <PanelLeftClose className="w-5 h-5" />
+        ) : (
+          <PanelLeftOpen className="w-5 h-5" />
+        )}
       </div>
 
       <motion.span
@@ -204,8 +210,8 @@ export const SidebarToggle = () => {
         Close Sidebar
       </motion.span>
     </Button>
-  )
-}
+  );
+};
 
 export const ProfileLink = () => {
   const { open, animate } = useSidebar();
@@ -214,20 +220,24 @@ export const ProfileLink = () => {
   if (!user) return null;
 
   // properties from supabase user metadata or fallback
-  const fullName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+  const fullName =
+    user.user_metadata?.full_name || user.email?.split("@")[0] || "User";
   const avatarUrl = user.user_metadata?.avatar_url;
   const initials = fullName.charAt(0).toUpperCase();
 
   return (
     <Link
       to="/profile"
-      className={cn(
-        "flex items-center justify-start gap-2 group/sidebar py-2"
-      )}
+      className={cn("flex items-center justify-start gap-2 group/sidebar py-2")}
     >
       <Avatar className="h-5 w-5 shrink-0">
         {avatarUrl ? (
-          <img src={avatarUrl} alt={fullName} className="h-full w-full object-cover" />
+          <img
+            key={avatarUrl}
+            src={avatarUrl}
+            alt={fullName}
+            className="h-full w-full object-cover"
+          />
         ) : (
           <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
         )}
@@ -248,4 +258,4 @@ export const ProfileLink = () => {
       </motion.span>
     </Link>
   );
-}
+};

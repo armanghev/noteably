@@ -12,6 +12,7 @@ interface AuthContextType {
     login: (data: LoginRequest) => Promise<void>;
     register: (data: RegisterRequest) => Promise<void>;
     logout: () => Promise<void>;
+    refreshUser: () => Promise<void>;
     isAuthenticated: boolean;
 }
 
@@ -83,6 +84,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    const refreshUser = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) setUser(user);
+    };
+
     return (
         <AuthContext.Provider
             value={{
@@ -93,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 login,
                 register,
                 logout,
+                refreshUser,
                 isAuthenticated: !!user,
             }}
         >

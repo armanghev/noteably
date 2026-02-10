@@ -12,6 +12,7 @@ final class AuthService {
 
     private(set) var currentUserId: String?
     private(set) var currentEmail: String?
+    private(set) var currentAvatarUrl: String?
     private(set) var isAuthenticated = false
 
     private init() {
@@ -123,21 +124,63 @@ final class AuthService {
     // MARK: - Private
 
     private func applySession(_ session: Session) {
-        currentUserId = session.user.id.uuidString
+        currentUserId = session.user.id.uuidString.lowercased()
         currentEmail = session.user.email
+        // Extract avatar_url from user metadata
+        if let avatarUrl = session.user.userMetadata["avatar_url"]?.stringValue {
+            currentAvatarUrl = avatarUrl
+        }
         isAuthenticated = true
     }
 
     private func clearSession() {
         currentUserId = nil
         currentEmail = nil
+        currentAvatarUrl = nil
         isAuthenticated = false
     }
     
+    // MARK: - Avatar Upload
+
+    func updateAvatar(imageData: Data) async throws {
+        guard let userId = currentUserId else { return }
+        
+        let path = "\(userId)/avatar.jpg"
+        
+        // Upload to Supabase Storage (upsert)
+        // Note: SDK v2.41+ automatically handles auth headers
+        try await supabase.storage
+            .from("avatars")
+            .upload(
+                path: path,
+                file: imageData,
+                options: FileOptions(contentType: "image/jpeg", upsert: true)
+            )
+            
+        print("✅ Avatar upload successful")
+
+        // Get public URL
+        let publicUrl = try supabase.storage
+            .from("avatars")
+            .getPublicURL(path: path)
+            .absoluteString
+
+        let urlWithCacheBust = "\(publicUrl)?t=\(Int(Date().timeIntervalSince1970))"
+
+        // Update user metadata
+        try await supabase.auth.update(user: UserAttributes(data: ["avatar_url": .string(urlWithCacheBust)]))
+
+        // Update local state
+        await MainActor.run {
+            self.currentAvatarUrl = urlWithCacheBust
+        }
+    }
+
     #if DEBUG
-    func debugSetUser(email: String, id: String) {
+    func debugSetUser(email: String, id: String, avatarUrl: String? = nil) {
         self.currentEmail = email
         self.currentUserId = id
+        self.currentAvatarUrl = avatarUrl
         self.isAuthenticated = true
     }
     #endif
