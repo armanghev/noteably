@@ -54,7 +54,7 @@ struct QuizListView: View {
 
     private var quizJobs: [JobListItem] {
         viewModel.filteredJobs.filter { job in
-            job.contentTypes?.contains(where: { $0 == "quiz" || $0 == "quizzes" }) ?? false
+            (job.contentTypes?.contains(where: { $0 == "quiz" || $0 == "quizzes" }) ?? false) && job.status == .completed
         }
     }
 

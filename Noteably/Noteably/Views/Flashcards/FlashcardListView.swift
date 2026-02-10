@@ -54,7 +54,7 @@ struct FlashcardListView: View {
 
     private var flashcardJobs: [JobListItem] {
         viewModel.filteredJobs.filter { job in
-            job.contentTypes?.contains("flashcards") ?? false
+            (job.contentTypes?.contains("flashcards") ?? false) && job.status == .completed
         }
     }
 
