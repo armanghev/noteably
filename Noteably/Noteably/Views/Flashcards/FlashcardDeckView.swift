@@ -112,23 +112,26 @@ struct FlashcardDeckView: View {
     private func cardView(_ card: Flashcard) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color.noteablyCard)
+                .fill(viewModel.isFlipped ? Color.noteablyPrimary : Color.noteablyCard)
                 .shadow(color: Color.black.opacity(0.06), radius: 16, y: 6)
                 .overlay(
                     RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .stroke(Color.noteablyBorder.opacity(0.3), lineWidth: 1)
+                        .stroke(
+                            viewModel.isFlipped ? Color.white.opacity(0.2) : Color.noteablyBorder.opacity(0.3),
+                            lineWidth: 1
+                        )
                 )
 
             VStack(spacing: 16) {
                 Text(viewModel.isFlipped ? "Answer" : "Question")
                     .font(.noteablyBody(12, weight: .semibold))
-                    .foregroundStyle(Color.noteablySecondaryText)
+                    .foregroundStyle(viewModel.isFlipped ? Color.white.opacity(0.8) : Color.noteablySecondaryText)
                     .textCase(.uppercase)
                     .tracking(1)
 
                 Text(viewModel.isFlipped ? card.back : card.front)
                     .font(.noteablyBody(viewModel.isFlipped ? 17 : 20, weight: .medium))
-                    .foregroundStyle(Color.noteablyForeground)
+                    .foregroundStyle(viewModel.isFlipped ? Color.white : Color.noteablyForeground)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
                     .padding(.horizontal, 24)
