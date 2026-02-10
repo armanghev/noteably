@@ -85,6 +85,8 @@ final class JobsService {
     func deleteJob(id: String) async throws -> JobActionResponse {
         let response: JobActionResponse = try await api.delete(path: "/api/jobs/\(id)/")
         cache.remove(forKey: CacheService.contentKey(jobId: id))
+        cache.remove(forKey: CacheService.jobsListKey)
+        cache.remove(forKey: CacheService.dashboardKey)
         return response
     }
 
