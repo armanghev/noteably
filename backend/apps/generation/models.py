@@ -61,3 +61,29 @@ class QuizAttempt(models.Model):
 
     def __str__(self):
         return f"Quiz attempt for Job {self.job_id} - {self.score}/{self.total_questions} ({self.percentage:.1f}%)"
+
+
+class ChatMessage(models.Model):
+    """Stores chat history between user and assistant for a job."""
+
+    ROLE_CHOICES = [
+        ("user", "User"),
+        ("assistant", "Assistant"),
+    ]
+
+    job = models.ForeignKey(
+        Job, on_delete=models.CASCADE, related_name="chat_messages"
+    )
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "chat_messages"
+        indexes = [
+            models.Index(fields=["job", "created_at"]),
+        ]
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.role} message for Job {self.job_id} at {self.created_at}"

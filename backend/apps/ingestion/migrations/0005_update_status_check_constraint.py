@@ -3,6 +3,57 @@
 from django.db import migrations
 
 
+def add_status_constraint(apps, schema_editor):
+    # SQLite does not support ALTER TABLE ADD/DROP CONSTRAINT; skip on it
+    if schema_editor.connection.vendor == "sqlite":
+        return
+    schema_editor.execute(
+        """
+        ALTER TABLE jobs DROP CONSTRAINT IF EXISTS jobs_status_check;
+        ALTER TABLE jobs ADD CONSTRAINT jobs_status_check CHECK (
+            status IN (
+                'uploading',
+                'queued',
+                'transcribing',
+                'extracting_text',
+                'generating_summary',
+                'generating_notes',
+                'generating_flashcards',
+                'generating_quiz',
+                'generating',
+                'completed',
+                'failed'
+            )
+        );
+        """
+    )
+
+
+def remove_status_constraint(apps, schema_editor):
+    # SQLite does not support ALTER TABLE ADD/DROP CONSTRAINT; skip on it
+    if schema_editor.connection.vendor == "sqlite":
+        return
+    schema_editor.execute(
+        """
+        ALTER TABLE jobs DROP CONSTRAINT IF EXISTS jobs_status_check;
+        ALTER TABLE jobs ADD CONSTRAINT jobs_status_check CHECK (
+            status IN (
+                'queued',
+                'transcribing',
+                'extracting_text',
+                'generating_summary',
+                'generating_notes',
+                'generating_flashcards',
+                'generating_quiz',
+                'generating',
+                'completed',
+                'failed'
+            )
+        );
+        """
+    )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,43 +61,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
-            # Drop the old constraint and create a new one with 'uploading' included
-            sql="""
-                ALTER TABLE jobs DROP CONSTRAINT IF EXISTS jobs_status_check;
-                ALTER TABLE jobs ADD CONSTRAINT jobs_status_check CHECK (
-                    status IN (
-                        'uploading',
-                        'queued',
-                        'transcribing',
-                        'extracting_text',
-                        'generating_summary',
-                        'generating_notes',
-                        'generating_flashcards',
-                        'generating_quiz',
-                        'generating',
-                        'completed',
-                        'failed'
-                    )
-                );
-            """,
-            # Reverse: restore the old constraint without 'uploading'
-            reverse_sql="""
-                ALTER TABLE jobs DROP CONSTRAINT IF EXISTS jobs_status_check;
-                ALTER TABLE jobs ADD CONSTRAINT jobs_status_check CHECK (
-                    status IN (
-                        'queued',
-                        'transcribing',
-                        'extracting_text',
-                        'generating_summary',
-                        'generating_notes',
-                        'generating_flashcards',
-                        'generating_quiz',
-                        'generating',
-                        'completed',
-                        'failed'
-                    )
-                );
-            """,
-        ),
+        migrations.RunPython(add_status_constraint, remove_status_constraint),
     ]

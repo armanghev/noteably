@@ -1,3 +1,4 @@
+import { ASSISTANT_PANEL_WIDTH, AssistantPanel, AssistantTriggerButton } from '@/components/assistant/AssistantPanel';
 import { ExportButton } from "@/components/export/ExportButton";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ function getNotesContent(job: Job): NotesContent | null {
 
 export default function NoteDetail() {
   const { id } = useParams<{ id: string }>();
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   // Disable polling for detail pages since jobs are already completed
   const {
     data: job,
@@ -264,7 +266,15 @@ export default function NoteDetail() {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto">
+      <div className={`transition-all duration-300 ease-in-out ${isAssistantOpen ? 'layout-squeeze' : ''}`}>
+        <style>{`
+          @media (min-width: 768px) {
+            .layout-squeeze {
+              margin-right: ${ASSISTANT_PANEL_WIDTH}px;
+            }
+          }
+        `}</style>
+        <div className="max-w-7xl mx-auto">
         <Button
           variant="ghost"
           onClick={handleBack}
@@ -405,7 +415,21 @@ export default function NoteDetail() {
             </div>
           </div>
         </div>
+        </div>
       </div>
+      {id && (
+        <>
+          <AssistantTriggerButton
+            onClick={() => setIsAssistantOpen(true)}
+            isOpen={isAssistantOpen}
+          />
+          <AssistantPanel
+            jobId={id}
+            isOpen={isAssistantOpen}
+            onClose={() => setIsAssistantOpen(false)}
+          />
+        </>
+      )}
     </Layout>
   );
 }
