@@ -154,8 +154,8 @@ final class AuthService {
         try await supabase.storage
             .from("avatars")
             .upload(
-                path: path,
-                file: imageData,
+                path,
+                data: imageData,
                 options: FileOptions(contentType: "image/jpeg", upsert: true)
             )
             
