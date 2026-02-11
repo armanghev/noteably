@@ -130,3 +130,31 @@ export interface Job {
   completed_at: string | null;
   generated_content: GeneratedContent[];
 }
+
+// AI Assistant
+export type AssistantAction =
+  | null
+  | "generate_flashcards"
+  | "generate_quiz"
+  | "quiz_me"
+  | "generated_flashcards"
+  | "generated_quiz";
+
+export interface AssistantMessage {
+  role: "user" | "assistant";
+  content: string;
+  action?: AssistantAction;
+  generatedItems?: Flashcard[] | QuizQuestion[];
+}
+
+export interface AssistantRequest {
+  message: string;
+  conversation_history: { role: string; content: string }[];
+  action: AssistantAction;
+}
+
+export interface AssistantResponse {
+  message: string;
+  action: AssistantAction;
+  generated_items: Flashcard[] | QuizQuestion[] | null;
+}
