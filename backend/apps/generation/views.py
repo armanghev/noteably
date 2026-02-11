@@ -1,16 +1,17 @@
 import logging
 
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
-from rest_framework.response import Response
-from rest_framework import status
 from apps.accounts.permissions import IsAuthenticated
 from apps.core.exceptions import ThirdPartyServiceError
 from apps.core.throttling import BurstRateThrottle
-from .models import GeneratedContent, QuizAttempt
-from .serializers import QuizAttemptSerializer
-from .service import GeminiService
-from .prompts import get_assistant_system_prompt
 from apps.ingestion.models import Job
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.response import Response
+
+from .models import ChatMessage, GeneratedContent, QuizAttempt
+from .prompts import get_assistant_system_prompt
+from .serializers import ChatMessageSerializer, QuizAttemptSerializer
+from .service import GeminiService
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +105,9 @@ def assistant_chat(request, job_id):
 
     message = request.data.get("message")
     if not message:
-        return Response({"error": "message is required"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": "message is required"}, status=status.HTTP_400_BAD_REQUEST
+        )
 
     conversation_history = request.data.get("conversation_history", [])
     if not isinstance(conversation_history, list):
@@ -113,7 +116,7 @@ def assistant_chat(request, job_id):
     action = request.data.get("action")
 
     # Build context
-    transcription = getattr(job, 'transcription', None)
+    transcription = getattr(job, "transcription", None)
     transcript = transcription.text if transcription else ""
 
     generated_content = {}
@@ -134,19 +137,35 @@ def assistant_chat(request, job_id):
         contents.append({"role": role, "parts": [{"text": turn.get("content", "")}]})
     contents.append({"role": "user", "parts": [{"text": message}]})
 
+    # Save user message
+    ChatMessage.objects.create(
+        job=job,
+        role="user",
+        content=message,
+    )
+
     try:
         reply = GeminiService.generate_chat_response(contents, system_prompt)
+
+        # Save assistant response
+        ChatMessage.objects.create(
+            job=job,
+            role="assistant",
+            content=reply,
+        )
     except ThirdPartyServiceError:
         return Response(
             {"error": "Assistant is unavailable. Please try again."},
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
-    return Response({
-        "message": reply,
-        "action": None,
-        "generated_items": None,
-    })
+    return Response(
+        {
+            "message": reply,
+            "action": None,
+            "generated_items": None,
+        }
+    )
 
 
 def _handle_generation_action(job, action, transcript, generated_content=None):
@@ -194,12 +213,30 @@ def _handle_generation_action(job, action, transcript, generated_content=None):
     generated_items = new_content.get(
         "flashcards" if content_type == "flashcards" else "questions", []
     )
-    action_done = "generated_flashcards" if content_type == "flashcards" else "generated_quiz"
+    action_done = (
+        "generated_flashcards" if content_type == "flashcards" else "generated_quiz"
+    )
     count = len(generated_items)
     noun = "flashcards" if content_type == "flashcards" else "quiz questions"
 
-    return Response({
-        "message": f"I generated {count} new {noun} and saved them to your study set.",
-        "action": action_done,
-        "generated_items": generated_items,
-    })
+    return Response(
+        {
+            "message": f"I generated {count} new {noun} and saved them to your study set.",
+            "action": action_done,
+            "generated_items": generated_items,
+        }
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_chat_history(request, job_id):
+    """Retrieve chat history for a specific job."""
+    try:
+        job = Job.objects.get(id=job_id, user_id=request.user_id)
+    except Job.DoesNotExist:
+        return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    messages = job.chat_messages.all()
+    serializer = ChatMessageSerializer(messages, many=True)
+    return Response({"messages": serializer.data})

@@ -1,6 +1,6 @@
+import { ASSISTANT_PANEL_WIDTH, AssistantPanel, AssistantTriggerButton } from '@/components/assistant/AssistantPanel';
 import { ExportButton } from "@/components/export/ExportButton";
 import Layout from "@/components/layout/Layout";
-import { AssistantPanel, AssistantTriggerButton } from '@/components/assistant/AssistantPanel';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { JsonDisplay } from "@/components/ui/json-display";
@@ -266,7 +266,15 @@ export default function NoteDetail() {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto">
+      <div className={`transition-all duration-300 ease-in-out ${isAssistantOpen ? 'layout-squeeze' : ''}`}>
+        <style>{`
+          @media (min-width: 768px) {
+            .layout-squeeze {
+              margin-right: ${ASSISTANT_PANEL_WIDTH}px;
+            }
+          }
+        `}</style>
+        <div className="max-w-7xl mx-auto">
         <Button
           variant="ghost"
           onClick={handleBack}
@@ -406,6 +414,7 @@ export default function NoteDetail() {
               </nav>
             </div>
           </div>
+        </div>
         </div>
       </div>
       {id && (
