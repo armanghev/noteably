@@ -1,10 +1,19 @@
+import logging
+
+from django.conf import settings
+from google import genai
+from google.genai import types as genai_types
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
 from apps.accounts.permissions import IsAuthenticated
 from .models import GeneratedContent, QuizAttempt
 from .serializers import QuizAttemptSerializer
+from .service import GeminiService
+from .prompts import get_assistant_system_prompt
 from apps.ingestion.models import Job
+
+logger = logging.getLogger(__name__)
 
 
 @api_view(["GET"])
@@ -79,3 +88,114 @@ def quiz_attempts(request, job_id):
 
         serializer = QuizAttemptSerializer(quiz_attempt)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def assistant_chat(request, job_id):
+    """
+    AI assistant chat endpoint. Accepts a message + conversation history,
+    returns an assistant response. Optionally generates and saves content.
+    """
+    try:
+        job = Job.objects.get(id=job_id, user_id=request.user_id)
+    except Job.DoesNotExist:
+        return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    message = request.data.get("message")
+    if not message:
+        return Response({"error": "message is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    conversation_history = request.data.get("conversation_history", [])[-10:]
+    action = request.data.get("action")
+
+    # Build context
+    try:
+        transcript = job.transcription.text
+    except Exception:
+        transcript = ""
+
+    generated_content = {}
+    for item in GeneratedContent.objects.filter(job=job):
+        key = "quiz" if item.type == "quizzes" else item.type
+        generated_content[key] = item.content
+
+    # Handle generation actions
+    if action in ("generate_flashcards", "generate_quiz"):
+        return _handle_generation_action(job, action, transcript)
+
+    # Build Gemini conversation
+    system_prompt = get_assistant_system_prompt(transcript, generated_content)
+
+    contents = []
+    for turn in conversation_history:
+        role = "user" if turn.get("role") == "user" else "model"
+        contents.append({"role": role, "parts": [{"text": turn.get("content", "")}]})
+    contents.append({"role": "user", "parts": [{"text": message}]})
+
+    try:
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=contents,
+            config=genai_types.GenerateContentConfig(
+                system_instruction=system_prompt,
+            ),
+        )
+        reply = response.text
+    except Exception as e:
+        logger.error(f"Assistant Gemini call failed: {e}")
+        return Response(
+            {"error": "Assistant is unavailable. Please try again."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    return Response({
+        "message": reply,
+        "action": None,
+        "generated_items": None,
+    })
+
+
+def _handle_generation_action(job, action, transcript):
+    """Generate and save new flashcards or quiz questions, merging into existing record."""
+    content_type = "flashcards" if action == "generate_flashcards" else "quiz"
+
+    try:
+        new_content = GeminiService.generate_content(transcript, content_type)
+    except Exception as e:
+        logger.error(f"Assistant generation failed: {e}")
+        return Response(
+            {"error": "Generation failed. Please try again."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    # Merge into existing record (unique_together constraint)
+    try:
+        existing = GeneratedContent.objects.get(job=job, type=content_type)
+        if content_type == "flashcards":
+            existing_items = existing.content.get("flashcards", [])
+            new_items = new_content.get("flashcards", [])
+            existing.content = {"flashcards": existing_items + new_items}
+        else:
+            existing_items = existing.content.get("questions", [])
+            new_items = new_content.get("questions", [])
+            existing.content = {"questions": existing_items + new_items}
+        existing.save(update_fields=["content"])
+    except GeneratedContent.DoesNotExist:
+        GeneratedContent.objects.create(job=job, type=content_type, content=new_content)
+
+    job.update_content_cache()
+
+    generated_items = new_content.get(
+        "flashcards" if content_type == "flashcards" else "questions", []
+    )
+    action_done = "generated_flashcards" if content_type == "flashcards" else "generated_quiz"
+    count = len(generated_items)
+    noun = "flashcards" if content_type == "flashcards" else "quiz questions"
+
+    return Response({
+        "message": f"I generated {count} new {noun} and saved them to your study set.",
+        "action": action_done,
+        "generated_items": generated_items,
+    })

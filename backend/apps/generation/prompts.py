@@ -91,3 +91,58 @@ Text:
 
     else:
         raise ValueError(f"Unknown material type: {type}")
+
+
+def get_assistant_system_prompt(transcript: str, generated_content: dict) -> str:
+    """Build system prompt with full study set context for the AI assistant."""
+    context_parts = [
+        "You are a helpful study assistant. The user is studying the following material.",
+        "",
+        "=== SOURCE TRANSCRIPT ===",
+        transcript[:400000],  # Guard: cap at ~400K chars (~100K tokens)
+        "",
+    ]
+
+    if generated_content.get("summary"):
+        summary = generated_content["summary"]
+        context_parts += [
+            "=== SUMMARY ===",
+            f"Title: {summary.get('title', '')}",
+            summary.get("summary", ""),
+            "",
+        ]
+
+    if generated_content.get("notes"):
+        notes = generated_content["notes"]
+        context_parts += [
+            "=== STUDY NOTES ===",
+            notes.get("content", ""),
+            "",
+        ]
+
+    if generated_content.get("flashcards"):
+        cards = generated_content["flashcards"].get("flashcards", [])
+        cards_text = "\n".join(f"Q: {c['front']}\nA: {c['back']}" for c in cards[:50])
+        context_parts += [
+            "=== EXISTING FLASHCARDS ===",
+            cards_text,
+            "",
+        ]
+
+    if generated_content.get("quiz"):
+        questions = generated_content["quiz"].get("questions", [])
+        q_text = "\n".join(f"Q: {q['question']}" for q in questions[:20])
+        context_parts += [
+            "=== EXISTING QUIZ QUESTIONS ===",
+            q_text,
+            "",
+        ]
+
+    context_parts += [
+        "=== INSTRUCTIONS ===",
+        "Answer the user's questions based on the material above.",
+        "Be concise, accurate, and helpful.",
+        "For 'quiz me' requests, pick 3-5 questions from the existing quiz/flashcards and ask them one at a time.",
+    ]
+
+    return "\n".join(context_parts)
