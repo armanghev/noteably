@@ -70,5 +70,20 @@ class GeminiService:
                 return json.loads(text_content)
 
         except Exception as e:
-            logger.error(f"Gemini generation failed: {e}")
+            logger.error("Gemini generation failed", exc_info=True)
             raise ThirdPartyServiceError(f"Generation failed: {str(e)}")
+
+    @classmethod
+    def generate_chat_response(cls, contents: list, system_prompt: str) -> str:
+        """Generate a conversational response using the Gemini client singleton."""
+        try:
+            client = cls._get_client()
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=contents,
+                config=types.GenerateContentConfig(system_instruction=system_prompt),
+            )
+            return response.text or ""
+        except Exception as e:
+            logger.error("Assistant Gemini chat failed", exc_info=True)
+            raise ThirdPartyServiceError(f"Chat generation failed: {str(e)}")

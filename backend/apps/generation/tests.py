@@ -41,11 +41,9 @@ class AssistantChatViewTest(TestCase):
         request.user_id = user_id or self.user_id
         return assistant_chat(request, job_id=self.job.id)
 
-    @patch("apps.generation.views.genai")
-    def test_basic_chat_returns_message(self, mock_genai):
-        mock_response = MagicMock()
-        mock_response.text = "Photosynthesis converts light to energy."
-        mock_genai.Client.return_value.models.generate_content.return_value = mock_response
+    @patch("apps.generation.views.GeminiService")
+    def test_basic_chat_returns_message(self, mock_gemini_service):
+        mock_gemini_service.generate_chat_response.return_value = "Photosynthesis converts light to energy."
 
         response = self._make_request({
             "message": "Explain photosynthesis",
@@ -54,7 +52,7 @@ class AssistantChatViewTest(TestCase):
         })
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn("message", response.data)
+        self.assertEqual(response.data["message"], "Photosynthesis converts light to energy.")
         self.assertIsNone(response.data["action"])
         self.assertIsNone(response.data["generated_items"])
 

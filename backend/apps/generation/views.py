@@ -1,12 +1,11 @@
 import logging
 
-from django.conf import settings
-from google import genai
-from google.genai import types as genai_types
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.response import Response
 from rest_framework import status
 from apps.accounts.permissions import IsAuthenticated
+from apps.core.exceptions import ThirdPartyServiceError
+from apps.core.throttling import BurstRateThrottle
 from .models import GeneratedContent, QuizAttempt
 from .serializers import QuizAttemptSerializer
 from .service import GeminiService
@@ -92,6 +91,7 @@ def quiz_attempts(request, job_id):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([BurstRateThrottle])
 def assistant_chat(request, job_id):
     """
     AI assistant chat endpoint. Accepts a message + conversation history,
@@ -106,14 +106,15 @@ def assistant_chat(request, job_id):
     if not message:
         return Response({"error": "message is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-    conversation_history = request.data.get("conversation_history", [])[-10:]
+    conversation_history = request.data.get("conversation_history", [])
+    if not isinstance(conversation_history, list):
+        conversation_history = []
+    conversation_history = conversation_history[-10:]
     action = request.data.get("action")
 
     # Build context
-    try:
-        transcript = job.transcription.text
-    except Exception:
-        transcript = ""
+    transcription = getattr(job, 'transcription', None)
+    transcript = transcription.text if transcription else ""
 
     generated_content = {}
     for item in GeneratedContent.objects.filter(job=job):
@@ -122,7 +123,7 @@ def assistant_chat(request, job_id):
 
     # Handle generation actions
     if action in ("generate_flashcards", "generate_quiz"):
-        return _handle_generation_action(job, action, transcript)
+        return _handle_generation_action(job, action, transcript, generated_content)
 
     # Build Gemini conversation
     system_prompt = get_assistant_system_prompt(transcript, generated_content)
@@ -134,17 +135,8 @@ def assistant_chat(request, job_id):
     contents.append({"role": "user", "parts": [{"text": message}]})
 
     try:
-        client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=contents,
-            config=genai_types.GenerateContentConfig(
-                system_instruction=system_prompt,
-            ),
-        )
-        reply = response.text
-    except Exception as e:
-        logger.error(f"Assistant Gemini call failed: {e}")
+        reply = GeminiService.generate_chat_response(contents, system_prompt)
+    except ThirdPartyServiceError:
         return Response(
             {"error": "Assistant is unavailable. Please try again."},
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -157,14 +149,26 @@ def assistant_chat(request, job_id):
     })
 
 
-def _handle_generation_action(job, action, transcript):
+def _handle_generation_action(job, action, transcript, generated_content=None):
     """Generate and save new flashcards or quiz questions, merging into existing record."""
     content_type = "flashcards" if action == "generate_flashcards" else "quiz"
 
+    context_text = transcript
+    if generated_content and action == "generate_flashcards":
+        existing = generated_content.get("flashcards", {}).get("flashcards", [])
+        if existing:
+            existing_summary = "\n".join(f"- {c['front']}" for c in existing[:30])
+            context_text = f"{transcript}\n\n[ALREADY GENERATED - DO NOT DUPLICATE THESE]\n{existing_summary}"
+    elif generated_content and action == "generate_quiz":
+        existing = generated_content.get("quiz", {}).get("questions", [])
+        if existing:
+            existing_summary = "\n".join(f"- {q['question']}" for q in existing[:20])
+            context_text = f"{transcript}\n\n[ALREADY GENERATED - DO NOT DUPLICATE THESE]\n{existing_summary}"
+
     try:
-        new_content = GeminiService.generate_content(transcript, content_type)
-    except Exception as e:
-        logger.error(f"Assistant generation failed: {e}")
+        new_content = GeminiService.generate_content(context_text, content_type)
+    except Exception:
+        logger.error("Assistant generation failed", exc_info=True)
         return Response(
             {"error": "Generation failed. Please try again."},
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
