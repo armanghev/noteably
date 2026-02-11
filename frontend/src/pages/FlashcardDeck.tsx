@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowLeft, RotateCw, ArrowRight, ArrowLeft as PrevIcon, LayoutGrid, Layers, Loader2 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
+import { AssistantPanel, AssistantTriggerButton } from '@/components/assistant/AssistantPanel';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ExportButton } from '@/components/export/ExportButton';
@@ -20,11 +21,12 @@ function getFlashcardsContent(job: NonNullable<ReturnType<typeof useJob>['data']
 
 export default function FlashcardDeck() {
   const { id } = useParams<{ id: string }>();
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   // Disable polling for detail pages since jobs are already completed
   const { data: job, isLoading } = useJob(id, { stopPollingWhenComplete: false });
-  const { handleBack, backLabel } = useBackNavigation({ 
-    defaultPath: '/flashcards', 
-    defaultLabel: 'Back to Decks' 
+  const { handleBack, backLabel } = useBackNavigation({
+    defaultPath: '/flashcards',
+    defaultLabel: 'Back to Decks'
   });
   const [isStudyMode, setIsStudyMode] = useState(true);
   const [currentCard, setCurrentCard] = useState(0);
@@ -221,6 +223,19 @@ export default function FlashcardDeck() {
           </div>
         )}
       </div>
+      {id && (
+        <>
+          <AssistantTriggerButton
+            onClick={() => setIsAssistantOpen(true)}
+            isOpen={isAssistantOpen}
+          />
+          <AssistantPanel
+            jobId={id}
+            isOpen={isAssistantOpen}
+            onClose={() => setIsAssistantOpen(false)}
+          />
+        </>
+      )}
     </Layout>
   );
 }

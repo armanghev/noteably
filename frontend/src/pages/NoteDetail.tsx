@@ -1,5 +1,6 @@
 import { ExportButton } from "@/components/export/ExportButton";
 import Layout from "@/components/layout/Layout";
+import { AssistantPanel, AssistantTriggerButton } from '@/components/assistant/AssistantPanel';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { JsonDisplay } from "@/components/ui/json-display";
@@ -27,6 +28,7 @@ function getNotesContent(job: Job): NotesContent | null {
 
 export default function NoteDetail() {
   const { id } = useParams<{ id: string }>();
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   // Disable polling for detail pages since jobs are already completed
   const {
     data: job,
@@ -406,6 +408,19 @@ export default function NoteDetail() {
           </div>
         </div>
       </div>
+      {id && (
+        <>
+          <AssistantTriggerButton
+            onClick={() => setIsAssistantOpen(true)}
+            isOpen={isAssistantOpen}
+          />
+          <AssistantPanel
+            jobId={id}
+            isOpen={isAssistantOpen}
+            onClose={() => setIsAssistantOpen(false)}
+          />
+        </>
+      )}
     </Layout>
   );
 }

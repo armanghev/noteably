@@ -1,5 +1,6 @@
 import { ExportButton } from "@/components/export/ExportButton";
 import Layout from "@/components/layout/Layout";
+import { AssistantPanel, AssistantTriggerButton } from '@/components/assistant/AssistantPanel';
 import { DeleteConfirmationDialog } from "@/components/shared/DeleteConfirmationDialog";
 import { AudioPlayer } from "@/components/ui/audio-player";
 import { Button } from "@/components/ui/button";
@@ -95,6 +96,7 @@ function getQuizContent(job: Job): QuizQuestion[] {
 
 export default function StudySetDetail() {
   const { id } = useParams<{ id: string }>();
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: job, isLoading, error: jobError } = useJob(id);
@@ -1223,6 +1225,19 @@ export default function StudySetDetail() {
         itemName={generatedTitle}
         isDeleting={isDeleting}
       />
+      {id && (
+        <>
+          <AssistantTriggerButton
+            onClick={() => setIsAssistantOpen(true)}
+            isOpen={isAssistantOpen}
+          />
+          <AssistantPanel
+            jobId={id}
+            isOpen={isAssistantOpen}
+            onClose={() => setIsAssistantOpen(false)}
+          />
+        </>
+      )}
     </Layout>
   );
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowLeft, CheckCircle2, XCircle, ArrowRight, Timer, Trophy, Loader2, History } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
+import { AssistantPanel, AssistantTriggerButton } from '@/components/assistant/AssistantPanel';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ExportButton } from '@/components/export/ExportButton';
@@ -21,6 +22,7 @@ function getQuizContent(job: NonNullable<ReturnType<typeof useJob>['data']>): Qu
 
 export default function QuizDetail() {
   const { id } = useParams<{ id: string }>();
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   // Disable polling for detail pages since jobs are already completed
   const { data: job, isLoading } = useJob(id, { stopPollingWhenComplete: false });
   const { data: attemptsData } = useQuizAttempts(id);
@@ -225,6 +227,19 @@ export default function QuizDetail() {
             </Card>
           )}
         </div>
+        {id && (
+          <>
+            <AssistantTriggerButton
+              onClick={() => setIsAssistantOpen(true)}
+              isOpen={isAssistantOpen}
+            />
+            <AssistantPanel
+              jobId={id}
+              isOpen={isAssistantOpen}
+              onClose={() => setIsAssistantOpen(false)}
+            />
+          </>
+        )}
       </Layout>
     );
   }
@@ -332,6 +347,19 @@ export default function QuizDetail() {
           </div>
         </Card>
       </div>
+      {id && (
+        <>
+          <AssistantTriggerButton
+            onClick={() => setIsAssistantOpen(true)}
+            isOpen={isAssistantOpen}
+          />
+          <AssistantPanel
+            jobId={id}
+            isOpen={isAssistantOpen}
+            onClose={() => setIsAssistantOpen(false)}
+          />
+        </>
+      )}
     </Layout>
   );
 }
