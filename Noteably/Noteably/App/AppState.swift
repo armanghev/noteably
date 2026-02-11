@@ -69,7 +69,7 @@ final class AppState {
     // MARK: - API Client Setup
 
     private func setupAPIClient() {
-        APIClient.shared.baseURL = "http://10.162.133.186:8000"
+        APIClient.shared.baseURL = "http://192.168.1.42:8000"
         APIClient.shared.tokenProvider = { [weak self] in
             guard self != nil else { return nil }
             return await AuthService.shared.getAccessToken()
