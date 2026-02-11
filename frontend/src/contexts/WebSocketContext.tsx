@@ -1,13 +1,17 @@
 import { useAuth } from "@/hooks/useAuth";
 import { API_BASE_URL } from "@/lib/constants";
+import { supabase } from "@/lib/supabase";
 import {
   createContext,
   ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useRef,
   useState,
 } from "react";
+
+const MAX_RECONNECT_ATTEMPTS = 3;
 
 interface WebSocketContextType {
   isConnected: boolean;
@@ -25,15 +29,21 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const [lastMessage, setLastMessage] = useState<any>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttemptsRef = useRef(0);
 
-  const connect = () => {
-    if (!user || !session?.access_token) return;
+  const connect = useCallback(async () => {
+    if (!user) return;
     if (socketRef.current?.readyState === WebSocket.OPEN) return;
     if (socketRef.current?.readyState === WebSocket.CONNECTING) return;
 
+    // Get a fresh session to avoid using stale tokens
+    const { data: { session: freshSession } } = await supabase.auth.getSession();
+    if (!freshSession?.access_token) {
+      console.log("WS: No valid session, skipping connection");
+      return;
+    }
+
     try {
-      // Construct WebSocket URL from API_BASE_URL
-      // Handle both absolute and relative URLs
       let wsBase = "";
 
       if (API_BASE_URL.startsWith("http")) {
@@ -41,18 +51,17 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         const protocol = urlObj.protocol.replace("http", "ws");
         wsBase = `${protocol}//${urlObj.host}`;
       } else {
-        // Relative path, use window.location
         const protocol = window.location.protocol.replace("http", "ws");
         wsBase = `${protocol}//${window.location.host}`;
       }
 
-      const wsUrl = `${wsBase}/ws/user/?token=${session.access_token}`;
+      const wsUrl = `${wsBase}/ws/user/?token=${freshSession.access_token}`;
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
         console.log("WS Connected");
         setIsConnected(true);
-        // Clear any pending reconnects
+        reconnectAttemptsRef.current = 0;
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current);
           reconnectTimeoutRef.current = null;
@@ -74,13 +83,21 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         setIsConnected(false);
         socketRef.current = null;
 
-        // Reconnect if we still have a user session
-        if (session?.access_token) {
-          reconnectTimeoutRef.current = setTimeout(() => {
-            console.log("Attempting WS reconnect...");
-            connect();
-          }, 3000);
+        reconnectAttemptsRef.current += 1;
+        if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
+          console.warn(
+            `WS: Max reconnect attempts (${MAX_RECONNECT_ATTEMPTS}) reached, stopping`,
+          );
+          return;
         }
+
+        const delay = Math.min(3000 * 2 ** reconnectAttemptsRef.current, 30000);
+        reconnectTimeoutRef.current = setTimeout(() => {
+          console.log(
+            `WS: Reconnect attempt ${reconnectAttemptsRef.current + 1}/${MAX_RECONNECT_ATTEMPTS}...`,
+          );
+          connect();
+        }, delay);
       };
 
       ws.onerror = (e) => {
@@ -92,14 +109,14 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error("Failed to construct WebSocket URL:", error);
     }
-  };
+  }, [user]);
 
   // Connect when user/session is available
   useEffect(() => {
     if (user && session) {
+      reconnectAttemptsRef.current = 0;
       connect();
     } else {
-      // Cleanup if user logs out
       socketRef.current?.close();
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
@@ -112,8 +129,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         clearTimeout(reconnectTimeoutRef.current);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, session?.access_token]);
+  }, [user, session?.access_token, connect]);
 
   const sendMessage = (data: any) => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
