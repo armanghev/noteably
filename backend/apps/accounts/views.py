@@ -105,16 +105,76 @@ def login(request):
         )
 
 
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def complete_profile(request):
+    """
+    Complete user profile by updating Supabase user_metadata.
+    Called after signup (email or OAuth) to set first/last name and optional phone.
+    """
+    first_name = request.data.get("first_name", "").strip()
+    last_name = request.data.get("last_name", "").strip()
+    phone_number = request.data.get("phone_number", "").strip() or None
+
+    if not first_name or not last_name:
+        return Response(
+            {"error": "First name and last name are required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        response = supabase_client.client.auth.admin.update_user_by_id(
+            request.user_id,
+            {
+                "user_metadata": {
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "phone_number": phone_number,
+                    "profile_completed": True,
+                }
+            },
+        )
+
+        if not response.user:
+            return Response(
+                {"error": "Failed to update profile"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "message": "Profile completed successfully",
+                "user": response.user.model_dump(),
+            },
+            status=status.HTTP_200_OK,
+        )
+    except Exception as e:
+        logger.error(f"Profile completion failed for {request.user_id}: {e}")
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_user_profile(request):
     """
     Get current user's profile information.
-
-    Returns:
-        User data from Supabase auth
+    Includes profile fields from user_metadata.
     """
-    return Response({"user": request.user, "user_id": request.user_id})
+    user_metadata = {}
+    if hasattr(request.user, 'data') and isinstance(request.user.data, dict):
+        user_metadata = request.user.data.get("user_metadata", {}) or {}
+
+    return Response({
+        "user": request.user,
+        "user_id": request.user_id,
+        "first_name": user_metadata.get("first_name"),
+        "last_name": user_metadata.get("last_name"),
+        "phone_number": user_metadata.get("phone_number"),
+        "profile_completed": user_metadata.get("profile_completed", False),
+    })
 
 
 @api_view(["GET"])
