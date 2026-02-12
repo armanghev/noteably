@@ -22,6 +22,12 @@ struct NoteablyApp: App {
             .environment(authService)
             .animation(.easeInOut(duration: 0.3), value: appState.isAuthenticated)
             .animation(.easeInOut(duration: 0.3), value: appState.needsProfileCompletion)
+            .onOpenURL { url in
+                Task {
+                    try? await SupabaseConfig.client.auth.session(from: url)
+                    appState.syncAuthState()
+                }
+            }
         }
     }
 }
