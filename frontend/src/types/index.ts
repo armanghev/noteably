@@ -23,6 +23,12 @@ export interface RegisterRequest {
   password_confirm?: string;
 }
 
+export interface CompleteProfileRequest {
+  first_name: string;
+  last_name: string;
+  phone_number?: string;
+}
+
 // Filter types
 export type DateRangeFilter = "7days" | "30days" | "90days" | "all";
 export type SortOption = "newest" | "oldest" | "title-asc" | "title-desc";

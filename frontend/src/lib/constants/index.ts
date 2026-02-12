@@ -6,6 +6,7 @@ export const API_ENDPOINTS = {
         // Backend endpoints for authenticated user data
         CURRENT_USER: '/api/auth/me',
         SUBSCRIPTION: '/api/auth/subscription',
+        COMPLETE_PROFILE: '/auth/complete-profile',
     },
     JOBS: {
         PROCESS: '/process',
