@@ -9,7 +9,11 @@ struct NoteablyApp: App {
         WindowGroup {
             Group {
                 if appState.isAuthenticated {
-                    MainTabView()
+                    if appState.needsProfileCompletion {
+                        CompleteProfileView()
+                    } else {
+                        MainTabView()
+                    }
                 } else {
                     OnboardingView()
                 }
@@ -17,6 +21,7 @@ struct NoteablyApp: App {
             .environment(appState)
             .environment(authService)
             .animation(.easeInOut(duration: 0.3), value: appState.isAuthenticated)
+            .animation(.easeInOut(duration: 0.3), value: appState.needsProfileCompletion)
         }
     }
 }
