@@ -144,7 +144,10 @@ def complete_profile(request):
         return Response(
             {
                 "message": "Profile completed successfully",
-                "user": response.user.model_dump(),
+                "profile_completed": True,
+                "first_name": first_name,
+                "last_name": last_name,
+                "phone_number": phone_number,
             },
             status=status.HTTP_200_OK,
         )
