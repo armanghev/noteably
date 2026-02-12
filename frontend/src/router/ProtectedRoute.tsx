@@ -6,7 +6,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-    const { isAuthenticated, loading } = useAuth();
+    const { isAuthenticated, loading, profileCompleted } = useAuth();
     const location = useLocation();
 
     if (loading) {
@@ -18,8 +18,13 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     }
 
     if (!isAuthenticated) {
-        // Redirect to login but save the attempted location
         return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+
+    // Redirect to profile completion if profile is not completed
+    // (but don't redirect if we're already on the complete-profile page)
+    if (!profileCompleted && location.pathname !== '/complete-profile') {
+        return <Navigate to="/complete-profile" replace />;
     }
 
     return <>{children}</>;
