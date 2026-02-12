@@ -7,6 +7,7 @@ import Network
 final class AppState {
     var isAuthenticated = false
     var userId: String?
+    var needsProfileCompletion = false
     var isConnected = true
 
     private let authService = AuthService.shared
@@ -25,6 +26,7 @@ final class AppState {
     func syncAuthState() {
         isAuthenticated = authService.isAuthenticated
         userId = authService.currentUserId
+        needsProfileCompletion = isAuthenticated && !authService.profileCompleted
     }
 
     func signIn(email: String, password: String) async throws {
@@ -34,6 +36,15 @@ final class AppState {
 
     func signUp(email: String, password: String) async throws {
         try await authService.signUp(email: email, password: password)
+        syncAuthState()
+    }
+
+    func signInWithGoogle() async throws {
+        try await authService.signInWithGoogle()
+    }
+
+    func completeProfile(firstName: String, lastName: String, phoneNumber: String? = nil) async throws {
+        try await authService.completeProfile(firstName: firstName, lastName: lastName, phoneNumber: phoneNumber)
         syncAuthState()
     }
 
@@ -49,8 +60,10 @@ final class AppState {
             self?.isAuthenticated = isAuth
             if isAuth {
                 self?.userId = self?.authService.currentUserId
+                self?.needsProfileCompletion = !(self?.authService.profileCompleted ?? false)
             } else {
                 self?.userId = nil
+                self?.needsProfileCompletion = false
             }
         }
     }
