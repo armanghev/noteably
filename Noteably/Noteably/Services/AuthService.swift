@@ -1,5 +1,6 @@
 import Foundation
 import Supabase
+import UIKit
 
 // MARK: - Auth Service
 
@@ -13,6 +14,9 @@ final class AuthService {
     private(set) var currentUserId: String?
     private(set) var currentEmail: String?
     private(set) var currentAvatarUrl: String?
+    private(set) var currentFirstName: String?
+    private(set) var currentLastName: String?
+    private(set) var profileCompleted: Bool = false
     private(set) var isAuthenticated = false
 
     private init() {
@@ -74,6 +78,40 @@ final class AuthService {
         applySession(session)
     }
 
+    // MARK: - Complete Profile
+
+    func completeProfile(firstName: String, lastName: String, phoneNumber: String? = nil) async throws {
+        let body = CompleteProfileRequest(
+            firstName: firstName,
+            lastName: lastName,
+            phoneNumber: phoneNumber
+        )
+        let _: CompleteProfileResponse = try await api.post(
+            path: "/api/auth/complete-profile",
+            body: body
+        )
+
+        // Refresh the session to pick up updated user_metadata
+        try await supabase.auth.refreshSession()
+        if let session = try? await supabase.auth.session {
+            applySession(session)
+        }
+    }
+
+    // MARK: - Google OAuth
+
+    func signInWithGoogle() async throws {
+        let url = try await supabase.auth.getOAuthSignInURL(
+            provider: .google,
+            redirectTo: URL(string: "noteably://auth/callback")
+        )
+
+        // Open the URL in the system browser
+        await MainActor.run {
+            UIApplication.shared.open(url)
+        }
+    }
+
     // MARK: - Sign Out
 
     func signOut() async {
@@ -126,12 +164,14 @@ final class AuthService {
     private func applySession(_ session: Session) {
         currentUserId = session.user.id.uuidString.lowercased()
         currentEmail = session.user.email
-        // Extract avatar_url from user metadata
         if let avatarUrl = session.user.userMetadata["avatar_url"]?.stringValue {
             currentAvatarUrl = avatarUrl
         } else {
             currentAvatarUrl = nil
         }
+        currentFirstName = session.user.userMetadata["first_name"]?.stringValue
+        currentLastName = session.user.userMetadata["last_name"]?.stringValue
+        profileCompleted = session.user.userMetadata["profile_completed"]?.boolValue ?? false
         isAuthenticated = true
     }
 
@@ -139,6 +179,9 @@ final class AuthService {
         currentUserId = nil
         currentEmail = nil
         currentAvatarUrl = nil
+        currentFirstName = nil
+        currentLastName = nil
+        profileCompleted = false
         isAuthenticated = false
     }
     

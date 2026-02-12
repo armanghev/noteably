@@ -37,6 +37,25 @@ struct AuthSession: Codable {
     }
 }
 
+// MARK: - Complete Profile
+
+struct CompleteProfileRequest: Codable {
+    let firstName: String
+    let lastName: String
+    let phoneNumber: String?
+
+    enum CodingKeys: String, CodingKey {
+        case firstName = "first_name"
+        case lastName = "last_name"
+        case phoneNumber = "phone_number"
+    }
+}
+
+struct CompleteProfileResponse: Codable {
+    let message: String
+    let user: AuthUser?
+}
+
 // MARK: - User Profile Response
 
 struct UserProfileResponse: Codable {
