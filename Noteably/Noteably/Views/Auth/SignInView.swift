@@ -8,6 +8,7 @@ struct SignInView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var isLoading = false
+    @State private var isGoogleLoading = false
     @State private var errorMessage: String?
     @State private var appeared = false
 
@@ -27,7 +28,7 @@ struct SignInView: View {
                 VStack(spacing: 0) {
                     header
                         .padding(.top, 16)
-                        .padding(.bottom, 48)
+                        .padding(.bottom, 24)
 
                     formCard
                         .padding(.horizontal, 24)
@@ -73,17 +74,17 @@ struct SignInView: View {
 
     private var formCard: some View {
         VStack(spacing: 28) {
-            VStack(spacing: 10) {
+            VStack(alignment: .center, spacing: 4) {
                 Text("Welcome back")
-                    .font(.noteablySerif(32, weight: .bold))
+                    .font(.noteablySerif(28, weight: .bold))
                     .foregroundStyle(Color.noteablyForeground)
 
                 Text("Enter your details to access your account.")
-                    .font(.noteablyBody(16))
+                    .font(.noteablyBody(14))
                     .foregroundStyle(Color.noteablySecondaryText)
+                    .multilineTextAlignment(.center)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
+            
             if let errorMessage {
                 HStack(spacing: 10) {
                     Image(systemName: "exclamationmark.circle.fill")
@@ -106,15 +107,17 @@ struct SignInView: View {
                         .font(.noteablyBody(14, weight: .medium))
                         .foregroundStyle(Color.noteablyForeground)
 
-                    TextField("student@university.edu", text: $email)
+                    TextField("student@university.edu", text: $email, prompt: Text("student@university.\u{200B}edu").foregroundColor(Color.noteablySecondaryText))
                         .textContentType(.emailAddress)
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .focused($focusedField, equals: .email)
+                        .foregroundColor(Color.noteablyForeground)
                         .noteablyTextField(isFocused: focusedField == .email)
                         .submitLabel(.next)
                         .onSubmit { focusedField = .password }
+                        .tint(Color.noteablyForeground)
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -122,12 +125,14 @@ struct SignInView: View {
                         .font(.noteablyBody(14, weight: .medium))
                         .foregroundStyle(Color.noteablyForeground)
 
-                    SecureField("••••••••", text: $password)
+                    SecureField("••••••••", text: $password, prompt: Text("••••••••").foregroundColor(Color.noteablySecondaryText))
                         .textContentType(.password)
                         .focused($focusedField, equals: .password)
+                        .foregroundColor(Color.noteablyForeground)
                         .noteablyTextField(isFocused: focusedField == .password)
                         .submitLabel(.go)
                         .onSubmit { signIn() }
+                        .tint(Color.noteablyForeground)
                 }
             }
 
@@ -142,17 +147,68 @@ struct SignInView: View {
             .buttonStyle(NoteablyPrimaryButtonStyle())
             .disabled(isLoading || email.isEmpty || password.isEmpty)
             .opacity(email.isEmpty || password.isEmpty ? 0.6 : 1.0)
+            
+            // Divider
+            HStack {
+                Rectangle()
+                    .fill(Color.noteablyBorder)
+                    .frame(height: 1)
+                Text("or")
+                    .font(.noteablyBody(14))
+                    .foregroundStyle(Color.noteablySecondaryText)
+                    .padding(.horizontal, 16)
+                Rectangle()
+                    .fill(Color.noteablyBorder)
+                    .frame(height: 1)
+            }
+            
+            // OAuth Buttons
+            VStack(spacing: 12) {
+                Button(action: signInWithGoogle) {
+                    HStack(spacing: 12) {
+                        if isGoogleLoading {
+                            ProgressView()
+                                .tint(Color.noteablyForeground)
+                        } else {
+                            Image("google-logo")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 20, height: 20)
+                        }
+                        Text("Continue with Google")
+                            .font(.noteablyBody(16, weight: .medium))
+                    }
+                    .foregroundStyle(Color.noteablyForeground)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(Color.noteablyBorder, lineWidth: 1)
+                    )
+                }
+                .disabled(isGoogleLoading || isLoading)
+
+                Button(action: signInWithApple) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "apple.logo")
+                            .font(.system(size: 24))
+                        Text("Continue with Apple")
+                            .font(.noteablyBody(16, weight: .medium))
+                        Text("(Coming soon)")
+                            .font(.noteablyBody(13))
+                            .foregroundStyle(Color.noteablySecondaryText)
+                    }
+                    .foregroundStyle(Color.noteablyForeground)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(Color.noteablyBorder, lineWidth: 1)
+                    )
+                    .opacity(0.6)
+                }
+            }
         }
-        .padding(28)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color.noteablyCard)
-                .shadow(color: Color.black.opacity(0.06), radius: 24, x: 0, y: 8)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(Color.noteablyBorder.opacity(0.3), lineWidth: 1)
-        )
         .opacity(appeared ? 1 : 0)
         .offset(y: appeared ? 0 : 20)
     }
@@ -195,6 +251,26 @@ struct SignInView: View {
             }
             isLoading = false
         }
+    }
+
+    private func signInWithGoogle() {
+        isGoogleLoading = true
+        errorMessage = nil
+
+        Task {
+            do {
+                try await appState.signInWithGoogle()
+            } catch let error as APIError {
+                errorMessage = error.errorDescription
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isGoogleLoading = false
+        }
+    }
+
+    private func signInWithApple() {
+        errorMessage = "Apple Sign-In is coming soon!"
     }
 }
 

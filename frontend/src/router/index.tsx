@@ -14,7 +14,6 @@ import Profile from "@/pages/Profile";
 import QuizDetail from "@/pages/QuizDetail";
 import Quizzes from "@/pages/Quizzes";
 import Signup from "@/pages/Signup";
-import CompleteProfile from "@/pages/CompleteProfile";
 import StudySetDetail from "@/pages/StudySetDetail";
 import StudySets from "@/pages/StudySets";
 import Upload from "@/pages/Upload";
@@ -59,10 +58,6 @@ export const router = createBrowserRouter([
       {
         path: ROUTES.PROFILE,
         element: <Profile />,
-      },
-      {
-        path: ROUTES.COMPLETE_PROFILE,
-        element: <CompleteProfile />,
       },
       {
         path: ROUTES.NOTES,

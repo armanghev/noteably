@@ -67,8 +67,11 @@ struct SignUpView: View {
                     .frame(width: 44, height: 44)
                     .background(
                         Circle()
-                            .fill(Color.noteablyCard)
-                            .shadow(color: Color.black.opacity(0.04), radius: 8, y: 2)
+                            .fill(Color.clear)
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.noteablyBorder, lineWidth: 1)
+                            )
                     )
             }
             Spacer()
@@ -89,7 +92,7 @@ struct SignUpView: View {
                     .font(.noteablyBody(16))
                     .foregroundStyle(Color.noteablySecondaryText)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .center)
 
             if let errorMessage {
                 HStack(spacing: 10) {
@@ -136,7 +139,7 @@ struct SignUpView: View {
                 Button(action: signInWithApple) {
                     HStack(spacing: 12) {
                         Image(systemName: "apple.logo")
-                            .font(.system(size: 18))
+                            .font(.system(size: 20))
                         Text("Continue with Apple")
                             .font(.noteablyBody(16, weight: .medium))
                         Text("(Coming soon)")
@@ -186,7 +189,7 @@ struct SignUpView: View {
                             .font(.noteablyBody(14, weight: .medium))
                             .foregroundStyle(Color.noteablyForeground)
 
-                        TextField("student@university.edu", text: $email)
+                        TextField("Enter Your Email Address", text: $email)
                             .textContentType(.emailAddress)
                             .keyboardType(.emailAddress)
                             .textInputAutocapitalization(.never)
@@ -249,16 +252,6 @@ struct SignUpView: View {
                 .opacity(isFormValid ? 1.0 : 0.6)
             }
         }
-        .padding(28)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color.noteablyCard)
-                .shadow(color: Color.black.opacity(0.06), radius: 24, x: 0, y: 8)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(Color.noteablyBorder.opacity(0.3), lineWidth: 1)
-        )
         .opacity(appeared ? 1 : 0)
         .offset(y: appeared ? 0 : 20)
     }

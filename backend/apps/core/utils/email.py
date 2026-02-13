@@ -101,3 +101,23 @@ def send_job_completed_email(
     )
 
     return send_email(to_email, subject, html_content)
+
+
+def send_welcome_email(to_email: str, first_name: str = "there"):
+    """
+    Send welcome email to new users.
+    """
+    subject = "Welcome to Noteably!"
+    # consistent with other email utils
+    action_url = "http://localhost:5173/dashboard"
+
+    html_content = render_to_string(
+        "emails/welcome.html",
+        {
+            "first_name": first_name,
+            "action_url": action_url,
+            "ref_id": str(uuid.uuid4())[:8],
+        },
+    )
+
+    return send_email(to_email, subject, html_content)

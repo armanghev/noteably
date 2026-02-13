@@ -8,6 +8,7 @@ These endpoints are for checking auth status and user info.
 import logging
 
 from apps.core.supabase_client import supabase_client
+from apps.core.utils.email import send_welcome_email
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -110,8 +111,12 @@ def login(request):
 def complete_profile(request):
     """
     Complete user profile by updating Supabase user_metadata.
-    Called after signup (email or OAuth) to set first/last name and optional phone.
+    Uses the user's own JWT to update their metadata directly.
     """
+    import os
+
+    import requests as http_requests
+
     first_name = request.data.get("first_name", "").strip()
     last_name = request.data.get("last_name", "").strip()
     phone_number = request.data.get("phone_number", "").strip() or None
@@ -122,24 +127,57 @@ def complete_profile(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    # Extract the user's JWT from the Authorization header
+    auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+    user_token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
+
+    if not user_token:
+        return Response({"error": "Missing token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    supabase_url = os.getenv("SUPABASE_URL")
+    service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
     try:
-        response = supabase_client.client.auth.admin.update_user_by_id(
-            request.user_id,
-            {
-                "user_metadata": {
+        # Check if profile was already completed to avoid duplicate welcome emails
+        # request.user is a SupabaseUser wrapper around the JWT claims/user data
+        user_metadata = {}
+        if hasattr(request.user, "data") and isinstance(request.user.data, dict):
+            user_metadata = request.user.data.get("user_metadata", {}) or {}
+
+        is_first_completion = not user_metadata.get("profile_completed", False)
+
+        # Use the user endpoint with their JWT — avoids admin API restrictions
+        resp = http_requests.put(
+            f"{supabase_url}/auth/v1/user",
+            headers={
+                "Authorization": f"Bearer {user_token}",
+                "apikey": service_key,
+                "Content-Type": "application/json",
+            },
+            json={
+                "data": {
                     "first_name": first_name,
                     "last_name": last_name,
                     "phone_number": phone_number,
                     "profile_completed": True,
                 }
             },
+            timeout=10,
         )
+        resp.raise_for_status()
 
-        if not response.user:
-            return Response(
-                {"error": "Failed to update profile"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        # Send welcome email only on first completion
+        if is_first_completion:
+            try:
+                # User's email is in request.user.email (from SupabaseUser wrapper)
+                to_email = request.user.email
+                if to_email:
+                    send_welcome_email(to_email, first_name)
+                    logger.info(f"Welcome email sent to {to_email}")
+            except Exception as e:
+                logger.error(
+                    f"Failed to send welcome email to {request.user.email}: {e}"
+                )
 
         return Response(
             {
@@ -151,12 +189,14 @@ def complete_profile(request):
             },
             status=status.HTTP_200_OK,
         )
+    except http_requests.HTTPError as e:
+        error_body = e.response.json() if e.response is not None else {}
+        error_msg = error_body.get("msg") or error_body.get("message") or str(e)
+        logger.error(f"Profile completion failed for {request.user_id}: {error_msg}")
+        return Response({"error": error_msg}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.error(f"Profile completion failed for {request.user_id}: {e}")
-        return Response(
-            {"error": str(e)},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(["GET"])
@@ -167,17 +207,19 @@ def get_user_profile(request):
     Includes profile fields from user_metadata.
     """
     user_metadata = {}
-    if hasattr(request.user, 'data') and isinstance(request.user.data, dict):
+    if hasattr(request.user, "data") and isinstance(request.user.data, dict):
         user_metadata = request.user.data.get("user_metadata", {}) or {}
 
-    return Response({
-        "user": request.user,
-        "user_id": request.user_id,
-        "first_name": user_metadata.get("first_name"),
-        "last_name": user_metadata.get("last_name"),
-        "phone_number": user_metadata.get("phone_number"),
-        "profile_completed": user_metadata.get("profile_completed", False),
-    })
+    return Response(
+        {
+            "user": request.user,
+            "user_id": request.user_id,
+            "first_name": user_metadata.get("first_name"),
+            "last_name": user_metadata.get("last_name"),
+            "phone_number": user_metadata.get("phone_number"),
+            "profile_completed": user_metadata.get("profile_completed", False),
+        }
+    )
 
 
 @api_view(["GET"])

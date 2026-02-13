@@ -50,7 +50,7 @@ struct CompleteProfileView: View {
     private var formCard: some View {
         VStack(spacing: 28) {
             VStack(spacing: 10) {
-                Text("Complete your profile")
+                Text("Complete Your Profile")
                     .font(.noteablySerif(32, weight: .bold))
                     .foregroundStyle(Color.noteablyForeground)
 
@@ -58,7 +58,7 @@ struct CompleteProfileView: View {
                     .font(.noteablyBody(16))
                     .foregroundStyle(Color.noteablySecondaryText)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .center)
 
             if let errorMessage {
                 HStack(spacing: 10) {
@@ -137,16 +137,6 @@ struct CompleteProfileView: View {
             .disabled(isLoading || !isFormValid)
             .opacity(isFormValid ? 1.0 : 0.6)
         }
-        .padding(28)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color.noteablyCard)
-                .shadow(color: Color.black.opacity(0.06), radius: 24, x: 0, y: 8)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(Color.noteablyBorder.opacity(0.3), lineWidth: 1)
-        )
         .opacity(appeared ? 1 : 0)
         .offset(y: appeared ? 0 : 20)
     }
@@ -186,7 +176,7 @@ struct CompleteProfileView: View {
                         ? nil
                         : phoneNumber.trimmingCharacters(in: .whitespaces)
                 )
-                dismiss()
+                // needsAvatarSetup is set in AppState.completeProfile(), root view will transition
             } catch let error as APIError {
                 errorMessage = error.errorDescription
             } catch {

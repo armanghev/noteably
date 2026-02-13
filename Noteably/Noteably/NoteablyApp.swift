@@ -1,4 +1,5 @@
 import SwiftUI
+import Supabase
 
 @main
 struct NoteablyApp: App {
@@ -11,6 +12,11 @@ struct NoteablyApp: App {
                 if appState.isAuthenticated {
                     if appState.needsProfileCompletion {
                         CompleteProfileView()
+                    } else if appState.needsAvatarSetup {
+                        SetupAvatarView {
+                            appState.finishAvatarSetup()
+                        }
+                        .environment(authService)
                     } else {
                         MainTabView()
                     }

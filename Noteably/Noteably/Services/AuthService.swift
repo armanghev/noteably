@@ -222,10 +222,12 @@ final class AuthService {
     }
 
     #if DEBUG
-    func debugSetUser(email: String, id: String, avatarUrl: String? = nil) {
+    func debugSetUser(email: String, id: String, avatarUrl: String? = nil, firstName: String? = nil, lastName: String? = nil) {
         self.currentEmail = email
         self.currentUserId = id
         self.currentAvatarUrl = avatarUrl
+        self.currentFirstName = firstName
+        self.currentLastName = lastName
         self.isAuthenticated = true
     }
     #endif

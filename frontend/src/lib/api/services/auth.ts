@@ -83,11 +83,11 @@ export const authService = {
     await apiClient.post("/auth/complete-profile", data);
   },
 
-  signInWithGoogle: async (): Promise<void> => {
+  signInWithGoogle: async (redirectPath = "/signup?oauth=1"): Promise<void> => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/complete-profile`,
+        redirectTo: `${window.location.origin}${redirectPath}`,
       },
     });
     if (error) throw { message: error.message, status: 400 };
