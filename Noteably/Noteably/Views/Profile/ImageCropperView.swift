@@ -56,35 +56,40 @@ struct ImageCropperView: View {
 
                 CircleMaskOverlay(cropSize: cropSize)
 
-                // Header
+                // Top label
                 VStack {
+                    Text("Move and Scale")
+                        .font(.noteablyBody(17, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.top, 16)
+                        .padding(.bottom, 12)
+
+                    Spacer()
+                }
+
+                // Bottom controls
+                VStack {
+                    Spacer()
+
                     HStack {
                         Button("Cancel") {
                             onCancel()
                         }
                         .font(.noteablyBody(16))
                         .foregroundStyle(.white)
-
-                        Spacer()
-
-                        Text("Move and Scale")
-                            .font(.noteablyBody(17, weight: .semibold))
-                            .foregroundStyle(.white)
-
-                        Spacer()
+                        .frame(maxWidth: .infinity)
 
                         Button("Done") {
                             cropImage(in: geometry, cropSize: cropSize)
                         }
                         .font(.noteablyBody(16, weight: .semibold))
                         .foregroundStyle(Color.noteablyPrimary)
+                        .frame(maxWidth: .infinity)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    .padding(.bottom, 12)
-                    .background(Color.black.opacity(0.3))
-
-                    Spacer()
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 20)
+                    .background(Color.black.opacity(0.4))
+                    .safeAreaPadding(.bottom)
                 }
             }
             .onAppear {

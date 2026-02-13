@@ -86,7 +86,11 @@ struct DashboardView: View {
 
     private var greetingSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(greetingText)
+            let greeting = greetingText
+            let firstName = authService.currentFirstName ?? ""
+            let text = firstName.isEmpty ? greeting : "\(greeting), \(firstName)"
+
+            Text(text)
                 .font(.noteablySerif(28, weight: .bold))
                 .foregroundStyle(Color.noteablyForeground)
 
@@ -231,7 +235,10 @@ struct DashboardView: View {
 
 #if DEBUG
 #Preview {
-    DashboardView(viewModel: DashboardViewModel(dashboard: MockData.dashboardResponse))
+    let auth = AuthService.shared
+    auth.debugSetUser(email: "john@example.com", id: "preview-id", firstName: "John", lastName: "Doe")
+    return DashboardView(viewModel: DashboardViewModel(dashboard: MockData.dashboardResponse))
         .environment(AppState())
+        .environment(auth)
 }
 #endif

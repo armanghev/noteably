@@ -1,6 +1,6 @@
 import { API_ENDPOINTS } from "@/lib/constants";
 import { supabase } from "@/lib/supabase";
-import type { LoginRequest, RegisterRequest } from "@/types";
+import type { LoginRequest, RegisterRequest, CompleteProfileRequest } from "@/types";
 import apiClient from "../client";
 
 interface AuthSession {
@@ -77,5 +77,19 @@ export const authService = {
     // The basic user data is already in the Supabase session
     const response = await apiClient.get(API_ENDPOINTS.AUTH.CURRENT_USER);
     return response.data;
+  },
+
+  completeProfile: async (data: CompleteProfileRequest): Promise<void> => {
+    await apiClient.post("/auth/complete-profile", data);
+  },
+
+  signInWithGoogle: async (redirectPath = "/signup?oauth=1"): Promise<void> => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}${redirectPath}`,
+      },
+    });
+    if (error) throw { message: error.message, status: 400 };
   },
 };

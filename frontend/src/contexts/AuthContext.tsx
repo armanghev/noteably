@@ -14,6 +14,8 @@ interface AuthContextType {
     logout: () => Promise<void>;
     refreshUser: () => Promise<void>;
     isAuthenticated: boolean;
+    signInWithGoogle: () => Promise<void>;
+    profileCompleted: boolean;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -75,6 +77,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    const signInWithGoogle = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            await authService.signInWithGoogle();
+        } catch (err) {
+            const apiError = err as ApiError;
+            setError(apiError);
+            throw apiError;
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const logout = async () => {
         try {
             await authService.logout();
@@ -89,6 +105,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (user) setUser(user);
     };
 
+    const profileCompleted = !!user?.user_metadata?.profile_completed;
+
     return (
         <AuthContext.Provider
             value={{
@@ -98,9 +116,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 error,
                 login,
                 register,
+                signInWithGoogle,
                 logout,
                 refreshUser,
                 isAuthenticated: !!user,
+                profileCompleted,
             }}
         >
             {children}
