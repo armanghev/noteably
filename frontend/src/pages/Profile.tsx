@@ -1,6 +1,6 @@
 import Layout from "@/components/layout/Layout";
+import { UserAvatar } from "@/components/profile/UserAvatar";
 import { useTheme } from "@/components/theme/theme-provider";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -29,10 +29,13 @@ export default function Profile() {
   if (!user) return null;
 
   const fullName =
-    user.user_metadata?.full_name || user.email?.split("@")[0] || "User";
+    user.user_metadata?.first_name + " " + user.user_metadata?.last_name ||
+    user.user_metadata?.full_name ||
+    user.user_metadata?.name ||
+    user.email?.split("@")[0];
   const email = user.email;
-  const avatarUrl = user.user_metadata?.avatar_url;
-  const initials = fullName.charAt(0).toUpperCase();
+  const avatarUrl =
+    user.user_metadata?.picture ?? user.user_metadata?.avatar_url;
 
   const { theme, setTheme } = useTheme();
 
@@ -102,7 +105,8 @@ export default function Profile() {
 
         await supabase.auth.updateUser({
           data: {
-            avatar_url: publicUrl + "?t=" + Math.floor(Date.now() / 1000),
+            picture: publicUrl + "?t=" + Math.floor(Date.now() / 1000),
+            avatar_url: null,
           },
         });
 
@@ -140,20 +144,12 @@ export default function Profile() {
                   className="relative cursor-pointer group"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  <Avatar className="h-24 w-24 border-4 border-background shadow-md">
-                    {avatarUrl ? (
-                      <AvatarImage
-                        key={avatarUrl}
-                        src={avatarUrl}
-                        alt={fullName}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <AvatarFallback className="text-2xl bg-primary/10 text-primary">
-                        {initials}
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
+                  <UserAvatar
+                    src={avatarUrl}
+                    name={fullName}
+                    className="h-24 w-24 border-4 border-background shadow-md"
+                    textClassName="text-2xl"
+                  />
                   <div className="absolute bottom-0 right-0 h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md border-2 border-background group-hover:scale-110 transition-transform">
                     {uploading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />

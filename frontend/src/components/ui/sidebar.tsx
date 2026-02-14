@@ -6,8 +6,7 @@ import React, { createContext, useContext, useMemo, useState } from "react";
 import { ThemeToggle } from "../theme/theme-toggle";
 // import { useQuery } from "@tanstack/react-query"; // Commented out until needed
 // import { userService } from "@/lib/api/services/user";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-// Removed AvatarImage since it's not being used
+import { UserAvatar } from "@/components/profile/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
@@ -220,28 +219,24 @@ export const ProfileLink = () => {
   if (!user) return null;
 
   // properties from supabase user metadata or fallback
-  const fullName =
-    user.user_metadata?.full_name || user.email?.split("@")[0] || "User";
-  const avatarUrl = user.user_metadata?.avatar_url;
-  const initials = fullName.charAt(0).toUpperCase();
+  const fullName = 
+  (user.user_metadata?.first_name + " " + user.user_metadata?.last_name) 
+  || user.user_metadata?.full_name 
+  || user.user_metadata?.name 
+  || user.user_metadata?.email.trim("@")[0];
+  const avatarUrl = user.user_metadata?.picture ?? user.user_metadata?.avatar_url;
 
   return (
     <Link
       to="/profile"
       className={cn("flex items-center justify-start gap-2 group/sidebar py-2")}
     >
-      <Avatar className="h-5 w-5 shrink-0">
-        {avatarUrl ? (
-          <img
-            key={avatarUrl}
-            src={avatarUrl}
-            alt={fullName}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
-        )}
-      </Avatar>
+      <UserAvatar
+        src={avatarUrl}
+        name={fullName}
+        className="h-5 w-5"
+        textClassName="text-[10px]"
+      />
 
       <motion.span
         animate={{
