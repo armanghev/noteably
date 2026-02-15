@@ -9,13 +9,13 @@ from rest_framework.response import Response
 
 from .models import Job
 from .quota import check_user_quota
-from .serializers import ProcessUploadSerializer
+from .serializers import ProcessUploadSerializer, ProcessYoutubeSerializer
 from .supabase_storage import (
     delete_job_folder,
     get_signed_url_from_storage_url,
     upload_to_supabase,
 )
-from .tasks import orchestrate_job_task
+from .tasks import orchestrate_job_task, download_youtube_video_task
 from .validators import get_file_duration, validate_file_size, validate_file_type
 
 logger = logging.getLogger(__name__)
@@ -105,6 +105,122 @@ def process_upload(request):
         },
         status=status.HTTP_201_CREATED,
     )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@throttle_classes([UploadRateThrottle])
+def process_youtube_upload(request):
+    """
+    Handle YouTube URL for processing.
+    """
+    serializer = ProcessYoutubeSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    url = serializer.validated_data["url"]
+    material_types = serializer.validated_data["material_types"]
+    options = serializer.validated_data.get("options", {})
+
+    check_user_quota(request.user_id, 0, 0) # Placeholder quota check
+
+    job = Job.objects.create(
+        user_id=request.user_id,
+        filename="YouTube Video", # Will be updated after download
+        file_size_bytes=0, # Will be updated
+        file_type="audio/mpeg", 
+        storage_url="",
+        material_types=material_types,
+        options=options,
+        status="checking_video",
+    )
+
+    # Safely get email
+    if isinstance(request.user, dict):
+        user_email = request.user.get("email")
+    else:
+        user_email = getattr(request.user, "email", None)
+
+    download_youtube_video_task.delay(str(job.id), url, user_email=user_email)
+
+    return Response(
+        {
+            "job_id": str(job.id),
+            "status": job.status,
+            "estimated_time": 300, # Initial guess
+        },
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+@throttle_classes([BurstRateThrottle])
+def youtube_meta(request):
+    """
+    Lightweight endpoint to fetch YouTube video metadata (title, author, duration)
+    using YouTube Data API v3.
+    """
+    import os, re, requests as http_requests
+    from urllib.parse import urlparse, parse_qs
+
+    url = request.query_params.get("url")
+    if not url:
+        return Response({"error": "url query parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Extract video ID from URL
+    video_id = None
+    try:
+        parsed = urlparse(url)
+        if "youtu.be" in parsed.hostname:
+            video_id = parsed.path.lstrip("/")
+        elif "youtube.com" in parsed.hostname:
+            video_id = parse_qs(parsed.query).get("v", [None])[0]
+    except Exception:
+        pass
+
+    if not video_id:
+        return Response({"error": "Could not extract video ID from URL"}, status=status.HTTP_400_BAD_REQUEST)
+
+    api_key = os.environ.get("YT_API_KEY")
+    if not api_key:
+        return Response({"error": "YouTube API key not configured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    try:
+        resp = http_requests.get(
+            "https://www.googleapis.com/youtube/v3/videos",
+            params={"part": "snippet,contentDetails", "id": video_id, "key": api_key},
+            timeout=5,
+        )
+        data = resp.json()
+        items = data.get("items", [])
+        if not items:
+            return Response({"error": "Video not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        item = items[0]
+        snippet = item.get("snippet", {})
+        content = item.get("contentDetails", {})
+
+        # Parse ISO 8601 duration (e.g. PT4M13S) to seconds
+        duration_str = content.get("duration", "PT0S")
+        match = re.match(r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", duration_str)
+        duration = 0
+        if match:
+            h, m, s = match.groups(default="0")
+            duration = int(h) * 3600 + int(m) * 60 + int(s)
+
+        thumbnails = snippet.get("thumbnails", {})
+        thumbnail = (thumbnails.get("medium") or thumbnails.get("default") or {}).get("url", "")
+
+        return Response({
+            "title": snippet.get("title", ""),
+            "author": snippet.get("channelTitle", ""),
+            "duration": duration,
+            "thumbnail": thumbnail,
+        })
+    except Exception as e:
+        logger.error(f"Failed to fetch YouTube metadata: {e}")
+        return Response({"error": "Could not fetch video metadata"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class JobListView(generics.ListAPIView):

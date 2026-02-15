@@ -9,6 +9,8 @@ class Job(models.Model):
     """Central job tracking for upload-to-materials pipeline."""
 
     STATUS_CHOICES = [
+        ("checking_video", "Checking Video"),
+        ("downloading", "Downloading"),
         ("uploading", "Uploading"),
         ("queued", "Queued"),
         ("transcribing", "Transcribing"),

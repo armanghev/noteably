@@ -6,6 +6,8 @@ from . import views
 
 urlpatterns = [
     path("process", views.process_upload, name="process_upload"),
+    path("process/youtube", views.process_youtube_upload, name="process_youtube_upload"),
+    path("youtube/meta", views.youtube_meta, name="youtube_meta"),
     path("dashboard/", views.dashboard_data, name="dashboard_data"),
     path(
         "jobs/<uuid:job_id>/signed-url/",
