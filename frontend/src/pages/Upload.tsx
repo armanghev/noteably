@@ -175,64 +175,18 @@ const YouTubeInput: React.FC<YouTubeInputProps> = ({
     setFetchError(null);
   };
 
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center p-12 transition-all bg-background rounded-3xl animate-fadeIn">
-      {!videoMeta && (
-        <>
-          <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6 shadow-sm">
-            <Video className="w-10 h-10 text-red-600" />
-          </div>
-
-          <h3 className="text-xl font-medium text-foreground mb-6">
-            Paste YouTube URL
-          </h3>
-        </>
-      )}
-
-      <div className="w-full max-w-md space-y-4 mb-8">
-        {/* URL Input - hidden once video is verified */}
-        {!videoMeta && (
-          <div className="relative">
-            <input
-              type="url"
-              placeholder="https://www.youtube.com/watch?v=..."
-              value={url}
-              onChange={onChange}
-              className="w-full px-4 py-3 pr-24 rounded-xl border-2 border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all bg-background"
-            />
-            {fetching ? (
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 p-3">
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    const text = await navigator.clipboard.readText();
-                    onChange({
-                      target: { value: text },
-                    } as React.ChangeEvent<HTMLInputElement>);
-                  } catch {
-                    /* clipboard access denied */
-                  }
-                }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-3 text-xs font-medium text-muted-foreground hover:text-primary bg-muted hover:bg-muted rounded-xl transition-all flex items-center gap-1.5"
-              >
-                <ClipboardPaste className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-        )}
-
+  if (videoMeta) {
+    // Preview State (Matches FileUpload style)
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-12 animate-fadeIn bg-background border border-primary rounded-3xl">
         {/* Video Preview Card */}
         {videoMeta && (
-          <div className="flex items-center gap-4 p-3 rounded-xl border border-border bg-muted/30">
+          <div className="flex items-start gap-4 p-3 rounded-xl border border-border">
             <div className="relative flex-shrink-0">
               <img
                 src={videoMeta.thumbnail}
                 alt={videoMeta.title}
-                className="w-50 h-28 object-cover rounded-lg"
+                className="w-50 h-28 object-cover rounded-xl"
               />
               {videoMeta.duration > 0 && (
                 <span className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-[11px] font-medium px-1.5 py-0.5 rounded">
@@ -240,7 +194,7 @@ const YouTubeInput: React.FC<YouTubeInputProps> = ({
                 </span>
               )}
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex flex-col items-start justify-start pb-auto min-w-0 pt-1">
               <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug">
                 {videoMeta.title}
               </p>
@@ -248,60 +202,153 @@ const YouTubeInput: React.FC<YouTubeInputProps> = ({
                 {videoMeta.author}
               </p>
             </div>
-            <button
-              onClick={handleClear}
-              className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-all flex-shrink-0"
-            >
-              <XCircle className="w-4 h-4" />
-            </button>
           </div>
         )}
 
-        {fetchError && (
-          <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 px-4 py-2 rounded-lg">
-            <AlertCircle className="w-4 h-4" />
-            {fetchError}
-          </div>
-        )}
-
-        {/* Content Type Selection - shown only after video is verified */}
-        {videoMeta && (
-          <div>
-            <h4 className="text-sm font-medium text-foreground mb-3 text-center">
-              Select content to generate
-            </h4>
-            <div className="grid grid-cols-2 gap-2">
-              {contentTypes.map((type) => {
-                const Icon = type.icon;
-                const isSelected = selectedTypes.includes(type.id);
-                return (
-                  <button
-                    key={type.id}
-                    onClick={() => onTypeToggle(type.id)}
-                    className={`p-3 rounded-lg border transition-all duration-200 text-left flex items-center gap-3 ${
-                      isSelected
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/30"
-                    }`}
-                  >
+        {/* Content Type Selection */}
+        <div className="w-full max-w-2xl mb-8">
+          <h4 className="text-sm font-medium text-foreground mb-3 text-center">
+            Select content to generate
+          </h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {contentTypes.map((type) => {
+              const Icon = type.icon;
+              const isSelected = selectedTypes.includes(type.id);
+              return (
+                <button
+                  key={type.id}
+                  onClick={() => onTypeToggle(type.id)}
+                  className={`p-4 rounded-xl border-2 transition-all duration-200 text-left ${
+                    isSelected
+                      ? "border-primary bg-primary/10 shadow-sm"
+                      : "border-border hover:border-primary/50 hover:bg-card"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
                     <div
-                      className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 ${
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                         isSelected
                           ? "bg-primary text-background"
                           : "bg-muted text-muted-foreground"
                       }`}
                     >
-                      <Icon className="w-3 h-3" />
+                      <Icon className="w-4 h-4" />
                     </div>
-                    <span
-                      className={`text-sm font-medium ${isSelected ? "text-foreground" : "text-muted-foreground"}`}
+                    <div
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        isSelected
+                          ? "border-primary bg-primary"
+                          : "border-muted-foreground"
+                      }`}
                     >
-                      {type.label}
-                    </span>
-                  </button>
-                );
-              })}
+                      {isSelected && (
+                        <CheckCircle2 className="w-4 h-4 text-background" />
+                      )}
+                    </div>
+                  </div>
+                  <p
+                    className={`text-sm font-medium ${isSelected ? "text-foreground" : "text-muted-foreground"}`}
+                  >
+                    {type.label}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {type.description}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+          {selectedTypes.length === 0 && (
+            <p className="text-xs text-destructive mt-2 text-center">
+              Please select at least one content type
+            </p>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-4">
+          <Button
+            variant="outline"
+            onClick={handleClear}
+            className="px-6 py-6 rounded-xl border border-primary text-primary hover:text-background hover:bg-primary font-medium"
+          >
+            Remove
+          </Button>
+          <Button
+            onClick={onSubmit}
+            disabled={selectedTypes.length === 0 || isLoading}
+            className="px-8 py-6 rounded-xl border bg-primary text-background hover:bg-background hover:text-primary hover:border-primary font-medium shadow-lg shadow-primary/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Wand2 className="w-4 h-4" />
+            )}
+            Generate{" "}
+            {selectedTypes.length > 0
+              ? `(${selectedTypes.length})`
+              : "Materials"}
+          </Button>
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 px-4 py-2 rounded-lg mt-4">
+            <AlertCircle className="w-4 h-4" />
+            {error}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Input State
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center p-12 transition-all bg-background rounded-3xl animate-fadeIn">
+      <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6 shadow-sm">
+        <Video className="w-10 h-10 text-red-600" />
+      </div>
+
+      <h3 className="text-xl font-medium text-foreground mb-6">
+        Paste YouTube URL
+      </h3>
+
+      <div className="w-full max-w-md space-y-4 mb-8">
+        <div className="relative">
+          <input
+            type="url"
+            placeholder="https://www.youtube.com/watch?v=..."
+            value={url}
+            onChange={onChange}
+            className="w-full px-4 py-3 pr-24 rounded-xl border-2 border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all bg-background"
+          />
+          {fetching ? (
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 p-3">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
             </div>
+          ) : (
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const text = await navigator.clipboard.readText();
+                  onChange({
+                    target: { value: text },
+                  } as React.ChangeEvent<HTMLInputElement>);
+                } catch {
+                  /* clipboard access denied */
+                }
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-3 text-xs font-medium text-muted-foreground hover:text-primary bg-muted hover:bg-muted rounded-xl transition-all flex items-center gap-1.5"
+            >
+              <ClipboardPaste className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {fetchError && (
+          <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 px-4 py-2 rounded-lg">
+            <AlertCircle className="w-4 h-4" />
+            {fetchError}
           </div>
         )}
 
@@ -313,18 +360,11 @@ const YouTubeInput: React.FC<YouTubeInputProps> = ({
         )}
       </div>
 
-      <Button
-        onClick={onSubmit}
-        disabled={!videoMeta || isLoading || selectedTypes.length === 0}
-        className="w-full max-w-md py-6 rounded-xl bg-red-600 text-white hover:bg-red-700 font-medium shadow-lg shadow-red-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {isLoading ? (
-          <Loader2 className="w-4 h-4 animate-spin mr-2" />
-        ) : (
-          <Wand2 className="w-4 h-4 mr-2" />
-        )}
-        Generate Materials
-      </Button>
+      {/* Helper text or disabled button placeholder if desired, though FileUpload just shows dropzone */}
+      <p className="text-sm text-muted-foreground text-center max-w-sm">
+        Paste a link to any public YouTube video to generate study materials
+        automatically.
+      </p>
     </div>
   );
 };
@@ -701,7 +741,10 @@ export default function Upload() {
 
   // Determine file type category
   const fileType = job?.file_type || file?.type || "";
-  const isAudioVideo = fileType.includes("audio") || fileType.includes("video");
+  const isAudioVideo =
+    fileType.includes("audio") ||
+    fileType.includes("video") ||
+    inputMode === "youtube";
   const isPdf = fileType.includes("pdf");
 
   // Dynamic steps based on file type and selection
@@ -980,7 +1023,7 @@ export default function Upload() {
                 onClick={() => setInputMode("file")}
                 className={`px-6 py-2 rounded-xl text-sm font-medium transition-all ${
                   inputMode === "file"
-                    ? "bg-background text-foreground shadow-sm"
+                    ? "bg-accent text-accent-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -990,7 +1033,7 @@ export default function Upload() {
                 onClick={() => setInputMode("youtube")}
                 className={`px-6 py-2 rounded-xl text-sm font-medium transition-all ${
                   inputMode === "youtube"
-                    ? "bg-background text-foreground shadow-sm"
+                    ? "bg-accent text-accent-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
