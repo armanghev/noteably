@@ -48,8 +48,6 @@ interface VideoPlayerProps {
 export function VideoPlayer({
   src,
   filename,
-  fileType,
-  fileSizeBytes,
   transcript,
   transcriptWords,
   className = "",
@@ -401,11 +399,6 @@ export function VideoPlayer({
     }
   };
 
-  const formatFileSize = (bytes?: number): string => {
-    if (!bytes) return "";
-    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-  };
-
   const playbackRates = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
   return (
@@ -624,16 +617,9 @@ export function VideoPlayer({
       )}
 
       {/* File Info */}
-      {(filename || fileType || fileSizeBytes) && (
+      {filename && (
         <div className="text-center text-sm text-muted-foreground mt-4">
-          {filename && <p className="font-medium">{filename}</p>}
-          {(fileType || fileSizeBytes) && (
-            <p>
-              {fileType && `${fileType}`}
-              {fileType && fileSizeBytes && " • "}
-              {fileSizeBytes && formatFileSize(fileSizeBytes)}
-            </p>
-          )}
+          <p className="font-medium">{filename}</p>
         </div>
       )}
 

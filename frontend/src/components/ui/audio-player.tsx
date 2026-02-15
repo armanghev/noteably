@@ -30,8 +30,6 @@ interface AudioPlayerProps {
 export function AudioPlayer({
   src,
   filename,
-  fileType,
-  fileSizeBytes,
   transcript,
   transcriptWords,
   className = "",
@@ -282,11 +280,6 @@ export function AudioPlayer({
     }
   };
 
-  const formatFileSize = (bytes?: number): string => {
-    if (!bytes) return "";
-    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-  };
-
   return (
     <div className={className}>
       {src ? (
@@ -374,16 +367,9 @@ export function AudioPlayer({
           </div>
 
           {/* File Info */}
-          {(filename || fileType || fileSizeBytes) && (
+          {filename && (
             <div className="text-center text-sm text-muted-foreground mt-4">
-              {filename && <p className="font-medium">{filename}</p>}
-              {(fileType || fileSizeBytes) && (
-                <p>
-                  {fileType && `${fileType}`}
-                  {fileType && fileSizeBytes && " • "}
-                  {fileSizeBytes && formatFileSize(fileSizeBytes)}
-                </p>
-              )}
+              <p className="font-medium">{filename}</p>
             </div>
           )}
 
