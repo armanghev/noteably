@@ -17,6 +17,11 @@ struct WebSocketJobUpdate: Codable {
     }
 }
 
+struct WebSocketMessage: Codable {
+    let type: String
+    let data: WebSocketJobUpdate
+}
+
 // MARK: - WebSocket Service
 
 @Observable
@@ -32,7 +37,10 @@ final class WebSocketService {
     var onJobUpdate: ((WebSocketJobUpdate) -> Void)?
 
     init(baseURL: String = "") {
-        self.baseURL = baseURL
+        // Normalize baseURL to remove trailing slashes and normalize http/ws
+        var base = baseURL
+        if base.hasSuffix("/") { base.removeLast() }
+        self.baseURL = base
         self.session = URLSession(configuration: .default)
     }
 
@@ -91,12 +99,20 @@ final class WebSocketService {
         guard let data = text.data(using: .utf8) else { return }
 
         do {
-            let update = try JSONDecoder().decode(WebSocketJobUpdate.self, from: data)
-            DispatchQueue.main.async { [weak self] in
-                self?.onJobUpdate?(update)
+            // First try to decode the wrapped message
+            if let wrappedMessage = try? JSONDecoder().decode(WebSocketMessage.self, from: data) {
+                DispatchQueue.main.async { [weak self] in
+                    self?.onJobUpdate?(wrappedMessage.data)
+                }
+            } else {
+                // Fallback to decoding the flat structure if backend ever changes
+                let update = try JSONDecoder().decode(WebSocketJobUpdate.self, from: data)
+                DispatchQueue.main.async { [weak self] in
+                    self?.onJobUpdate?(update)
+                }
             }
         } catch {
-            // Silently ignore malformed messages
+            print("Failed to decode WebSocket message: \(error)")
         }
     }
 

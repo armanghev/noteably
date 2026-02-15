@@ -6,15 +6,35 @@ struct UploadView: View {
     @State private var viewModel = UploadViewModel()
     @State private var showDocumentPicker = false
 
+    private var showUploadControls: Bool {
+        switch viewModel.uploadMode {
+        case .file:
+            return viewModel.hasFile
+        case .youtube:
+            return viewModel.hasValidYoutube
+        }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 24) {
+                    CustomTabList(
+                        selection: $viewModel.uploadMode,
+                        options: UploadViewModel.UploadMode.allCases,
+                        titlePath: \.title
+                    )
+
                     if viewModel.isUploading || viewModel.isComplete {
                         progressSection
                     } else {
-                        fileSelectionSection
-                        if viewModel.hasFile {
+                        if viewModel.uploadMode == .file {
+                            fileSelectionSection
+                        } else {
+                            youtubeInputSection
+                        }
+                        
+                        if showUploadControls {
                             materialTypeSection
                             uploadButton
                         }
@@ -29,6 +49,14 @@ struct UploadView: View {
             .navigationBarTitleDisplayMode(.large)
             .sheet(isPresented: $showDocumentPicker) {
                 DocumentPicker(viewModel: viewModel)
+            }
+            .navigationDestination(isPresented: Binding(
+                get: { viewModel.navigateToJobId != nil },
+                set: { if !$0 { viewModel.navigateToJobId = nil } }
+            )) {
+                if let jobId = viewModel.navigateToJobId {
+                    StudySetDetailView(jobId: jobId)
+                }
             }
         }
     }
@@ -78,13 +106,13 @@ struct UploadView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
                 .background(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                         .strokeBorder(
                             Color.noteablyPrimary.opacity(0.3),
                             style: StrokeStyle(lineWidth: 2, dash: [8])
                         )
                         .background(
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                                 .fill(Color.noteablyPrimary.opacity(0.04))
                         )
                 )
@@ -104,17 +132,149 @@ struct UploadView: View {
         }
     }
 
+    private var youtubeInputSection: some View {
+        VStack(spacing: 16) {
+            if let meta = viewModel.videoMeta {
+                // Video Preview Card
+                HStack(spacing: 16) {
+                    AsyncImage(url: URL(string: meta.thumbnail)) { image in
+                        image.resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Color.noteablyBorder
+                    }
+                    .frame(width: 120, height: 68)
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg))
+                    .overlay(alignment: .bottomTrailing) {
+                        Text(formatDuration(meta.duration))
+                            .font(.noteablyBody(10, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .background(Color.black.opacity(0.75))
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                            .padding(4)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(meta.title)
+                            .font(.noteablyBody(14, weight: .semibold))
+                            .foregroundStyle(Color.noteablyForeground)
+                            .lineLimit(2)
+                        
+                        Text(meta.author)
+                            .font(.noteablyBody(12))
+                            .foregroundStyle(Color.noteablySecondaryText)
+                    }
+                    
+                    if viewModel.isFetchingMeta {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                            .padding(.leading, 8)
+                    }
+                    
+                    Spacer()
+                    
+                    Button {
+                        viewModel.youtubeUrl = ""
+                        viewModel.videoMeta = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(Color.noteablySecondaryText)
+                    }
+                }
+                .padding(12)
+                .background(Color.noteablyPrimary.opacity(0.04))
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.xl))
+                .overlay(
+                    RoundedRectangle(cornerRadius: AppRadius.xl)
+                        .stroke(Color.noteablyPrimary.opacity(0.1), lineWidth: 1)
+                )
+            } else {
+                // URL Input
+                VStack(spacing: 16) {
+                    Image(systemName: "video.fill")
+                        .font(.system(size: 40, weight: .light))
+                        .foregroundStyle(Color.noteablyPrimary)
+                    
+                    Text("Paste YouTube URL")
+                        .font(.noteablyBody(17, weight: .semibold))
+                        .foregroundStyle(Color.noteablyForeground)
+                    
+                    HStack {
+                        TextField("https://youtube.com/watch?v=...", text: $viewModel.youtubeUrl)
+                            .textFieldStyle(.plain)
+                            .padding()
+                            .background(Color.noteablyBorder.opacity(0.2))
+                            .clipShape(RoundedRectangle(cornerRadius: AppRadius.xl))
+                            .onChange(of: viewModel.youtubeUrl) { _, _ in
+                                Task { await viewModel.fetchYoutubeMeta() }
+                            }
+                        
+                        Button {
+                            if UIPasteboard.general.hasStrings {
+                                if let string = UIPasteboard.general.string {
+                                    viewModel.youtubeUrl = string
+                                    Task { await viewModel.fetchYoutubeMeta() }
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "doc.on.clipboard")
+                                .padding()
+                                .background(Color.noteablyPrimary.opacity(0.1))
+                                .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg))
+                                .foregroundStyle(Color.noteablyPrimary)
+                        }
+                    }
+                }
+                .padding(24)
+                .background(
+                    RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
+                        .strokeBorder(
+                            Color.noteablyPrimary.opacity(0.3),
+                            style: StrokeStyle(lineWidth: 2, dash: [8])
+                        )
+                        .background(
+                            RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
+                                .fill(Color.noteablyPrimary.opacity(0.04))
+                        )
+                )
+            }
+            
+            if viewModel.isFetchingMeta && viewModel.videoMeta == nil {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("Fetching video details...")
+                        .font(.noteablyBody(14))
+                        .foregroundStyle(Color.noteablySecondaryText)
+                }
+                .padding(.top, 8)
+            }
+            
+            if let error = viewModel.errorMessage, viewModel.uploadMode == .youtube {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                    Text(error)
+                        .font(.noteablyBody(14))
+                }
+                .foregroundStyle(Color.noteablyDestructive)
+                .padding(.top, 8)
+            }
+        }
+    }
+
     // MARK: - Material Types
 
     private var materialTypeSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Generate")
-                .font(.noteablyBody(16, weight: .semibold))
-                .foregroundStyle(Color.noteablyForeground)
+            Text("Select content to generate")
+                .font(.noteablyBody(14, weight: .medium))
+                .foregroundStyle(Color.noteablySecondaryText)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             let columns = [
-                GridItem(.flexible()),
-                GridItem(.flexible())
+                GridItem(.flexible(), spacing: 10),
+                GridItem(.flexible(), spacing: 10)
             ]
 
             LazyVGrid(columns: columns, spacing: 10) {
@@ -140,6 +300,7 @@ struct UploadView: View {
                 )
             }
         }
+        .padding(.top, 8)
     }
 
     // MARK: - Upload Button
@@ -161,7 +322,7 @@ struct UploadView: View {
     // MARK: - Progress Section
 
     private var progressSection: some View {
-        VStack(spacing: 28) {
+        VStack(spacing: 32) {
             if viewModel.isComplete {
                 // Completed
                 VStack(spacing: 16) {
@@ -186,39 +347,57 @@ struct UploadView: View {
                 }
                 .buttonStyle(NoteablySecondaryButtonStyle())
             } else {
-                // Processing
-                VStack(spacing: 20) {
-                    ProgressView()
-                        .scaleEffect(1.5)
-                        .tint(Color.noteablyPrimary)
-                        .padding(.top, 40)
-
-                    Text("Processing...")
-                        .font(.noteablySerif(22, weight: .bold))
-                        .foregroundStyle(Color.noteablyForeground)
-
-                    if let step = viewModel.currentStep {
-                        Text(step)
-                            .font(.noteablyBody(15))
-                            .foregroundStyle(Color.noteablySecondaryText)
-                    }
-
-                    // Progress bar
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.noteablyBorder)
-                                .frame(height: 6)
-
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.noteablyPrimary)
-                                .frame(width: geo.size.width * CGFloat(viewModel.progress) / 100, height: 6)
-                                .animation(.easeInOut, value: viewModel.progress)
+                // Steps List
+                VStack(spacing: 12) {
+                    ForEach(Array(viewModel.steps.enumerated()), id: \.element.id) { index, step in
+                        HStack(spacing: 16) {
+                            // Icon
+                            ZStack {
+                                if index < viewModel.currentStepIndex {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(Color.noteablyPrimary)
+                                        .font(.system(size: 24))
+                                } else if index == viewModel.currentStepIndex {
+                                    ProgressView()
+                                        .tint(Color.noteablyPrimary)
+                                        .scaleEffect(0.9)
+                                        .frame(width: 24, height: 24)
+                                        .background(
+                                            Circle()
+                                                .stroke(Color.noteablyPrimary.opacity(0.3), lineWidth: 2)
+                                                .background(Circle().fill(Color.noteablyBackground))
+                                        )
+                                } else {
+                                    Text("\(index + 1)")
+                                        .font(.noteablyBody(13, weight: .semibold))
+                                        .foregroundStyle(Color.noteablySecondaryText)
+                                        .frame(width: 24, height: 24)
+                                        .background(
+                                            Circle()
+                                                .fill(Color.noteablyBorder.opacity(0.4))
+                                        )
+                                }
+                            }
+                            .frame(width: 24, height: 24)
+                            
+                            Text(step.title)
+                                .font(.noteablyBody(16, weight: index == viewModel.currentStepIndex ? .semibold : .regular))
+                                .foregroundStyle(index <= viewModel.currentStepIndex ? Color.noteablyForeground : Color.noteablySecondaryText)
+                            
+                            Spacer()
                         }
+                        .padding(12)
+                        .background(
+                             RoundedRectangle(cornerRadius: AppRadius.xl)
+                                .fill(index == viewModel.currentStepIndex ? Color.noteablyPrimary.opacity(0.06) : Color.clear)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: AppRadius.xl)
+                                .stroke(index == viewModel.currentStepIndex ? Color.noteablyPrimary.opacity(0.15) : Color.clear, lineWidth: 1)
+                        )
                     }
-                    .frame(height: 6)
-                    .padding(.horizontal, 40)
                 }
+                .padding(.horizontal, 4)
 
                 if let error = viewModel.errorMessage {
                     VStack(spacing: 12) {
@@ -234,8 +413,29 @@ struct UploadView: View {
                         }
                         .buttonStyle(NoteablySecondaryButtonStyle())
                     }
+                    .padding(.top, 10)
+                } else {
+                    Button {
+                        viewModel.reset()
+                    } label: {
+                        Text("Cancel Processing")
+                    }
+                    .buttonStyle(NoteablySecondaryButtonStyle())
+                    .padding(.top, 10)
                 }
             }
+        }
+    }
+
+    private func formatDuration(_ totalSeconds: Int) -> String {
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
+        
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            return String(format: "%d:%02d", minutes, seconds)
         }
     }
 }

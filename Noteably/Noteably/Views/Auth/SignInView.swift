@@ -96,7 +96,7 @@ struct SignInView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)
                 .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous)
                         .fill(Color.noteablyDestructive.opacity(0.08))
                 )
             }
@@ -182,7 +182,7 @@ struct SignInView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
                     .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                             .stroke(Color.noteablyBorder, lineWidth: 1)
                     )
                 }
@@ -202,7 +202,7 @@ struct SignInView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
                     .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                             .stroke(Color.noteablyBorder, lineWidth: 1)
                     )
                     .opacity(0.6)

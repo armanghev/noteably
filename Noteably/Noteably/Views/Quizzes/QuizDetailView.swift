@@ -116,11 +116,11 @@ struct QuizDetailView: View {
             }
             .padding(16)
             .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                     .fill(optionBackground(index: index, question: question))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                     .stroke(optionBorder(index: index, question: question), lineWidth: 1.5)
             )
         }
@@ -178,7 +178,7 @@ struct QuizDetailView: View {
         }
         .padding(16)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                 .fill(Color.noteablyCardElevated)
         )
     }

@@ -65,7 +65,7 @@ struct FlashcardListView: View {
                 .foregroundStyle(Color.noteablyPrimary)
                 .frame(width: 48, height: 48)
                 .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous)
                         .fill(Color.noteablyPrimary.opacity(0.10))
                 )
 
@@ -92,11 +92,11 @@ struct FlashcardListView: View {
         }
         .padding(16)
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                 .fill(Color.noteablyCard)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                 .stroke(Color.noteablyBorder.opacity(0.4), lineWidth: 1)
         )
     }

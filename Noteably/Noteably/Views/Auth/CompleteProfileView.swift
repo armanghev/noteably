@@ -71,7 +71,7 @@ struct CompleteProfileView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)
                 .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous)
                         .fill(Color.noteablyDestructive.opacity(0.08))
                 )
             }

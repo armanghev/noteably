@@ -3,10 +3,36 @@ import UniformTypeIdentifiers
 
 @Observable
 final class UploadViewModel {
+    enum UploadMode: String, CaseIterable {
+        case file
+        case youtube
+        
+        var title: String {
+            switch self {
+            case .file: return "File"
+            case .youtube: return "YouTube"
+            }
+        }
+    }
+
+    // Navigation and state
+    var uploadMode: UploadMode = .file {
+        didSet {
+            if oldValue != uploadMode {
+                errorMessage = nil
+            }
+        }
+    }
+
     // File selection
     var selectedFileData: Data?
     var selectedFileName: String?
     var selectedMimeType: String?
+
+    // YouTube support
+    var youtubeUrl: String = ""
+    var videoMeta: YoutubeMeta?
+    var isFetchingMeta = false
 
     // Material types
     var generateSummary = true
@@ -22,10 +48,14 @@ final class UploadViewModel {
     var progress: Int = 0
     var errorMessage: String?
     var isComplete = false
+    var navigateToJobId: String? = nil
 
     private let jobsService = JobsService.shared
+    private var wsService: WebSocketService?
 
     var hasFile: Bool { selectedFileData != nil }
+    
+    var hasValidYoutube: Bool { videoMeta != nil }
 
     var selectedMaterialTypes: [String] {
         var types: [String] = []
@@ -37,7 +67,8 @@ final class UploadViewModel {
     }
 
     var canUpload: Bool {
-        hasFile && !selectedMaterialTypes.isEmpty && !isUploading
+        let hasSource = uploadMode == .file ? hasFile : hasValidYoutube
+        return hasSource && !selectedMaterialTypes.isEmpty && !isUploading
     }
 
     // MARK: - File Selection
@@ -58,23 +89,44 @@ final class UploadViewModel {
     // MARK: - Upload
 
     func upload() async {
-        guard let data = selectedFileData,
-              let name = selectedFileName,
-              let mime = selectedMimeType else { return }
-
         isUploading = true
         errorMessage = nil
         isComplete = false
 
         do {
-            let response = try await jobsService.processUpload(
-                fileData: data,
-                fileName: name,
-                mimeType: mime,
-                materialTypes: selectedMaterialTypes
-            )
+            let response: ProcessUploadResponse
+            
+            if uploadMode == .file {
+                guard let data = selectedFileData,
+                      let name = selectedFileName,
+                      let mime = selectedMimeType else { 
+                    isUploading = false
+                    return 
+                }
+                
+                response = try await jobsService.processUpload(
+                    fileData: data,
+                    fileName: name,
+                    mimeType: mime,
+                    materialTypes: selectedMaterialTypes
+                )
+            } else {
+                guard !youtubeUrl.isEmpty else {
+                    isUploading = false
+                    return
+                }
+                
+                response = try await jobsService.processYoutube(
+                    url: youtubeUrl,
+                    materialTypes: selectedMaterialTypes
+                )
+            }
+            
             uploadedJobId = response.jobId
             jobStatus = JobStatus(rawValue: response.status)
+
+            // Start WebSocket listening
+            setupWebSocket()
         } catch let error as APIError {
             errorMessage = error.errorDescription
             isUploading = false
@@ -82,6 +134,51 @@ final class UploadViewModel {
             errorMessage = error.localizedDescription
             isUploading = false
         }
+    }
+
+    private func setupWebSocket() {
+        if wsService == nil {
+            wsService = WebSocketService(baseURL: APIClient.shared.baseURL)
+            wsService?.onJobUpdate = { [weak self] update in
+                self?.handleJobUpdate(update)
+            }
+        }
+        
+        Task {
+            if let token = await AuthService.shared.getAccessToken() {
+                wsService?.connect(token: token)
+            }
+        }
+    }
+
+    // MARK: - YouTube Helper
+
+    func fetchYoutubeMeta() async {
+        guard !youtubeUrl.isEmpty else {
+            videoMeta = nil
+            return
+        }
+        
+        // Basic validation before calling API
+        guard youtubeUrl.contains("youtube.com") || youtubeUrl.contains("youtu.be") else {
+            videoMeta = nil
+            return
+        }
+
+        isFetchingMeta = true
+        errorMessage = nil
+        
+        do {
+            videoMeta = try await jobsService.getYoutubeMeta(url: youtubeUrl)
+        } catch {
+            print("Fetch Meta Error: \(error)")
+            videoMeta = nil
+            if youtubeUrl.count > 10 {
+                errorMessage = "Could not fetch video details. Check the URL or API configuration."
+            }
+        }
+        
+        isFetchingMeta = false
     }
 
     // MARK: - WebSocket Update Handler
@@ -94,6 +191,7 @@ final class UploadViewModel {
             if status == .completed {
                 isComplete = true
                 isUploading = false
+                navigateToJobId = update.jobId
             } else if status == .failed {
                 errorMessage = update.errorMessage ?? "Processing failed."
                 isUploading = false
@@ -109,6 +207,9 @@ final class UploadViewModel {
         selectedFileData = nil
         selectedFileName = nil
         selectedMimeType = nil
+        youtubeUrl = ""
+        videoMeta = nil
+        isFetchingMeta = false
         generateSummary = true
         generateNotes = true
         generateFlashcards = true
@@ -120,6 +221,7 @@ final class UploadViewModel {
         progress = 0
         errorMessage = nil
         isComplete = false
+        navigateToJobId = nil
     }
 
     // MARK: - Mime Type Helpers
@@ -143,5 +245,85 @@ final class UploadViewModel {
         if utType.conforms(to: .mpeg4Movie) { return "video/mp4" }
         if utType.conforms(to: .quickTimeMovie) { return "video/quicktime" }
         return "application/octet-stream"
+    }
+}
+
+// MARK: - Processing Step
+
+struct ProcessingStep: Identifiable {
+    let id: String
+    let title: String
+    let description: String
+}
+
+extension UploadViewModel {
+    var steps: [ProcessingStep] {
+        var s: [ProcessingStep] = []
+
+        if uploadMode == .youtube {
+            s.append(ProcessingStep(id: "checking_video", title: "Checking Video", description: "Validating YouTube URL..."))
+            s.append(ProcessingStep(id: "downloading", title: "Downloading Audio", description: "Extracting audio track..."))
+        } else {
+            s.append(ProcessingStep(id: "uploading", title: "Uploading File", description: "Securely transferring your data..."))
+        }
+
+        // Determine content type
+        let isAudioVideo: Bool
+        let isPdf: Bool
+
+        if uploadMode == .youtube {
+            isAudioVideo = true
+            isPdf = false
+        } else {
+            if let mime = selectedMimeType {
+                 isAudioVideo = mime.contains("audio") || mime.contains("video")
+                 isPdf = mime.contains("pdf")
+            } else {
+                isAudioVideo = false
+                isPdf = false
+            }
+        }
+
+        if isAudioVideo {
+             s.append(ProcessingStep(id: "transcribing", title: "Transcribing Audio", description: "Converting speech to text..."))
+        } else if isPdf {
+             s.append(ProcessingStep(id: "extracting_text", title: "Extracting Text", description: "Parsing PDF content..."))
+        }
+
+        if !selectedMaterialTypes.isEmpty {
+            s.append(ProcessingStep(id: "generating", title: "Generating Materials", description: "Creating your study set..."))
+        }
+
+        s.append(ProcessingStep(id: "finalizing", title: "Finalizing", description: "Preparing your study guide..."))
+
+        return s
+    }
+    
+    var currentStepIndex: Int {
+        guard let status = jobStatus else { return 0 }
+        
+        if status == .completed { return steps.count - 1 }
+        
+        // Find index where step.id == status.rawValue
+        if let index = steps.firstIndex(where: { $0.id == status.rawValue }) {
+            return index
+        }
+        
+        // Fallbacks
+        if status == .queued {
+            // Find transcribing or extracting
+             if let index = steps.firstIndex(where: { $0.id == "transcribing" || $0.id == "extracting_text" }) {
+                return index
+             }
+             return 1
+        }
+        
+        if status.rawValue.starts(with: "generating") {
+            if let index = steps.firstIndex(where: { $0.id == "generating" }) {
+                return index
+            }
+        }
+        
+        return 0
     }
 }

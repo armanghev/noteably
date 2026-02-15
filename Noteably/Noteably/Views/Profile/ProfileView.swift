@@ -56,7 +56,7 @@ struct ProfileView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
                         .background(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                                 .fill(Color.noteablyDestructive.opacity(0.08))
                         )
                     }
@@ -243,11 +243,11 @@ struct ProfileView: View {
                 content()
             }
             .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                     .fill(Color.noteablyCard)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                     .stroke(Color.noteablyBorder.opacity(0.4), lineWidth: 1)
             )
         }

@@ -12,7 +12,7 @@ struct JobCard: View {
                     .foregroundStyle(Color.noteablyPrimary)
                     .frame(width: 40, height: 40)
                     .background(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous)
                             .fill(Color.noteablyPrimary.opacity(0.10))
                     )
 
@@ -74,11 +74,11 @@ struct JobCard: View {
         }
         .padding(16)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: 18, style: .continuous) // Keeping 18 for distinct large card look
                 .fill(Color.noteablyCard)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: 18, style: .continuous) // Keeping 18 for distinct large card look
                 .stroke(Color.noteablyBorder.opacity(0.4), lineWidth: 1)
         )
     }

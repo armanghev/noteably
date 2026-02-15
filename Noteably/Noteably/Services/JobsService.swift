@@ -62,6 +62,26 @@ final class JobsService {
         )
     }
 
+    // MARK: - YouTube
+
+    func getYoutubeMeta(url: String) async throws -> YoutubeMeta {
+        let queryItems = [URLQueryItem(name: "url", value: url)]
+        return try await api.get(path: "/api/youtube/meta", queryItems: queryItems)
+    }
+
+    func processYoutube(
+        url: String,
+        materialTypes: [String],
+        options: JobOptions? = nil
+    ) async throws -> ProcessUploadResponse {
+        let body = ProcessYoutubeRequest(
+            url: url,
+            materialTypes: materialTypes,
+            options: options
+        )
+        return try await api.post(path: "/api/process/youtube", body: body)
+    }
+
     // MARK: - Dashboard
 
     func getDashboard() async throws -> DashboardResponse {

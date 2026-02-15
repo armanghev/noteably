@@ -62,18 +62,18 @@ struct TheHookVisual: View {
                     // Abstract Grid
                     Grid(horizontalSpacing: 8, verticalSpacing: 8) {
                         GridRow {
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: AppRadius.md)
                                 .fill(Color.noteablyPrimary.opacity(0.8))
                                 .frame(width: 60, height: 60)
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: AppRadius.md)
                                 .fill(Color.noteablyPrimary.opacity(0.4))
                                 .frame(width: 60, height: 60)
                         }
                         GridRow {
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: AppRadius.md)
                                 .fill(Color.noteablyPrimary.opacity(0.4))
                                 .frame(width: 60, height: 60)
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: AppRadius.md)
                                 .fill(Color.noteablyPrimary.opacity(0.8))
                                 .frame(width: 60, height: 60)
                         }
