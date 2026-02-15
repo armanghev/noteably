@@ -149,11 +149,11 @@ struct DashboardView: View {
         }
         .padding(18)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: 18, style: .continuous) // Keeping 18 for distinct large card look
                 .fill(Color.noteablyPrimary.opacity(0.08))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: 18, style: .continuous) // Keeping 18 for distinct large card look
                 .stroke(Color.noteablyPrimary.opacity(0.2), lineWidth: 1)
         )
     }
@@ -190,7 +190,7 @@ struct DashboardView: View {
                 .foregroundStyle(Color.noteablyPrimary)
                 .frame(width: 40, height: 40)
                 .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous)
                         .fill(Color.noteablyPrimary.opacity(0.10))
                 )
 
@@ -211,11 +211,11 @@ struct DashboardView: View {
         }
         .padding(14)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                 .fill(Color.noteablyCard)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                 .stroke(Color.noteablyBorder.opacity(0.4), lineWidth: 1)
         )
     }

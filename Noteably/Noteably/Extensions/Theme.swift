@@ -117,7 +117,7 @@ struct NoteablyPrimaryButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity)
             .frame(height: 56)
             .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                     .fill(Color.noteablyPrimary)
             )
             .opacity(configuration.isPressed ? 0.85 : 1.0)
@@ -134,10 +134,10 @@ struct NoteablySecondaryButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity)
             .frame(height: 56)
             .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                     .stroke(Color.noteablyBorder, lineWidth: 1.5)
                     .background(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                             .fill(Color.noteablyCard)
                     )
             )
@@ -156,11 +156,11 @@ struct NoteablyTextFieldStyle: ViewModifier {
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
             .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                     .fill(Color.noteablyInputBackground)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                     .stroke(isFocused ? Color.noteablyPrimary : Color.noteablyBorder,
                             lineWidth: isFocused ? 2 : 1)
             )

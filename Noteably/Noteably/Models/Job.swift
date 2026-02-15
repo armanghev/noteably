@@ -3,6 +3,8 @@ import Foundation
 // MARK: - Job Status
 
 enum JobStatus: String, Codable, CaseIterable {
+    case checkingVideo = "checking_video"
+    case downloading
     case uploading
     case queued
     case transcribing
@@ -18,6 +20,8 @@ enum JobStatus: String, Codable, CaseIterable {
 
     var displayName: String {
         switch self {
+        case .checkingVideo: return "Checking Video"
+        case .downloading: return "Downloading"
         case .uploading: return "Uploading"
         case .queued: return "Queued"
         case .transcribing: return "Transcribing"
@@ -35,7 +39,7 @@ enum JobStatus: String, Codable, CaseIterable {
 
     var isProcessing: Bool {
         switch self {
-        case .uploading, .queued, .transcribing, .extractingText,
+        case .checkingVideo, .downloading, .uploading, .queued, .transcribing, .extractingText,
              .generatingSummary, .generatingNotes, .generatingFlashcards,
              .generatingQuiz, .generating:
             return true
@@ -183,6 +187,20 @@ struct ProcessUploadResponse: Codable {
     }
 }
 
+// MARK: - Process YouTube Request
+
+struct ProcessYoutubeRequest: Encodable {
+    let url: String
+    let materialTypes: [String]
+    let options: JobOptions?
+
+    enum CodingKeys: String, CodingKey {
+        case url
+        case materialTypes = "material_types"
+        case options
+    }
+}
+
 // MARK: - Signed URL Response
 
 struct SignedURLResponse: Codable {
@@ -207,6 +225,15 @@ struct JobActionResponse: Codable {
         case jobId = "job_id"
         case status
     }
+}
+
+// MARK: - YouTube Meta
+
+struct YoutubeMeta: Codable {
+    let title: String
+    let author: String
+    let duration: Int
+    let thumbnail: String
 }
 
 // MARK: - Flexible JSON Value (for content field)

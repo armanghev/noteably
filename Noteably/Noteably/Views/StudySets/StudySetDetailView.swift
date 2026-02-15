@@ -3,7 +3,14 @@ import SwiftUI
 struct StudySetDetailView: View {
     let jobId: String
     @State private var viewModel: StudySetDetailViewModel
-    @State private var selectedTab = 0
+    enum DetailTab: String, CaseIterable {
+        case summary = "Summary"
+        case notes = "Notes"
+        case flashcards = "Cards"
+        case quiz = "Quiz"
+    }
+
+    @State private var selectedTab: DetailTab = .summary
     @State private var showDeleteConfirm = false
     @Environment(\.dismiss) private var dismiss
 
@@ -16,20 +23,21 @@ struct StudySetDetailView: View {
         ))
     }
 
+    var availableTabs: [DetailTab] {
+        var tabs: [DetailTab] = [.summary, .notes]
+        if viewModel.hasFlashcards { tabs.append(.flashcards) }
+        if viewModel.hasQuiz { tabs.append(.quiz) }
+        return tabs
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Tab picker
-            Picker("Section", selection: $selectedTab) {
-                Text("Summary").tag(0)
-                Text("Notes").tag(1)
-                if viewModel.hasFlashcards {
-                    Text("Cards").tag(2)
-                }
-                if viewModel.hasQuiz {
-                    Text("Quiz").tag(3)
-                }
-            }
-            .pickerStyle(.segmented)
+            CustomTabList(
+                selection: $selectedTab,
+                options: availableTabs,
+                titlePath: \.rawValue
+            )
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
 
@@ -37,11 +45,10 @@ struct StudySetDetailView: View {
             ScrollView(showsIndicators: false) {
                 Group {
                     switch selectedTab {
-                    case 0: summaryTab
-                    case 1: notesTab
-                    case 2: flashcardsTab
-                    case 3: quizTab
-                    default: EmptyView()
+                    case .summary: summaryTab
+                    case .notes: notesTab
+                    case .flashcards: flashcardsTab
+                    case .quiz: quizTab
                     }
                 }
                 .padding(.horizontal, 20)
@@ -122,7 +129,7 @@ struct StudySetDetailView: View {
                     }
                     .padding(18)
                     .background(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                             .fill(Color.noteablyPrimary.opacity(0.05))
                     )
                 }
@@ -185,11 +192,11 @@ struct StudySetDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(16)
                     .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                             .fill(Color.noteablyCard)
                     )
                     .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                             .stroke(Color.noteablyBorder.opacity(0.4), lineWidth: 1)
                     )
                 }
@@ -227,11 +234,11 @@ struct StudySetDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(16)
                     .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                             .fill(Color.noteablyCard)
                     )
                     .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                             .stroke(Color.noteablyBorder.opacity(0.4), lineWidth: 1)
                     )
                 }

@@ -22,6 +22,7 @@ def notify_job_status(sender, instance, created, **kwargs):
 
     update_data = {
         "id": str(instance.id),
+        "job_id": str(instance.id),
         "status": instance.status,
         "progress": instance.progress,
         "current_step": instance.current_step,

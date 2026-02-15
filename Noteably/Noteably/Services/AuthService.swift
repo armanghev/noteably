@@ -101,7 +101,7 @@ final class AuthService {
     // MARK: - Google OAuth
 
     func signInWithGoogle() async throws {
-        let url = try await supabase.auth.getOAuthSignInURL(
+        let url = try supabase.auth.getOAuthSignInURL(
             provider: .google,
             redirectTo: URL(string: "noteably://auth/callback")
         )

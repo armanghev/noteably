@@ -133,14 +133,14 @@ struct MaterialTypeToggle: View {
                     .font(.noteablyBody(14, weight: .medium))
             }
             .foregroundStyle(isSelected ? .white : Color.noteablyForeground)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
             .background(
-                Capsule()
+                RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous)
                     .fill(isSelected ? Color.noteablyPrimary : Color.noteablyCard)
             )
             .overlay(
-                Capsule()
+                RoundedRectangle(cornerRadius: AppRadius.lg, style: .continuous)
                     .stroke(isSelected ? Color.clear : Color.noteablyBorder, lineWidth: 1)
             )
         }
@@ -178,11 +178,11 @@ struct NoteablySearchBar: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                 .fill(Color.noteablyInputBackground)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
                 .stroke(Color.noteablyBorder, lineWidth: 1)
         )
     }
@@ -210,13 +210,14 @@ struct StatCard: View {
                 .foregroundStyle(Color.noteablySecondaryText)
         }
         .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity)
         .padding(.vertical, 20)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: 18, style: .continuous) // Keeping 18 for distinct large card look
                 .fill(Color.noteablyCard)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: 18, style: .continuous) // Keeping 18 for distinct large card look
                 .stroke(Color.noteablyBorder.opacity(0.4), lineWidth: 1)
         )
     }
