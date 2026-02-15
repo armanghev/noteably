@@ -7,13 +7,21 @@ import {
   jobKeys,
   useCancelJob,
   useProcessUpload,
+  useProcessYoutube,
   useRetryJob,
 } from "@/hooks/useJobs";
-import type { FileUploadProps, MaterialType, ProcessingProps } from "@/types";
+import { jobsService } from "@/lib/api/services/jobs";
+import type {
+  FileUploadProps,
+  MaterialType,
+  ProcessingProps,
+  ProcessUploadResponse,
+} from "@/types";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
   CheckCircle2,
+  ClipboardPaste,
   FileText,
   FileType,
   HelpCircle,
@@ -62,6 +70,264 @@ const contentTypes: Array<{
     icon: HelpCircle,
   },
 ];
+
+interface VideoMeta {
+  title: string;
+  author: string;
+  thumbnail: string;
+  duration: number;
+}
+
+function formatDuration(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0)
+    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+interface YouTubeInputProps {
+  url: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSubmit: () => void;
+  isLoading: boolean;
+  error: string | null;
+  selectedTypes: MaterialType[];
+  onTypeToggle: (type: MaterialType) => void;
+  videoMeta: VideoMeta | null;
+  onVideoMetaChange: (meta: VideoMeta | null) => void;
+}
+
+function extractVideoId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes("youtu.be")) return u.pathname.slice(1);
+    if (u.hostname.includes("youtube.com")) return u.searchParams.get("v");
+  } catch {
+    /* not a valid url yet */
+  }
+  return null;
+}
+
+const YouTubeInput: React.FC<YouTubeInputProps> = ({
+  url,
+  onChange,
+  onSubmit,
+  isLoading,
+  error,
+  selectedTypes,
+  onTypeToggle,
+  videoMeta,
+  onVideoMetaChange,
+}) => {
+  const [fetching, setFetching] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // Fetch metadata when URL changes and contains a valid video ID
+  useEffect(() => {
+    const videoId = extractVideoId(url);
+    if (!videoId) {
+      onVideoMetaChange(null);
+      setFetchError(null);
+      return;
+    }
+
+    // Skip fetch if we already have metadata (e.g. restored from parent on remount)
+    if (videoMeta) return;
+
+    let cancelled = false;
+    const fetchMeta = async () => {
+      setFetching(true);
+      setFetchError(null);
+      try {
+        const data = await jobsService.getYoutubeMeta(url);
+        if (!cancelled) {
+          onVideoMetaChange({
+            title: data.title,
+            author: data.author,
+            thumbnail:
+              data.thumbnail ||
+              `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+            duration: data.duration,
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          onVideoMetaChange(null);
+          setFetchError("Could not find this video. Please check the URL.");
+        }
+      } finally {
+        if (!cancelled) setFetching(false);
+      }
+    };
+
+    const timer = setTimeout(fetchMeta, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [url]);
+
+  const handleClear = () => {
+    onChange({ target: { value: "" } } as React.ChangeEvent<HTMLInputElement>);
+    onVideoMetaChange(null);
+    setFetchError(null);
+  };
+
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center p-12 transition-all bg-background rounded-3xl animate-fadeIn">
+      {!videoMeta && (
+        <>
+          <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6 shadow-sm">
+            <Video className="w-10 h-10 text-red-600" />
+          </div>
+
+          <h3 className="text-xl font-medium text-foreground mb-6">
+            Paste YouTube URL
+          </h3>
+        </>
+      )}
+
+      <div className="w-full max-w-md space-y-4 mb-8">
+        {/* URL Input - hidden once video is verified */}
+        {!videoMeta && (
+          <div className="relative">
+            <input
+              type="url"
+              placeholder="https://www.youtube.com/watch?v=..."
+              value={url}
+              onChange={onChange}
+              className="w-full px-4 py-3 pr-24 rounded-xl border-2 border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all bg-background"
+            />
+            {fetching ? (
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 p-3">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const text = await navigator.clipboard.readText();
+                    onChange({
+                      target: { value: text },
+                    } as React.ChangeEvent<HTMLInputElement>);
+                  } catch {
+                    /* clipboard access denied */
+                  }
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-3 text-xs font-medium text-muted-foreground hover:text-primary bg-muted hover:bg-muted rounded-xl transition-all flex items-center gap-1.5"
+              >
+                <ClipboardPaste className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Video Preview Card */}
+        {videoMeta && (
+          <div className="flex items-center gap-4 p-3 rounded-xl border border-border bg-muted/30">
+            <div className="relative flex-shrink-0">
+              <img
+                src={videoMeta.thumbnail}
+                alt={videoMeta.title}
+                className="w-50 h-28 object-cover rounded-lg"
+              />
+              {videoMeta.duration > 0 && (
+                <span className="absolute bottom-1.5 right-1.5 bg-black/80 text-white text-[11px] font-medium px-1.5 py-0.5 rounded">
+                  {formatDuration(videoMeta.duration)}
+                </span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug">
+                {videoMeta.title}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {videoMeta.author}
+              </p>
+            </div>
+            <button
+              onClick={handleClear}
+              className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-all flex-shrink-0"
+            >
+              <XCircle className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {fetchError && (
+          <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 px-4 py-2 rounded-lg">
+            <AlertCircle className="w-4 h-4" />
+            {fetchError}
+          </div>
+        )}
+
+        {/* Content Type Selection - shown only after video is verified */}
+        {videoMeta && (
+          <div>
+            <h4 className="text-sm font-medium text-foreground mb-3 text-center">
+              Select content to generate
+            </h4>
+            <div className="grid grid-cols-2 gap-2">
+              {contentTypes.map((type) => {
+                const Icon = type.icon;
+                const isSelected = selectedTypes.includes(type.id);
+                return (
+                  <button
+                    key={type.id}
+                    onClick={() => onTypeToggle(type.id)}
+                    className={`p-3 rounded-lg border transition-all duration-200 text-left flex items-center gap-3 ${
+                      isSelected
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/30"
+                    }`}
+                  >
+                    <div
+                      className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 ${
+                        isSelected
+                          ? "bg-primary text-background"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      <Icon className="w-3 h-3" />
+                    </div>
+                    <span
+                      className={`text-sm font-medium ${isSelected ? "text-foreground" : "text-muted-foreground"}`}
+                    >
+                      {type.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 px-4 py-2 rounded-lg">
+            <AlertCircle className="w-4 h-4" />
+            {error}
+          </div>
+        )}
+      </div>
+
+      <Button
+        onClick={onSubmit}
+        disabled={!videoMeta || isLoading || selectedTypes.length === 0}
+        className="w-full max-w-md py-6 rounded-xl bg-red-600 text-white hover:bg-red-700 font-medium shadow-lg shadow-red-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {isLoading ? (
+          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+        ) : (
+          <Wand2 className="w-4 h-4 mr-2" />
+        )}
+        Generate Materials
+      </Button>
+    </div>
+  );
+};
 
 const FileUpload: React.FC<FileUploadProps> = ({
   file,
@@ -380,13 +646,17 @@ export default function Upload() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { session } = useAuth();
   const processUploadMutation = useProcessUpload();
+  const processYoutubeMutation = useProcessYoutube();
   const cancelJobMutation = useCancelJob();
   const retryJobMutation = useRetryJob();
   const queryClient = useQueryClient();
   const { lastMessage } = useWebSocket();
 
+  const [inputMode, setInputMode] = useState<"file" | "youtube">("file");
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [file, setFile] = useState<File | null>(null);
+  const [youtubeUrl, setYoutubeUrl] = useState<string>("");
+  const [videoMeta, setVideoMeta] = useState<VideoMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedTypes, setSelectedTypes] = useState<MaterialType[]>([
     "summary",
@@ -436,13 +706,27 @@ export default function Upload() {
 
   // Dynamic steps based on file type and selection
   const steps = useMemo(() => {
-    const s = [
-      {
+    const s = [];
+
+    // Initial step depends on input mode
+    if (inputMode === "youtube") {
+      s.push({
+        id: "checking_video",
+        title: "Checking Video",
+        desc: "Validating YouTube URL...",
+      });
+      s.push({
+        id: "downloading",
+        title: "Downloading Audio",
+        desc: "Extracting audio track...",
+      });
+    } else {
+      s.push({
         id: "uploading",
         title: "Uploading File",
         desc: "Securely transferring your data...",
-      },
-    ];
+      });
+    }
 
     if (isAudioVideo) {
       s.push({
@@ -596,7 +880,8 @@ export default function Upload() {
   };
 
   const handleUpload = async () => {
-    if (!file) return;
+    if (inputMode === "file" && !file) return;
+    if (inputMode === "youtube" && !youtubeUrl) return;
 
     if (!session?.access_token) {
       setError("You must be logged in to upload files.");
@@ -607,13 +892,23 @@ export default function Upload() {
       setError(null);
       setCurrentStep(0);
 
-      const response = await processUploadMutation.mutateAsync({
-        file,
-        materialTypes: selectedTypes,
-      });
+      let response: ProcessUploadResponse | undefined;
+      if (inputMode === "file" && file) {
+        response = await processUploadMutation.mutateAsync({
+          file,
+          materialTypes: selectedTypes,
+        });
+      } else if (inputMode === "youtube" && youtubeUrl) {
+        response = await processYoutubeMutation.mutateAsync({
+          url: youtubeUrl,
+          materialTypes: selectedTypes,
+        });
+      }
 
-      setJobId(response.job_id);
-      setJob({ id: response.job_id, status: response.status, progress: 0 });
+      if (response) {
+        setJobId(response.job_id);
+        setJob({ id: response.job_id, status: response.status, progress: 0 });
+      }
     } catch (err) {
       console.error("Upload failed", err);
       setError((err as Error).message || "Upload failed. Please try again.");
@@ -673,30 +968,69 @@ export default function Upload() {
           <h1 className="text-4xl font-serif text-foreground mb-4">
             Upload Materials
           </h1>
-          <p className="text-muted-foreground max-w-lg mx-auto">
+          <p className="text-muted-foreground max-w-lg mx-auto mb-8">
             Upload your lecture recordings, PDFs, or notes. We'll automatically
             generate summaries, flashcards, and quizzes for you.
           </p>
+
+          {/* Input Type Toggle */}
+          {!showProcessingScreen && (
+            <div className="inline-flex p-1 bg-muted/50 rounded-xl mb-6">
+              <button
+                onClick={() => setInputMode("file")}
+                className={`px-6 py-2 rounded-xl text-sm font-medium transition-all ${
+                  inputMode === "file"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                File Upload
+              </button>
+              <button
+                onClick={() => setInputMode("youtube")}
+                className={`px-6 py-2 rounded-xl text-sm font-medium transition-all ${
+                  inputMode === "youtube"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                YouTube URL
+              </button>
+            </div>
+          )}
         </header>
 
         {/* Main Content Area */}
         <Card className="rounded-3xl shadow-sm overflow-hidden mb-8 min-h-[400px] flex flex-col pt-0 pl-0 pr-0 pb-0 border-none">
           {!showProcessingScreen ? (
-            // Upload State
-            <FileUpload
-              file={file}
-              fileInputRef={fileInputRef}
-              handleRemoveFile={handleRemoveFile}
-              handleChange={handleChange}
-              handleDrag={handleDrag}
-              dragActive={dragActive}
-              handleDrop={handleDrop}
-              onSubmit={handleUpload}
-              getFileIcon={getFileIcon}
-              error={error}
-              selectedTypes={selectedTypes}
-              onTypeToggle={handleTypeToggle}
-            />
+            inputMode === "youtube" ? (
+              <YouTubeInput
+                url={youtubeUrl}
+                onChange={(e) => setYoutubeUrl(e.target.value)}
+                onSubmit={handleUpload}
+                isLoading={processYoutubeMutation.isPending}
+                error={error}
+                selectedTypes={selectedTypes}
+                onTypeToggle={handleTypeToggle}
+                videoMeta={videoMeta}
+                onVideoMetaChange={setVideoMeta}
+              />
+            ) : (
+              <FileUpload
+                file={file}
+                fileInputRef={fileInputRef}
+                handleRemoveFile={handleRemoveFile}
+                handleChange={handleChange}
+                handleDrag={handleDrag}
+                dragActive={dragActive}
+                handleDrop={handleDrop}
+                onSubmit={handleUpload}
+                getFileIcon={getFileIcon}
+                error={error}
+                selectedTypes={selectedTypes}
+                onTypeToggle={handleTypeToggle}
+              />
+            )
           ) : (
             // Processing State
             <Processing

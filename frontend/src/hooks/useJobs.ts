@@ -1,14 +1,15 @@
 import {
-  jobsService,
-  type DashboardData,
-  type ProcessUploadParams,
+    jobsService,
+    ProcessYoutubeParams,
+    type DashboardData,
+    type ProcessUploadParams,
 } from "@/lib/api/services/jobs";
 import type { JobListItem } from "@/types";
 import {
-  useInfiniteQuery,
-  useMutation,
-  useQuery,
-  useQueryClient,
+    useInfiniteQuery,
+    useMutation,
+    useQuery,
+    useQueryClient,
 } from "@tanstack/react-query";
 
 export const jobKeys = {
@@ -115,6 +116,20 @@ export function useProcessUpload() {
   return useMutation({
     mutationFn: (params: ProcessUploadParams) =>
       jobsService.processUpload(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: jobKeys.all });
+      queryClient.invalidateQueries({ queryKey: jobKeys.list() });
+      queryClient.invalidateQueries({ queryKey: jobKeys.infinite() });
+    },
+  });
+}
+
+export function useProcessYoutube() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: ProcessYoutubeParams) =>
+      jobsService.processYoutube(params),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: jobKeys.all });
       queryClient.invalidateQueries({ queryKey: jobKeys.list() });

@@ -12,6 +12,8 @@ from apps.transcription.service import TranscriptionService
 from celery import chain, shared_task
 from django.utils.timezone import now as from_datetime
 from pypdf import PdfReader
+import yt_dlp
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -175,6 +177,82 @@ def transcribe_media_task(self, job_id):
         except Exception:
             pass
         raise e  # Retry enabled
+
+
+@shared_task(bind=True, max_retries=3, queue="default")
+def download_youtube_video_task(self, job_id, url, user_email=None):
+    """
+    Download audio from YouTube video and upload to storage.
+    """
+    logger.info(f"Starting YouTube download task for job {job_id}")
+    try:
+        job = Job.objects.get(id=job_id)
+        job.celery_task_id = self.request.id
+        job.status = "downloading"
+        job.save(update_fields=["celery_task_id", "status"])
+
+        # Temporary download path
+        temp_filename = f"/tmp/{job.id}.mp4"
+        
+        ydl_opts = {
+            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            'outtmpl': temp_filename,
+            'quiet': True,
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            video_title = info.get('title', 'YouTube Video')
+            duration = info.get('duration', 0)
+            
+            # yt-dlp might append extension, find the file
+            downloaded_file = temp_filename
+            if not os.path.exists(downloaded_file):
+                 # Fallback search if extension differs
+                 for f in os.listdir("/tmp"):
+                     if f.startswith(str(job.id)):
+                         downloaded_file = f"/tmp/{f}"
+                         break
+            
+            if not os.path.exists(downloaded_file):
+                 raise Exception("Downloaded file not found")
+
+            # Upload to Supabase
+            from apps.ingestion.supabase_storage import upload_to_supabase
+            
+            with open(downloaded_file, 'rb') as f:
+                storage_url = upload_to_supabase(
+                    f,
+                    f"{job.id}.mp4", # Use job ID as filename to avoid special char issues
+                    job_id=str(job.id),
+                    content_type="video/mp4",
+                    subfolder="upload"
+                )
+            
+            # Clean up temp file
+            os.remove(downloaded_file)
+
+            # Update Job
+            job.storage_url = storage_url
+            job.filename = video_title # Update with actual title
+            job.file_type = "video/mp4"
+            job.status = "queued"
+            job.save(update_fields=["storage_url", "filename", "file_type", "status"])
+            
+            # Trigger next step
+            orchestrate_job_task.delay(str(job.id), user_email=user_email)
+
+    except Exception as e:
+        logger.exception(f"Error downloading YouTube video for job {job_id}")
+        try:
+            job = Job.objects.get(id=job_id)
+            job.status = "failed"
+            job.error_message = f"Download failed: {str(e)}"
+            job.save()
+        except Exception:
+            pass
+        raise e
+
 
 
 @shared_task(bind=True, max_retries=2, queue="generation")

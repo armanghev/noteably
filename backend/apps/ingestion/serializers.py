@@ -140,3 +140,22 @@ class ProcessUploadSerializer(serializers.Serializer):
         if not value:
             raise serializers.ValidationError("Must select at least one material type")
         return value
+
+class ProcessYoutubeSerializer(serializers.Serializer):
+    """Serializer for YouTube URL processing."""
+
+    url = serializers.URLField()
+    material_types = serializers.JSONField()  # Accepts JSON string or list
+    options = serializers.JSONField(required=False, default=dict)
+
+    def validate_url(self, value):
+        """Basic validation for YouTube URLs."""
+        if "youtube.com" not in value and "youtu.be" not in value:
+            raise serializers.ValidationError("Must be a valid YouTube URL")
+        return value
+
+    def validate_material_types(self, value):
+        """Ensure at least one material type selected."""
+        if not value:
+            raise serializers.ValidationError("Must select at least one material type")
+        return value

@@ -1,8 +1,8 @@
 import type {
-    Job,
-    JobListItem,
-    MaterialType,
-    ProcessUploadResponse,
+  Job,
+  JobListItem,
+  MaterialType,
+  ProcessUploadResponse,
 } from "@/types";
 import apiClient from "../client";
 
@@ -25,6 +25,12 @@ export interface DashboardData {
 
 export interface ProcessUploadParams {
   file: File;
+  materialTypes: MaterialType[];
+  options?: Record<string, unknown>;
+}
+
+export interface ProcessYoutubeParams {
+  url: string;
   materialTypes: MaterialType[];
   options?: Record<string, unknown>;
 }
@@ -53,6 +59,37 @@ export const jobsService = {
         headers: { "Content-Type": "multipart/form-data" },
       },
     );
+    return response.data;
+  },
+
+  processYoutube: async (
+    params: ProcessYoutubeParams,
+  ): Promise<ProcessUploadResponse> => {
+    const response = await apiClient.post<ProcessUploadResponse>(
+      "/process/youtube",
+      {
+        url: params.url,
+        material_types: params.materialTypes,
+        options: params.options,
+      },
+    );
+    return response.data;
+  },
+
+  getYoutubeMeta: async (
+    url: string,
+  ): Promise<{
+    title: string;
+    author: string;
+    duration: number;
+    thumbnail: string;
+  }> => {
+    const response = await apiClient.get<{
+      title: string;
+      author: string;
+      duration: number;
+      thumbnail: string;
+    }>("/youtube/meta", { params: { url } });
     return response.data;
   },
 
