@@ -109,7 +109,8 @@ def transcribe_media_task(self, job_id):
         if job.file_type == "application/pdf" or job.filename.lower().endswith(".pdf"):
             logger.info(f"Processing PDF for job {job_id}")
             job.status = "extracting_text"
-            job.save(update_fields=["status"])
+            job.current_step = "Extracting text..."
+            job.save(update_fields=["status", "current_step"])
 
             raw_text = extract_pdf_text_from_url(job.storage_url)
 
@@ -134,8 +135,9 @@ def transcribe_media_task(self, job_id):
             # AssemblyAI Handling
             logger.info(f"Transcribing audio/video for job {job_id}")
             job.status = "transcribing"
-            job.progress = 25
-            job.save(update_fields=["status", "progress"])
+            job.current_step = "Transcribing audio..."
+            job.progress = 50
+            job.save(update_fields=["status", "current_step", "progress"])
 
             signed_url = get_signed_url_from_storage_url(
                 job.storage_url, expires_in=86400
@@ -189,21 +191,38 @@ def download_youtube_video_task(self, job_id, url, user_email=None):
         job = Job.objects.get(id=job_id)
         job.celery_task_id = self.request.id
         job.status = "downloading"
-        job.save(update_fields=["celery_task_id", "status"])
+        job.current_step = "Downloading video..."
+        job.progress = 0
+        job.save(update_fields=["celery_task_id", "status", "current_step", "progress"])
 
         # Temporary download path
         temp_filename = f"/tmp/{job.id}.mp4"
         
+        def progress_hook(d):
+            if d['status'] == 'downloading':
+                try:
+                    p = d.get('_percent_str', '0%').replace('%','')
+                    # Scale 0-100 download progress to 0-40 global progress
+                    raw_progress = float(p)
+                    progress = int(raw_progress * 0.4)
+                    
+                    # Update job progress in DB (throttle to avoid too many writes)
+                    if progress >= job.progress + 2:
+                        job.progress = progress
+                        job.save(update_fields=["progress"])
+                except Exception:
+                    pass
+
         ydl_opts = {
             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             'outtmpl': temp_filename,
             'quiet': True,
+            'progress_hooks': [progress_hook],
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             video_title = info.get('title', 'YouTube Video')
-            duration = info.get('duration', 0)
             
             # yt-dlp might append extension, find the file
             downloaded_file = temp_filename
@@ -220,6 +239,10 @@ def download_youtube_video_task(self, job_id, url, user_email=None):
             # Upload to Supabase
             from apps.ingestion.supabase_storage import upload_to_supabase
             
+            # Ensure final progress is set before upload
+            job.progress = 40
+            job.save(update_fields=["progress"])
+
             with open(downloaded_file, 'rb') as f:
                 storage_url = upload_to_supabase(
                     f,
@@ -272,8 +295,9 @@ def generate_content_task(self, transcription_result, job_id, user_email=None):
             return
 
         job.status = "generating"
-        job.progress = 50
-        job.save(update_fields=["status", "progress"])
+        job.current_step = "Generating study materials..."
+        job.progress = 75
+        job.save(update_fields=["status", "current_step", "progress"])
 
         # Clear existing generated content for retry
         # This ensures we don't have duplicate or stale content if material types changed
