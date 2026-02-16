@@ -317,7 +317,7 @@ def generate_content_task(self, transcription_result, job_id, user_email=None):
         with ThreadPoolExecutor(max_workers=4) as executor:
             # Helper to call service
             def gen(mt):
-                return mt, GeminiService.generate_content(transcript_text, mt)
+                return mt, GeminiService.generate_content(transcript_text, mt, job.options)
 
             futures = {executor.submit(gen, mt): mt for mt in job.material_types}
 

@@ -24,14 +24,14 @@ class GeminiService:
         return cls._client
 
     @classmethod
-    def generate_content(cls, text: str, type: str) -> dict:
+    def generate_content(cls, text: str, type: str, options: dict = None) -> dict:
         """
         Generates content using Gemini based on the type (summary, notes, etc).
         Returns a dictionary of the generated content.
         """
         try:
             client = cls._get_client()
-            prompt = get_prompt_for_type(type, text)
+            prompt = get_prompt_for_type(type, text, options)
 
             # Request JSON response for structured types, plain text for cleanup
             # Request JSON response for structured types, plain text for cleanup and notes
