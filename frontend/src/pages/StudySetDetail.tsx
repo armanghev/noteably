@@ -5,7 +5,10 @@ import {
 } from "@/components/assistant/AssistantPanel";
 import { ExportButton } from "@/components/export/ExportButton";
 import Layout from "@/components/layout/Layout";
+import { CornellNotes } from "@/components/shared/CornellNotes";
 import { DeleteConfirmationDialog } from "@/components/shared/DeleteConfirmationDialog";
+import { OutlineNotes } from "@/components/shared/OutlineNotes";
+import { QANotes } from "@/components/shared/QANotes";
 import { AudioPlayer } from "@/components/ui/audio-player";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -633,20 +636,25 @@ export default function StudySetDetail() {
             {hasSummaryOrNotes && (
               <TabsContent value="summary-notes" className="space-y-8">
                 {/* Summary */}
-                <Card className="p-8 shadow-sm bg-background border border-border">
-                  <div className="flex items-center gap-2 mb-6">
-                    <ScrollText className="w-5 h-5 text-primary" />
-                    <h2 className="text-xl font-medium text-foreground">
-                      Summary
-                    </h2>
-                  </div>
-                  <div className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                    {summaryText}
-                  </div>
-                </Card>
+                {!notesContent?.cornell && (
+                  <Card className="p-8 shadow-sm bg-background border border-border">
+                    <div className="flex items-center gap-2 mb-6">
+                      <ScrollText className="w-5 h-5 text-primary" />
+                      <h2 className="text-xl font-medium text-foreground">
+                        Summary
+                      </h2>
+                    </div>
+                    <div className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                      {summaryText}
+                    </div>
+                  </Card>
+                )}
 
                 {/* Study Notes */}
-                {studyNotesMarkdown && (
+                {(studyNotesMarkdown ||
+                  notesContent?.cornell ||
+                  notesContent?.qa ||
+                  notesContent?.outline) && (
                   <Card className="p-8 shadow-sm bg-background border border-border">
                     <div className="flex items-center gap-2 mb-6">
                       <StickyNote className="w-5 h-5 text-primary" />
@@ -655,9 +663,20 @@ export default function StudySetDetail() {
                       </h2>
                     </div>
                     <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary break-words">
-                      <ReactMarkdown components={markdownComponents}>
-                        {studyNotesMarkdown}
-                      </ReactMarkdown>
+                      {notesContent?.cornell ? (
+                        <CornellNotes
+                          data={notesContent.cornell}
+                          summary={summaryText}
+                        />
+                      ) : notesContent?.qa ? (
+                        <QANotes data={notesContent.qa} />
+                      ) : notesContent?.outline ? (
+                        <OutlineNotes data={notesContent.outline} />
+                      ) : (
+                        <ReactMarkdown components={markdownComponents}>
+                          {studyNotesMarkdown}
+                        </ReactMarkdown>
+                      )}
                     </div>
                   </Card>
                 )}

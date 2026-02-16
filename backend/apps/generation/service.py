@@ -33,9 +33,16 @@ class GeminiService:
             client = cls._get_client()
             prompt = get_prompt_for_type(type, text, options)
 
-            # Request JSON response for structured types, plain text for cleanup
-            # Request JSON response for structured types, plain text for cleanup and notes
-            if type not in ["cleanup", "notes"]:
+            # Request JSON response for structured types, plain text for cleanup and standard notes
+            is_json_mode = True
+            if type == "cleanup":
+                is_json_mode = False
+            elif type == "notes":
+                # Only use JSON mode for non-standard styles
+                if options.get("notes_style", "standard") == "standard":
+                    is_json_mode = False
+
+            if is_json_mode:
                 config = types.GenerateContentConfig(
                     response_mime_type="application/json"
                 )
@@ -53,7 +60,20 @@ class GeminiService:
                 return response_text
 
             if type == "notes":
-                return {"content": response_text}
+                # If we requested standard notes (text), return as content dict
+                if options.get("notes_style", "standard") == "standard":
+                    return {"content": response_text}
+                
+                # Otherwise, try to parse JSON
+                try:
+                    content = json.loads(response_text)
+                    # Helper cleanup: if the model wrapped it in specific keys, perfect.
+                    # If it returned just the array/object without the key (rare but possible), we might need to wrap?
+                    # For now, trust the prompt compliance.
+                    return content
+                except json.JSONDecodeError:
+                    # Fallback if model failed to output JSON
+                    return {"content": response_text}
 
             # Parse JSON
             try:

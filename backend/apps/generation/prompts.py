@@ -60,15 +60,10 @@ Text:
 
     elif type == "notes":
         style = options.get("notes_style", "standard")
-        style_instr = "- Use clear headings and bullet points."
-        if style == "cornell":
-            style_instr = "- Use the Cornell Note-taking system structure (Cues/Questions on left, Notes on right, Summary at bottom). Format as Markdown."
-        elif style == "outline":
-            style_instr = "- Use a strict hierarchical outline format (I. A. 1. a.)."
-        elif style == "qa":
-            style_instr = "- structure the entire set of notes as a series of Questions and detailed Answers."
-
-        return f"""{base_instruction}
+        
+        if style == "standard":
+            style_instr = "- Use clear headings and bullet points."
+            return f"""{base_instruction}
 Create a comprehensive Study Guide from the following text.
 Do NOT just reproduce the text. Synthesize the information into a format optimized for studying.
 {style_instr}
@@ -77,6 +72,76 @@ Do NOT just reproduce the text. Synthesize the information into a format optimiz
 - Add "Key Takeaways" sections to summarize major topics.
 
 Format the output as clean Markdown. Do NOT wrap it in JSON.
+
+Text:
+{text}
+"""
+        elif style == "cornell":
+            return f"""{base_instruction}
+Create Cornell Notes from the following text.
+Structure the notes with clear cues/questions on the left (conceptually) and detailed notes on the right.
+
+Return your response in JSON format:
+{{
+    "cornell": {{
+        "cues": ["Cue 1", "Question 2"],
+        "notes": ["Note corresponding to cue 1...", "Note corresponding to question 2..."]
+    }}
+}}
+Ensure the "cues" and "notes" arrays strictly align by index (e.g., cues[0] corresponds to notes[0]).
+
+Text:
+{text}
+"""
+        elif style == "outline":
+            return f"""{base_instruction}
+Create a Hierarchical Outline from the following text.
+Use a strict nested structure.
+
+Return your response in JSON format:
+{{
+    "outline": {{
+        "title": "Main Topic",
+        "children": [
+            {{
+                "bullet": "I. First Major Point",
+                "children": [
+                    {{
+                        "bullet": "A. Sub-point",
+                        "children": []
+                    }}
+                ]
+            }}
+        ]
+    }}
+}}
+
+Text:
+{text}
+"""
+        elif style == "qa":
+            return f"""{base_instruction}
+Create a Q&A Study Guide from the following text.
+Cover all major concepts as Question & Answer pairs.
+
+Return your response in JSON format:
+{{
+    "qa": [
+        {{
+            "question": "What is...?",
+            "answer": "It is..."
+        }}
+    ]
+}}
+
+Text:
+{text}
+"""
+        else:
+             # Fallback to standard
+             return f"""{base_instruction}
+Create a comprehensive Study Guide from the following text.
+Format the output as clean Markdown.
 
 Text:
 {text}

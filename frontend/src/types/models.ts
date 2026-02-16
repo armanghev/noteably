@@ -48,8 +48,32 @@ export interface SummaryContent {
   key_points?: string[];
 }
 
+export interface CornellData {
+  cues: string[];
+  notes: string[];
+  summary: string;
+}
+
+export interface QAData {
+  question: string;
+  answer: string;
+}
+
+export interface OutlineNode {
+  bullet: string;
+  children: OutlineNode[];
+}
+
+export interface OutlineData {
+  title: string;
+  children: OutlineNode[];
+}
+
 export interface NotesContent {
-  content: string;
+  content?: string;
+  cornell?: CornellData;
+  qa?: QAData[];
+  outline?: OutlineData;
   sections?: NoteSection[];
 }
 
