@@ -148,15 +148,13 @@ Text:
 """
 
     elif type == "flashcards":
-        count = options.get("flashcard_count", 15)
-        # Ensure count is int
-        try:
-            count = int(count)
-        except:
-            count = 15
-        
+        # Calculate number of cards based on transcript length
+        # Roughly 1 card per 80 words, with min 5 and max 40
+        word_count = len(text.split())
+        num_cards = max(5, min(40, round(word_count / 80)))
+
         return f"""{base_instruction}
-Create {count} flashcards from the key concepts in the text.
+Create {num_cards} flashcards from the key concepts in the text.
 Each flashcard should have a 'front' (question/concept) and 'back' (answer/definition).
 
 Return your response in JSON format:

@@ -48,7 +48,6 @@ final class JobsService {
         ]
         if let options {
             if let length = options.summaryLength { fields["summary_length"] = length }
-            if let count = options.flashcardCount { fields["flashcard_count"] = "\(count)" }
             if let count = options.quizQuestionCount { fields["quiz_question_count"] = "\(count)" }
             if let difficulty = options.difficulty { fields["difficulty"] = difficulty }
         }

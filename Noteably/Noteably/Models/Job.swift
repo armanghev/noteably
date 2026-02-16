@@ -53,13 +53,11 @@ enum JobStatus: String, Codable, CaseIterable {
 
 struct JobOptions: Codable {
     var summaryLength: String?
-    var flashcardCount: Int?
     var quizQuestionCount: Int?
     var difficulty: String?
 
     enum CodingKeys: String, CodingKey {
         case summaryLength = "summary_length"
-        case flashcardCount = "flashcard_count"
         case quizQuestionCount = "quiz_question_count"
         case difficulty
     }

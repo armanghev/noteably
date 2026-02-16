@@ -36,7 +36,7 @@ struct MockData {
         fileType: "audio/mpeg",
         storageUrl: "https://example.com/audio.mp3",
         materialTypes: ["summary", "notes", "flashcards", "quiz"],
-        options: JobOptions(summaryLength: "medium", flashcardCount: 10, quizQuestionCount: 5, difficulty: "intermediate"),
+        options: JobOptions(summaryLength: "medium", quizQuestionCount: 5, difficulty: "intermediate"),
         status: .completed,
         transcriptionText: "This is a sample transcription of the lecture...",
         transcriptionWords: [
