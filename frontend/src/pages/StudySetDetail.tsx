@@ -59,7 +59,7 @@ import {
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import { useNavigate, useParams } from "react-router-dom";
@@ -111,7 +111,10 @@ export default function StudySetDetail() {
     defaultLabel: "Back to Study Sets",
   });
 
-  // Determine default tab based on available content
+  const [activeTab, setActiveTab] = useState("summary-notes");
+
+  // Update active tab when job data loads
+  // Determine available content
   const hasSummaryOrNotes =
     job?.material_types?.some(
       (t: MaterialType) => t === "summary" || t === "notes",
@@ -124,16 +127,32 @@ export default function StudySetDetail() {
     ) ?? false;
   const hasSourceFile = !!job?.storage_url;
 
-  const defaultTab = hasSummaryOrNotes
-    ? "summary-notes"
-    : hasFlashcards
-      ? "flashcards"
-      : hasQuiz
-        ? "quiz"
-        : hasSourceFile
-          ? "source"
-          : "summary-notes";
-  const [activeTab, setActiveTab] = useState(defaultTab);
+  // Update active tab when job data loads
+  useEffect(() => {
+    if (!job) return;
+
+    // Only change tab if current active tab is invalid for the new data
+    // OR if we are on the default loading state
+    const currentTabIsValid =
+      (activeTab === "summary-notes" && hasSummaryOrNotes) ||
+      (activeTab === "flashcards" && hasFlashcards) ||
+      (activeTab === "quiz" && hasQuiz) ||
+      (activeTab === "source" && hasSourceFile);
+
+    if (!currentTabIsValid) {
+      if (hasSummaryOrNotes) setActiveTab("summary-notes");
+      else if (hasFlashcards) setActiveTab("flashcards");
+      else if (hasQuiz) setActiveTab("quiz");
+      else if (hasSourceFile) setActiveTab("source");
+    }
+  }, [
+    job,
+    activeTab,
+    hasSummaryOrNotes,
+    hasFlashcards,
+    hasQuiz,
+    hasSourceFile,
+  ]);
 
   // Video player is now handled by VideoPlayer component
 
@@ -340,7 +359,11 @@ export default function StudySetDetail() {
       }
 
       // Default pre rendering
-      return <pre {...props}>{children}</pre>;
+      return (
+        <pre className="overflow-x-auto max-w-full" {...props}>
+          {children}
+        </pre>
+      );
     },
   };
 
@@ -493,7 +516,7 @@ export default function StudySetDetail() {
             }
           }
         `}</style>
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <Tabs
             value={activeTab}
             onValueChange={setActiveTab}
@@ -631,7 +654,7 @@ export default function StudySetDetail() {
                         Study Notes
                       </h2>
                     </div>
-                    <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary">
+                    <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary break-words">
                       <ReactMarkdown components={markdownComponents}>
                         {studyNotesMarkdown}
                       </ReactMarkdown>

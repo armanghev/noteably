@@ -1,4 +1,5 @@
 import Layout from "@/components/layout/Layout";
+import { AdvancedSettings } from "@/components/shared/AdvancedSettings";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useWebSocket } from "@/contexts/WebSocketContext";
@@ -13,6 +14,7 @@ import {
 import { jobsService } from "@/lib/api/services/jobs";
 import type {
   FileUploadProps,
+  JobOptions,
   MaterialType,
   ProcessingProps,
   ProcessUploadResponse,
@@ -97,6 +99,8 @@ interface YouTubeInputProps {
   onTypeToggle: (type: MaterialType) => void;
   videoMeta: VideoMeta | null;
   onVideoMetaChange: (meta: VideoMeta | null) => void;
+  options: JobOptions;
+  onOptionsChange: (options: JobOptions) => void;
 }
 
 function extractVideoId(url: string): string | null {
@@ -120,6 +124,8 @@ const YouTubeInput: React.FC<YouTubeInputProps> = ({
   onTypeToggle,
   videoMeta,
   onVideoMetaChange,
+  options,
+  onOptionsChange,
 }) => {
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -265,6 +271,12 @@ const YouTubeInput: React.FC<YouTubeInputProps> = ({
           )}
         </div>
 
+        <AdvancedSettings
+          options={options}
+          onChange={onOptionsChange}
+          disabled={isLoading}
+        />
+
         {/* Actions */}
         <div className="flex gap-4">
           <Button
@@ -382,6 +394,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
   error,
   selectedTypes,
   onTypeToggle,
+  options,
+  onOptionsChange,
 }) => {
   return (
     <div className="flex-1 flex flex-col">
@@ -458,6 +472,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
             )}
           </div>
 
+          <AdvancedSettings options={options} onChange={onOptionsChange} />
+
           <div className="flex gap-4">
             <Button
               variant="outline"
@@ -472,10 +488,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
               className="px-8 py-6 rounded-xl border bg-primary text-background hover:bg-background hover:text-primary hover:border-primary font-medium shadow-lg shadow-primary/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Wand2 className="w-4 h-4" />
-              Generate{" "}
-              {selectedTypes.length > 0
-                ? `(${selectedTypes.length})`
-                : "Materials"}
+              Generate
             </Button>
           </div>
         </div>
@@ -702,6 +715,7 @@ export default function Upload() {
     "summary",
     "notes",
   ]);
+  const [jobOptions, setJobOptions] = useState<JobOptions>({});
 
   // Processing State
   const [jobId, setJobId] = useState<string | undefined>(undefined);
@@ -940,11 +954,13 @@ export default function Upload() {
         response = await processUploadMutation.mutateAsync({
           file,
           materialTypes: selectedTypes,
+          options: jobOptions,
         });
       } else if (inputMode === "youtube" && youtubeUrl) {
         response = await processYoutubeMutation.mutateAsync({
           url: youtubeUrl,
           materialTypes: selectedTypes,
+          options: jobOptions,
         });
       }
 
@@ -1057,6 +1073,8 @@ export default function Upload() {
                 onTypeToggle={handleTypeToggle}
                 videoMeta={videoMeta}
                 onVideoMetaChange={setVideoMeta}
+                options={jobOptions}
+                onOptionsChange={setJobOptions}
               />
             ) : (
               <FileUpload
@@ -1072,6 +1090,8 @@ export default function Upload() {
                 error={error}
                 selectedTypes={selectedTypes}
                 onTypeToggle={handleTypeToggle}
+                options={jobOptions}
+                onOptionsChange={setJobOptions}
               />
             )
           ) : (
