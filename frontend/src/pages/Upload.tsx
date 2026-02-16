@@ -275,6 +275,7 @@ const YouTubeInput: React.FC<YouTubeInputProps> = ({
           options={options}
           onChange={onOptionsChange}
           disabled={isLoading}
+          selectedTypes={selectedTypes}
         />
 
         {/* Actions */}
@@ -472,7 +473,11 @@ const FileUpload: React.FC<FileUploadProps> = ({
             )}
           </div>
 
-          <AdvancedSettings options={options} onChange={onOptionsChange} />
+          <AdvancedSettings
+            options={options}
+            onChange={onOptionsChange}
+            selectedTypes={selectedTypes}
+          />
 
           <div className="flex gap-4">
             <Button

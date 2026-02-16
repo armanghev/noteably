@@ -1,4 +1,4 @@
-import type { JobOptions } from "@/types";
+import type { JobOptions, MaterialType } from "@/types";
 import {
   BrainCircuit,
   ChevronDown,
@@ -23,18 +23,27 @@ interface AdvancedSettingsProps {
   options: JobOptions;
   onChange: (options: JobOptions) => void;
   disabled?: boolean;
+  selectedTypes: MaterialType[];
 }
 
 export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
   options,
   onChange,
   disabled,
+  selectedTypes,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const updateOption = (key: keyof JobOptions, value: any) => {
     onChange({ ...options, [key]: value });
   };
+
+  const showNotesSettings = selectedTypes.includes("notes");
+  const showQuizSettings = selectedTypes.includes("quizzes");
+  const showFlashcardSettings = selectedTypes.includes("flashcards");
+
+  // If no specific settings are relevant, we might want to hide the whole section or just show general ones.
+  // The plan says "Study Focus" and "Language" are always visible.
 
   return (
     <div className="w-full max-w-2xl mx-auto mb-8 border border-border rounded-2xl bg-card overflow-hidden transition-all duration-200 shadow-sm">
@@ -140,85 +149,95 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
             </div>
 
             {/* Notes Style */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <LayoutList className="w-4 h-4 text-primary" />
-                <label className="text-sm font-medium">Notes Style</label>
+            {showNotesSettings && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <LayoutList className="w-4 h-4 text-primary" />
+                  <label className="text-sm font-medium">Notes Style</label>
+                </div>
+                <Select
+                  value={options.notes_style || "standard"}
+                  onValueChange={(val) => updateOption("notes_style", val)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select style" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="standard">
+                      Standard (Headings)
+                    </SelectItem>
+                    <SelectItem value="cornell">Cornell Method</SelectItem>
+                    <SelectItem value="outline">
+                      Hierarchical Outline
+                    </SelectItem>
+                    <SelectItem value="qa">Q&A Format</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <Select
-                value={options.notes_style || "standard"}
-                onValueChange={(val) => updateOption("notes_style", val)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select style" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="standard">Standard (Headings)</SelectItem>
-                  <SelectItem value="cornell">Cornell Method</SelectItem>
-                  <SelectItem value="outline">Hierarchical Outline</SelectItem>
-                  <SelectItem value="qa">Q&A Format</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            )}
 
             {/* Quiz Difficulty */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-primary" />
-                <label className="text-sm font-medium">Quiz Difficulty</label>
+            {showQuizSettings && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  <label className="text-sm font-medium">Quiz Difficulty</label>
+                </div>
+                <div className="flex bg-background rounded-lg p-1 border border-border">
+                  {["easy", "medium", "hard"].map((level) => (
+                    <button
+                      key={level}
+                      onClick={() => updateOption("quiz_difficulty", level)}
+                      className={`flex-1 text-sm py-1.5 rounded-md transition-all capitalize ${
+                        (options.quiz_difficulty || "medium") === level
+                          ? "bg-accent shadow-sm text-accent-foreground font-medium"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {level}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="flex bg-background rounded-lg p-1 border border-border">
-                {["easy", "medium", "hard"].map((level) => (
-                  <button
-                    key={level}
-                    onClick={() => updateOption("quiz_difficulty", level)}
-                    className={`flex-1 text-sm py-1.5 rounded-md transition-all capitalize ${
-                      (options.quiz_difficulty || "medium") === level
-                        ? "bg-accent shadow-sm text-accent-foreground font-medium"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {level}
-                  </button>
-                ))}
-              </div>
-            </div>
+            )}
 
             {/* Flashcard Count */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Library className="w-4 h-4 text-primary" />
-                <label className="text-sm font-medium">Flashcards</label>
+            {showFlashcardSettings && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Library className="w-4 h-4 text-primary" />
+                  <label className="text-sm font-medium">Flashcards</label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="number"
+                    min={5}
+                    max={50}
+                    step={1}
+                    value={options.flashcard_count ?? ""}
+                    onChange={(e) => {
+                      const val =
+                        e.target.value === ""
+                          ? undefined
+                          : parseInt(e.target.value);
+                      updateOption("flashcard_count", val);
+                    }}
+                    onBlur={() => {
+                      let val = options.flashcard_count;
+                      if (val === undefined || isNaN(val)) val = 15;
+                      else if (val < 5) val = 5;
+                      else if (val > 50) val = 50;
+                      updateOption("flashcard_count", val);
+                    }}
+                    onWheel={(e) => e.currentTarget.blur()}
+                    className="w-24"
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    cards (5-50)
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Input
-                  type="number"
-                  min={5}
-                  max={50}
-                  step={1}
-                  value={options.flashcard_count ?? ""}
-                  onChange={(e) => {
-                    const val =
-                      e.target.value === ""
-                        ? undefined
-                        : parseInt(e.target.value);
-                    updateOption("flashcard_count", val);
-                  }}
-                  onBlur={() => {
-                    let val = options.flashcard_count;
-                    if (val === undefined || isNaN(val)) val = 15;
-                    else if (val < 5) val = 5;
-                    else if (val > 50) val = 50;
-                    updateOption("flashcard_count", val);
-                  }}
-                  onWheel={(e) => e.currentTarget.blur()}
-                  className="w-24"
-                />
-                <span className="text-xs text-muted-foreground">
-                  cards (5-50)
-                </span>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       )}
