@@ -1,6 +1,6 @@
 import { Minus, Plus, RotateCcw, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button } from "./ui/button";
+import { Button } from "../ui/button";
 
 interface ImageCropperProps {
   imageSrc: string;
@@ -49,7 +49,7 @@ export function ImageCropper({
       }
       return { drawW: baseW * s, drawH: baseH * s };
     },
-    []
+    [],
   );
 
   const constrain = useCallback(
@@ -66,7 +66,7 @@ export function ImageCropper({
         y: Math.max(-maxY, Math.min(maxY, oy)),
       };
     },
-    [cropSize, getImageDrawSize]
+    [cropSize, getImageDrawSize],
   );
 
   // Set initial scale so image fills the crop circle
@@ -107,7 +107,7 @@ export function ImageCropper({
         return constrain(prev.x + dx, prev.y + dy, s);
       });
     },
-    [isDragging, constrain]
+    [isDragging, constrain],
   );
 
   const onMouseUp = useCallback(() => setIsDragging(false), []);
@@ -124,7 +124,10 @@ export function ImageCropper({
   // Touch drag + pinch zoom
   const onTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 1) {
-      lastPointer.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      lastPointer.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+      };
       setIsDragging(true);
     } else if (e.touches.length === 2) {
       const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -138,7 +141,10 @@ export function ImageCropper({
     if (e.touches.length === 1 && isDragging) {
       const dx = e.touches[0].clientX - lastPointer.current.x;
       const dy = e.touches[0].clientY - lastPointer.current.y;
-      lastPointer.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      lastPointer.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+      };
       setOffset((prev) => {
         const { scale: s } = currentState.current;
         return constrain(prev.x + dx, prev.y + dy, s);
@@ -210,11 +216,25 @@ export function ImageCropper({
     ctx.beginPath();
     ctx.arc(outputSize / 2, outputSize / 2, outputSize / 2, 0, Math.PI * 2);
     ctx.clip();
-    ctx.drawImage(img, srcX, srcY, srcSize, srcSize, 0, 0, outputSize, outputSize);
+    ctx.drawImage(
+      img,
+      srcX,
+      srcY,
+      srcSize,
+      srcSize,
+      0,
+      0,
+      outputSize,
+      outputSize,
+    );
 
-    canvas.toBlob((blob) => {
-      if (blob) onCrop(blob);
-    }, "image/jpeg", 0.9);
+    canvas.toBlob(
+      (blob) => {
+        if (blob) onCrop(blob);
+      },
+      "image/jpeg",
+      0.9,
+    );
   };
 
   // Calculate zoom percentage for display
@@ -340,10 +360,7 @@ export function ImageCropper({
             >
               Cancel
             </Button>
-            <Button
-              onClick={handleCrop}
-              className="flex-1 py-5 rounded-xl"
-            >
+            <Button onClick={handleCrop} className="flex-1 py-5 rounded-xl">
               Save
             </Button>
           </div>

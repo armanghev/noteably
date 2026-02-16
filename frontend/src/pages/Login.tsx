@@ -1,5 +1,5 @@
-import { ImageCropper } from "@/components/ImageCropper";
 import { UserAvatar } from "@/components/profile/UserAvatar";
+import { ImageCropper } from "@/components/shared/ImageCropper";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useErrorHandler } from "@/hooks/useErrorHandler";

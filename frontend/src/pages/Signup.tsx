@@ -1,5 +1,5 @@
-import { ImageCropper } from "@/components/ImageCropper";
 import { UserAvatar } from "@/components/profile/UserAvatar";
+import { ImageCropper } from "@/components/shared/ImageCropper";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useErrorHandler } from "@/hooks/useErrorHandler";
@@ -84,8 +84,6 @@ export default function Signup() {
     }
   }, [user, profileCompleted, searchParams, navigate]);
 
-  const initials =
-    [firstName[0], lastName[0]].filter(Boolean).join("").toUpperCase() || "?";
   const oauthAvatar =
     user?.user_metadata?.picture ?? user?.user_metadata?.avatar_url ?? null;
   const displayAvatar = previewUrl ?? oauthAvatar;
