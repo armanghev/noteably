@@ -580,6 +580,9 @@ export default function StudySetDetail() {
             <header className="mb-8">
               <div className="flex justify-between items-start mb-4">
                 <div>
+                  <h1 className="text-4xl font-serif text-foreground mb-2">
+                    {generatedTitle}
+                  </h1>
                   <div className="flex gap-2 mb-3">
                     <span className="text-xs font-medium px-2 py-1 bg-primary/10 text-primary rounded-md">
                       {formatFileType(job.file_type)}
@@ -588,9 +591,6 @@ export default function StudySetDetail() {
                       {new Date(job.created_at).toLocaleDateString()}
                     </span>
                   </div>
-                  <h1 className="text-4xl font-serif text-foreground mb-2">
-                    {generatedTitle}
-                  </h1>
                 </div>
                 <div className="flex gap-2 items-center">
                   <ExportButton
