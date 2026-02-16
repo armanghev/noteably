@@ -20,10 +20,20 @@ def get_prompt_for_type(type: str, text: str, options: dict = None) -> str:
         if options.get("summary_format") == "paragraphs":
             format_instr = "Structure it as coherent paragraphs."
 
+        length_instr = ""
+        length_opt = options.get("summary_length", "medium")
+        if length_opt == "short":
+            length_instr = "Keep the summary concise (approx. 200 words)."
+        elif length_opt == "detailed":
+            length_instr = "Provide a comprehensive, detailed summary covering all key aspects and nuances."
+        else:
+            length_instr = "Provide a balanced summary (approx. 400 words)."
+
         return f"""{base_instruction}
 Create a concise summary of the following text.
 Focus on the main concepts and key takeaways.
 {format_instr}
+{length_instr}
 
 Return your response in JSON format:
 {{

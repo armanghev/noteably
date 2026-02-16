@@ -1,16 +1,15 @@
 import type { JobOptions, MaterialType } from "@/types";
 import {
+  AlignLeft,
   BrainCircuit,
   ChevronDown,
   ChevronUp,
   Languages,
   LayoutList,
-  Library,
   Settings2,
   Sparkles,
 } from "lucide-react";
 import React, { useState } from "react";
-import { Input } from "../ui/input";
 import {
   Select,
   SelectContent,
@@ -40,7 +39,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
 
   const showNotesSettings = selectedTypes.includes("notes");
   const showQuizSettings = selectedTypes.includes("quizzes");
-  const showFlashcardSettings = selectedTypes.includes("flashcards");
+  const showSummarySettings = selectedTypes.includes("summary");
 
   // If no specific settings are relevant, we might want to hide the whole section or just show general ones.
   // The plan says "Study Focus" and "Language" are always visible.
@@ -147,7 +146,6 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                 </SelectContent>
               </Select>
             </div>
-
             {/* Notes Style */}
             {showNotesSettings && (
               <div className="space-y-2">
@@ -175,7 +173,6 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                 </Select>
               </div>
             )}
-
             {/* Quiz Difficulty */}
             {showQuizSettings && (
               <div className="space-y-2">
@@ -200,44 +197,30 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                 </div>
               </div>
             )}
-
-            {/* Flashcard Count */}
-            {showFlashcardSettings && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Library className="w-4 h-4 text-primary" />
-                  <label className="text-sm font-medium">Flashcards</label>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Input
-                    type="number"
-                    min={5}
-                    max={50}
-                    step={1}
-                    value={options.flashcard_count ?? ""}
-                    onChange={(e) => {
-                      const val =
-                        e.target.value === ""
-                          ? undefined
-                          : parseInt(e.target.value);
-                      updateOption("flashcard_count", val);
-                    }}
-                    onBlur={() => {
-                      let val = options.flashcard_count;
-                      if (val === undefined || isNaN(val)) val = 15;
-                      else if (val < 5) val = 5;
-                      else if (val > 50) val = 50;
-                      updateOption("flashcard_count", val);
-                    }}
-                    onWheel={(e) => e.currentTarget.blur()}
-                    className="w-24"
-                  />
-                  <span className="text-xs text-muted-foreground">
-                    cards (5-50)
-                  </span>
-                </div>
+            {/* Summary Length */}
+          {showSummarySettings && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <AlignLeft className="w-4 h-4 text-primary" />
+                <label className="text-sm font-medium">Summary Length</label>
               </div>
-            )}
+              <div className="flex bg-background rounded-lg p-1 border border-border">
+                {["short", "medium", "detailed"].map((len) => (
+                  <button
+                    key={len}
+                    onClick={() => updateOption("summary_length", len)}
+                    className={`flex-1 text-sm py-1.5 rounded-md transition-all capitalize ${
+                      (options.summary_length || "medium") === len
+                        ? "bg-accent shadow-sm text-accent-foreground font-medium"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {len}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           </div>
         </div>
       )}

@@ -26,8 +26,7 @@ export interface JobOptions {
   language?: string;
   notes_style?: "standard" | "cornell" | "outline" | "qa";
   summary_format?: "bullets" | "paragraphs";
-  summary_length?: "short" | "medium" | "long";
-  flashcard_count?: number;
+  summary_length?: "short" | "medium" | "detailed";
   quiz_question_count?: number;
   quiz_difficulty?: "easy" | "medium" | "hard";
   difficulty?: "easy" | "medium" | "hard";
