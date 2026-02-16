@@ -187,7 +187,7 @@ const YouTubeInput: React.FC<YouTubeInputProps> = ({
       <div className="flex-1 flex flex-col items-center justify-center p-12 animate-fadeIn bg-background border border-primary rounded-3xl">
         {/* Video Preview Card */}
         {videoMeta && (
-          <div className="flex items-start gap-4 p-3 rounded-xl border border-border">
+          <div className="flex items-start gap-4 p-3 rounded-xl border border-border mb-6">
             <div className="relative flex-shrink-0">
               <img
                 src={videoMeta.thumbnail}

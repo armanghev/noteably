@@ -175,7 +175,13 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
             )}
             {/* Quiz Difficulty */}
             {showQuizSettings && (
-              <div className="space-y-2">
+              <div
+                className={`space-y-2 ${
+                  showNotesSettings && !showSummarySettings
+                    ? "md:col-span-2"
+                    : ""
+                }`}
+              >
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-primary" />
                   <label className="text-sm font-medium">Quiz Difficulty</label>
@@ -198,29 +204,33 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
               </div>
             )}
             {/* Summary Length */}
-          {showSummarySettings && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <AlignLeft className="w-4 h-4 text-primary" />
-                <label className="text-sm font-medium">Summary Length</label>
+            {showSummarySettings && (
+              <div
+                className={`space-y-2 ${
+                  showNotesSettings !== showQuizSettings ? "md:col-span-2" : ""
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <AlignLeft className="w-4 h-4 text-primary" />
+                  <label className="text-sm font-medium">Summary Length</label>
+                </div>
+                <div className="flex bg-background rounded-lg p-1 border border-border">
+                  {["short", "medium", "detailed"].map((len) => (
+                    <button
+                      key={len}
+                      onClick={() => updateOption("summary_length", len)}
+                      className={`flex-1 text-sm py-1.5 rounded-md transition-all capitalize ${
+                        (options.summary_length || "medium") === len
+                          ? "bg-accent shadow-sm text-accent-foreground font-medium"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {len}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="flex bg-background rounded-lg p-1 border border-border">
-                {["short", "medium", "detailed"].map((len) => (
-                  <button
-                    key={len}
-                    onClick={() => updateOption("summary_length", len)}
-                    className={`flex-1 text-sm py-1.5 rounded-md transition-all capitalize ${
-                      (options.summary_length || "medium") === len
-                        ? "bg-accent shadow-sm text-accent-foreground font-medium"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {len}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+            )}
           </div>
         </div>
       )}
