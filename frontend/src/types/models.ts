@@ -22,9 +22,14 @@ export type MaterialType =
   | "quizzes";
 
 export interface JobOptions {
+  focus?: "general" | "exam" | "deep_dive" | "simple";
+  language?: string;
+  notes_style?: "standard" | "cornell" | "outline" | "qa";
+  summary_format?: "bullets" | "paragraphs";
   summary_length?: "short" | "medium" | "long";
   flashcard_count?: number;
   quiz_question_count?: number;
+  quiz_difficulty?: "easy" | "medium" | "hard";
   difficulty?: "easy" | "medium" | "hard";
   [key: string]: unknown;
 }

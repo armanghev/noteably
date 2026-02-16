@@ -1,6 +1,6 @@
 // Component prop types
 
-import type { MaterialType } from "./models";
+import type { JobOptions, MaterialType } from "./models";
 
 export interface FileUploadProps {
   file: File | null;
@@ -15,6 +15,8 @@ export interface FileUploadProps {
   onTypeToggle: (type: MaterialType) => void;
   onSubmit: () => void;
   getFileIcon: (fileType: string) => React.ReactNode;
+  options: JobOptions;
+  onOptionsChange: (options: JobOptions) => void;
 }
 
 export interface ProcessingProps {
