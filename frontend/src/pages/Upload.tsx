@@ -1,3 +1,7 @@
+import DropboxIcon from "@/assets/DropboxIcon";
+import GoogleDriveIcon from "@/assets/GoogleDriveIcon";
+import OneDriveIcon from "@/assets/OneDriveIcon";
+import YoutubeIcon from "@/assets/YoutubeIcon";
 import Layout from "@/components/layout/Layout";
 import { AdvancedSettings } from "@/components/shared/AdvancedSettings";
 import { Button } from "@/components/ui/button";
@@ -1128,11 +1132,7 @@ export default function Upload() {
             <div className="flex justify-center gap-8 opacity-60 hover:opacity-100 transition-opacity duration-500">
               {/* Google Drive */}
               <div className="flex items-center gap-2 group cursor-default">
-                <img
-                  src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg"
-                  alt="Google Drive"
-                  className="w-5 h-5 filter grayscale group-hover:grayscale-0 transition-all"
-                />
+                <GoogleDriveIcon className="w-5 h-5 filter grayscale group-hover:grayscale-0 transition-all" />
                 <span className="font-semibold text-muted-foreground group-hover:text-muted-foreground transition-colors">
                   Google Drive
                 </span>
@@ -1140,11 +1140,7 @@ export default function Upload() {
 
               {/* OneDrive */}
               <div className="flex items-center gap-2 group cursor-default">
-                <img
-                  src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Microsoft_OneDrive_Icon_%282025_-_present%29.svg"
-                  alt="OneDrive"
-                  className="w-5 h-5 filter grayscale group-hover:grayscale-0 transition-all"
-                />
+                <OneDriveIcon className="w-5 h-5 filter grayscale group-hover:grayscale-0 transition-all" />
                 <span className="font-semibold text-muted-foreground group-hover:text-muted-foreground transition-colors">
                   OneDrive
                 </span>
@@ -1152,13 +1148,17 @@ export default function Upload() {
 
               {/* Dropbox */}
               <div className="flex items-center gap-2 group cursor-default">
-                <img
-                  src="https://upload.wikimedia.org/wikipedia/commons/7/78/Dropbox_Icon.svg"
-                  alt="Dropbox"
-                  className="w-5 h-5 filter grayscale group-hover:grayscale-0 transition-all"
-                />
+                <DropboxIcon className="w-5 h-5 filter grayscale group-hover:grayscale-0 transition-all" />
                 <span className="font-semibold text-muted-foreground group-hover:text-muted-foreground transition-colors">
                   Dropbox
+                </span>
+              </div>
+
+              {/* YouTube */}
+              <div className="flex items-center gap-2 group cursor-default">
+                <YoutubeIcon className="w-5 h-5 filter grayscale group-hover:grayscale-0 transition-all" />
+                <span className="font-semibold text-muted-foreground group-hover:text-muted-foreground transition-colors">
+                  YouTube
                 </span>
               </div>
             </div>
