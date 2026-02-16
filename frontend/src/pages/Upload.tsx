@@ -720,7 +720,13 @@ export default function Upload() {
     "summary",
     "notes",
   ]);
-  const [jobOptions, setJobOptions] = useState<JobOptions>({});
+  const [jobOptions, setJobOptions] = useState<JobOptions>({
+    focus: "general",
+    language: "english",
+    notes_style: "standard",
+    quiz_difficulty: "medium",
+    summary_length: "medium",
+  });
 
   // Processing State
   const [jobId, setJobId] = useState<string | undefined>(undefined);
