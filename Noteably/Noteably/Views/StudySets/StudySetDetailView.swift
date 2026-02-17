@@ -93,7 +93,13 @@ struct StudySetDetailView: View {
 
     private var summaryTab: some View {
         VStack(alignment: .leading, spacing: 20) {
-            if viewModel.isLoading {
+            if viewModel.notes?.cornell != nil {
+                // Cornell notes embed the summary — show a note instead
+                Text("Summary is included in the Cornell Notes tab.")
+                    .font(.noteablyBody(15))
+                    .foregroundStyle(Color.noteablySecondaryText)
+                    .frame(maxWidth: .infinity, minHeight: 100)
+            } else if viewModel.isLoading {
                 ProgressView().frame(maxWidth: .infinity, minHeight: 200)
             } else if let summary = viewModel.summary {
                 // Title
@@ -147,7 +153,16 @@ struct StudySetDetailView: View {
     private var notesTab: some View {
         VStack(alignment: .leading, spacing: 16) {
             if let notes = viewModel.notes {
-                if let content = notes.content {
+                if let cornell = notes.cornell {
+                    CornellNotesView(
+                        data: cornell,
+                        summaryText: viewModel.summary?.summary
+                    )
+                } else if let qa = notes.qa {
+                    QANotesView(items: qa)
+                } else if let outline = notes.outline {
+                    OutlineNotesView(data: outline)
+                } else if let content = notes.content {
                     MarkdownView(text: content)
                         .textSelection(.enabled)
                 } else {

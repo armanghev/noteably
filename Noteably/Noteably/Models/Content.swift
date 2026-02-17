@@ -74,6 +74,13 @@ struct NotesContent: Codable {
     let cornell: CornellData?
     let qa: [QAData]?
     let outline: OutlineData?
+    
+    init(content: String? = nil, cornell: CornellData? = nil, qa: [QAData]? = nil, outline: OutlineData? = nil) {
+        self.content = content
+        self.cornell = cornell
+        self.qa = qa
+        self.outline = outline
+    }
 }
 
 struct CornellData: Codable {
