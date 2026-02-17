@@ -77,6 +77,7 @@ struct CornellNotesView: View {
                 )
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             GeometryReader { geo in
                 Color.clear
