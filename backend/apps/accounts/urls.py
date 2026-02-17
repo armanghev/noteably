@@ -9,6 +9,7 @@ urlpatterns = [
     path("login", views.login, name="login"),
     path("complete-profile", views.complete_profile, name="complete_profile"),
     path("me", views.get_user_profile, name="user_profile"),
+    path("me/delete", views.delete_account, name="delete_account"),
     path("subscription", views.get_subscription_status, name="subscription_status"),
     path("api-keys", views.list_api_keys, name="list_api_keys"),
     path("api-keys/create", views.create_api_key, name="create_api_key"),
