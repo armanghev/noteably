@@ -70,7 +70,61 @@ struct SummaryContent: Codable {
 // MARK: - Notes
 
 struct NotesContent: Codable {
-    let content: String
+    let content: String?
+    let cornell: CornellData?
+    let qa: [QAData]?
+    let outline: OutlineData?
+    
+    init(content: String? = nil, cornell: CornellData? = nil, qa: [QAData]? = nil, outline: OutlineData? = nil) {
+        self.content = content
+        self.cornell = cornell
+        self.qa = qa
+        self.outline = outline
+    }
+}
+
+struct CornellData: Codable {
+    let cues: [String]
+    let notes: [String]
+}
+
+struct QAData: Codable, Identifiable {
+    let question: String
+    let answer: String
+
+    var id: String { question }
+}
+
+struct OutlineData: Codable {
+    let title: String
+    let children: [OutlineNode]
+
+    private enum CodingKeys: String, CodingKey {
+        case title, children
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        title = try container.decode(String.self, forKey: .title)
+        children = (try? container.decodeIfPresent([OutlineNode].self, forKey: .children)) ?? []
+    }
+}
+
+struct OutlineNode: Codable, Identifiable {
+    let bullet: String
+    let children: [OutlineNode]
+
+    var id: String { bullet }
+
+    private enum CodingKeys: String, CodingKey {
+        case bullet, children
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        bullet = try container.decode(String.self, forKey: .bullet)
+        children = (try? container.decodeIfPresent([OutlineNode].self, forKey: .children)) ?? []
+    }
 }
 
 // MARK: - Flashcards

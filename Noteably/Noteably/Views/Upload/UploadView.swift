@@ -36,13 +36,20 @@ struct UploadView: View {
                         
                         if showUploadControls {
                             materialTypeSection
+                            
+                            AdvancedSettingsView(
+                                options: $viewModel.jobOptions,
+                                selectedTypes: viewModel.selectedMaterialTypes
+                            )
+                            .padding(.top, 8)
+                            
                             uploadButton
                         }
                     }
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
-                .padding(.bottom, 32)
+                .padding(.bottom, 64)
             }
             .background(Color.noteablyBackground)
             .navigationTitle("Upload")

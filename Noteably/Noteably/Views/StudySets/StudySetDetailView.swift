@@ -52,7 +52,7 @@ struct StudySetDetailView: View {
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.bottom, 32)
+                .padding(.bottom, 64)
             }
         }
         .background(Color.noteablyBackground)
@@ -147,8 +147,24 @@ struct StudySetDetailView: View {
     private var notesTab: some View {
         VStack(alignment: .leading, spacing: 16) {
             if let notes = viewModel.notes {
-                MarkdownView(text: notes.content)
-                    .textSelection(.enabled)
+                if let cornell = notes.cornell {
+                    CornellNotesView(
+                        data: cornell
+                    )
+                } else if let qa = notes.qa {
+                    QANotesView(items: qa)
+                } else if let outline = notes.outline {
+                    OutlineNotesView(data: outline)
+                } else if let content = notes.content {
+                    MarkdownView(text: content)
+                        .textSelection(.enabled)
+                } else {
+                    EmptyStateView(
+                        icon: "doc.text",
+                        title: "No notes",
+                        message: "Notes weren't generated for this study set."
+                    )
+                }
             } else {
                 EmptyStateView(
                     icon: "doc.text",

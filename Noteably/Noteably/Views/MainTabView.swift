@@ -23,9 +23,13 @@ struct MainTabView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .safeAreaInset(edge: .bottom) {
-            CustomTabBar(selectedTab: $selectedTab) {
-                selectedTab = 2
-            }
+            Color.clear
+                .frame(height: 100)
+                .overlay(alignment: .bottom) {
+                    CustomTabBar(selectedTab: $selectedTab) {
+                        selectedTab = 2
+                    }
+                }
         }
         .ignoresSafeArea(.keyboard)
     }

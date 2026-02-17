@@ -49,6 +49,16 @@ final class UploadViewModel {
     var errorMessage: String?
     var isComplete = false
     var navigateToJobId: String? = nil
+    
+    // Custom options
+    var jobOptions = JobOptions(
+        focus: "general",
+        language: "english",
+        notesStyle: "standard",
+        summaryLength: "medium",
+        quizDifficulty: "medium",
+        difficulty: "medium"
+    )
 
     private let jobsService = JobsService.shared
     private var wsService: WebSocketService?
@@ -108,7 +118,8 @@ final class UploadViewModel {
                     fileData: data,
                     fileName: name,
                     mimeType: mime,
-                    materialTypes: selectedMaterialTypes
+                    materialTypes: selectedMaterialTypes,
+                    options: jobOptions
                 )
             } else {
                 guard !youtubeUrl.isEmpty else {
@@ -118,7 +129,8 @@ final class UploadViewModel {
                 
                 response = try await jobsService.processYoutube(
                     url: youtubeUrl,
-                    materialTypes: selectedMaterialTypes
+                    materialTypes: selectedMaterialTypes,
+                    options: jobOptions
                 )
             }
             
@@ -222,6 +234,14 @@ final class UploadViewModel {
         errorMessage = nil
         isComplete = false
         navigateToJobId = nil
+        jobOptions = JobOptions(
+            focus: "general",
+            language: "english",
+            notesStyle: "standard",
+            summaryLength: "medium",
+            quizDifficulty: "medium",
+            difficulty: "medium"
+        )
     }
 
     // MARK: - Mime Type Helpers

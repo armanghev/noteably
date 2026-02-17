@@ -1,4 +1,9 @@
+import DropboxIcon from "@/assets/DropboxIcon";
+import GoogleDriveIcon from "@/assets/GoogleDriveIcon";
+import OneDriveIcon from "@/assets/OneDriveIcon";
+import YoutubeIcon from "@/assets/YoutubeIcon";
 import Layout from "@/components/layout/Layout";
+import { AdvancedSettings } from "@/components/shared/AdvancedSettings";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useWebSocket } from "@/contexts/WebSocketContext";
@@ -13,6 +18,7 @@ import {
 import { jobsService } from "@/lib/api/services/jobs";
 import type {
   FileUploadProps,
+  JobOptions,
   MaterialType,
   ProcessingProps,
   ProcessUploadResponse,
@@ -97,6 +103,8 @@ interface YouTubeInputProps {
   onTypeToggle: (type: MaterialType) => void;
   videoMeta: VideoMeta | null;
   onVideoMetaChange: (meta: VideoMeta | null) => void;
+  options: JobOptions;
+  onOptionsChange: (options: JobOptions) => void;
 }
 
 function extractVideoId(url: string): string | null {
@@ -120,6 +128,8 @@ const YouTubeInput: React.FC<YouTubeInputProps> = ({
   onTypeToggle,
   videoMeta,
   onVideoMetaChange,
+  options,
+  onOptionsChange,
 }) => {
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -181,7 +191,7 @@ const YouTubeInput: React.FC<YouTubeInputProps> = ({
       <div className="flex-1 flex flex-col items-center justify-center p-12 animate-fadeIn bg-background border border-primary rounded-3xl">
         {/* Video Preview Card */}
         {videoMeta && (
-          <div className="flex items-start gap-4 p-3 rounded-xl border border-border">
+          <div className="flex items-start gap-4 p-3 rounded-xl border border-border mb-6">
             <div className="relative flex-shrink-0">
               <img
                 src={videoMeta.thumbnail}
@@ -264,6 +274,13 @@ const YouTubeInput: React.FC<YouTubeInputProps> = ({
             </p>
           )}
         </div>
+
+        <AdvancedSettings
+          options={options}
+          onChange={onOptionsChange}
+          disabled={isLoading}
+          selectedTypes={selectedTypes}
+        />
 
         {/* Actions */}
         <div className="flex gap-4">
@@ -382,6 +399,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
   error,
   selectedTypes,
   onTypeToggle,
+  options,
+  onOptionsChange,
 }) => {
   return (
     <div className="flex-1 flex flex-col">
@@ -458,6 +477,12 @@ const FileUpload: React.FC<FileUploadProps> = ({
             )}
           </div>
 
+          <AdvancedSettings
+            options={options}
+            onChange={onOptionsChange}
+            selectedTypes={selectedTypes}
+          />
+
           <div className="flex gap-4">
             <Button
               variant="outline"
@@ -472,10 +497,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
               className="px-8 py-6 rounded-xl border bg-primary text-background hover:bg-background hover:text-primary hover:border-primary font-medium shadow-lg shadow-primary/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Wand2 className="w-4 h-4" />
-              Generate{" "}
-              {selectedTypes.length > 0
-                ? `(${selectedTypes.length})`
-                : "Materials"}
+              Generate
             </Button>
           </div>
         </div>
@@ -702,6 +724,13 @@ export default function Upload() {
     "summary",
     "notes",
   ]);
+  const [jobOptions, setJobOptions] = useState<JobOptions>({
+    focus: "general",
+    language: "english",
+    notes_style: "standard",
+    quiz_difficulty: "medium",
+    summary_length: "medium",
+  });
 
   // Processing State
   const [jobId, setJobId] = useState<string | undefined>(undefined);
@@ -940,11 +969,13 @@ export default function Upload() {
         response = await processUploadMutation.mutateAsync({
           file,
           materialTypes: selectedTypes,
+          options: jobOptions,
         });
       } else if (inputMode === "youtube" && youtubeUrl) {
         response = await processYoutubeMutation.mutateAsync({
           url: youtubeUrl,
           materialTypes: selectedTypes,
+          options: jobOptions,
         });
       }
 
@@ -1057,6 +1088,8 @@ export default function Upload() {
                 onTypeToggle={handleTypeToggle}
                 videoMeta={videoMeta}
                 onVideoMetaChange={setVideoMeta}
+                options={jobOptions}
+                onOptionsChange={setJobOptions}
               />
             ) : (
               <FileUpload
@@ -1072,6 +1105,8 @@ export default function Upload() {
                 error={error}
                 selectedTypes={selectedTypes}
                 onTypeToggle={handleTypeToggle}
+                options={jobOptions}
+                onOptionsChange={setJobOptions}
               />
             )
           ) : (
@@ -1097,11 +1132,7 @@ export default function Upload() {
             <div className="flex justify-center gap-8 opacity-60 hover:opacity-100 transition-opacity duration-500">
               {/* Google Drive */}
               <div className="flex items-center gap-2 group cursor-default">
-                <img
-                  src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg"
-                  alt="Google Drive"
-                  className="w-5 h-5 filter grayscale group-hover:grayscale-0 transition-all"
-                />
+                <GoogleDriveIcon className="w-5 h-5 filter grayscale group-hover:grayscale-0 transition-all" />
                 <span className="font-semibold text-muted-foreground group-hover:text-muted-foreground transition-colors">
                   Google Drive
                 </span>
@@ -1109,11 +1140,7 @@ export default function Upload() {
 
               {/* OneDrive */}
               <div className="flex items-center gap-2 group cursor-default">
-                <img
-                  src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Microsoft_OneDrive_Icon_%282025_-_present%29.svg"
-                  alt="OneDrive"
-                  className="w-5 h-5 filter grayscale group-hover:grayscale-0 transition-all"
-                />
+                <OneDriveIcon className="w-5 h-5 filter grayscale group-hover:grayscale-0 transition-all" />
                 <span className="font-semibold text-muted-foreground group-hover:text-muted-foreground transition-colors">
                   OneDrive
                 </span>
@@ -1121,13 +1148,17 @@ export default function Upload() {
 
               {/* Dropbox */}
               <div className="flex items-center gap-2 group cursor-default">
-                <img
-                  src="https://upload.wikimedia.org/wikipedia/commons/7/78/Dropbox_Icon.svg"
-                  alt="Dropbox"
-                  className="w-5 h-5 filter grayscale group-hover:grayscale-0 transition-all"
-                />
+                <DropboxIcon className="w-5 h-5 filter grayscale group-hover:grayscale-0 transition-all" />
                 <span className="font-semibold text-muted-foreground group-hover:text-muted-foreground transition-colors">
                   Dropbox
+                </span>
+              </div>
+
+              {/* YouTube */}
+              <div className="flex items-center gap-2 group cursor-default">
+                <YoutubeIcon className="w-5 h-5 filter grayscale group-hover:grayscale-0 transition-all" />
+                <span className="font-semibold text-muted-foreground group-hover:text-muted-foreground transition-colors">
+                  YouTube
                 </span>
               </div>
             </div>

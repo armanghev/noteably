@@ -44,7 +44,7 @@ class Job(models.Model):
     options = models.JSONField(
         default=dict,
         blank=True,
-        help_text="Optional parameters like summary_length, flashcard_count, etc.",
+        help_text="Optional parameters like summary_length, focus, etc.",
     )
 
     # Processing status

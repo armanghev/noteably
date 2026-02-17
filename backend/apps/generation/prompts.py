@@ -1,13 +1,49 @@
-def get_prompt_for_type(type: str, text: str) -> str:
+def get_prompt_for_type(type: str, text: str, options: dict = None) -> str:
+    options = options or {}
+    language = options.get("language", "english")
+    focus = options.get("focus", "general")
+
     base_instruction = (
-        "You are an expert tutor creating study materials from a lecture transcript."
+        f"You are an expert tutor creating study materials from a lecture transcript. "
+        f"Output MUST be in {language}."
     )
 
+    if focus == "exam":
+        base_instruction += " Focus strictly on definitions, dates, formulas, and key concepts likely to appear on an exam."
+    elif focus == "deep_dive":
+        base_instruction += " Explore complex mechanisms, underlying logic, and 'why' it works. Go beyond the basics."
+    elif focus == "simple":
+        base_instruction += " Simplify complex terms. Use analogies. Explain like I'm 5 (ELI5)."
+
     if type == "summary":
+        format_instr = "Structure it as coherent paragraphs."
+
+        length_instr = ""
+        length_opt = options.get("summary_length", "medium")
+
+        if length_opt == "short":
+            length_instr = (
+                "Keep the summary extremely concise (max 80 words). "
+                "Provide ONLY the core thesis and top 3 key facts. "
+                "Skip the introduction and fluff."
+            )
+        elif length_opt == "detailed":
+            length_instr = (
+                "Provide a comprehensive summary (aim for 300-400 words). "
+                "Cover the content thoroughly, including key details and examples. "
+                "Structure it clearly and avoid repetition."
+            )
+        else:
+            length_instr = (
+                "Provide a balanced summary (approx. 150-250 words). "
+                "Cover the main points and key supporting details, but avoid excessive minutiae."
+            )
+
         return f"""{base_instruction}
 Create a concise summary of the following text.
 Focus on the main concepts and key takeaways.
-Structure it with bullet points.
+{format_instr}
+{length_instr}
 
 Return your response in JSON format:
 {{
@@ -21,10 +57,14 @@ Text:
 """
 
     elif type == "notes":
-        return f"""{base_instruction}
+        style = options.get("notes_style", "standard")
+        
+        if style == "standard":
+            style_instr = "- Use clear headings and bullet points."
+            return f"""{base_instruction}
 Create a comprehensive Study Guide from the following text.
 Do NOT just reproduce the text. Synthesize the information into a format optimized for studying.
-- Use clear headings and bullet points.
+{style_instr}
 - Highlight Key Terms and important definitions.
 - Group related concepts together.
 - Add "Key Takeaways" sections to summarize major topics.
@@ -34,10 +74,85 @@ Format the output as clean Markdown. Do NOT wrap it in JSON.
 Text:
 {text}
 """
+        elif style == "cornell":
+            return f"""{base_instruction}
+Create Cornell Notes from the following text.
+Structure the notes with clear cues/questions on the left (conceptually) and detailed notes on the right.
+
+Return your response in JSON format:
+{{
+    "cornell": {{
+        "cues": ["Cue 1", "Question 2"],
+        "notes": ["Note corresponding to cue 1...", "Note corresponding to question 2..."]
+    }}
+}}
+Ensure the "cues" and "notes" arrays strictly align by index (e.g., cues[0] corresponds to notes[0]).
+
+Text:
+{text}
+"""
+        elif style == "outline":
+            return f"""{base_instruction}
+Create a Hierarchical Outline from the following text.
+Use a strict nested structure.
+
+Return your response in JSON format:
+{{
+    "outline": {{
+        "title": "Main Topic",
+        "children": [
+            {{
+                "bullet": "I. First Major Point",
+                "children": [
+                    {{
+                        "bullet": "A. Sub-point",
+                        "children": []
+                    }}
+                ]
+            }}
+        ]
+    }}
+}}
+
+Text:
+{text}
+"""
+        elif style == "qa":
+            return f"""{base_instruction}
+Create a Q&A Study Guide from the following text.
+Cover all major concepts as Question & Answer pairs.
+
+Return your response in JSON format:
+{{
+    "qa": [
+        {{
+            "question": "What is...?",
+            "answer": "It is..."
+        }}
+    ]
+}}
+
+Text:
+{text}
+"""
+        else:
+             # Fallback to standard
+             return f"""{base_instruction}
+Create a comprehensive Study Guide from the following text.
+Format the output as clean Markdown.
+
+Text:
+{text}
+"""
 
     elif type == "flashcards":
+        # Calculate number of cards based on transcript length
+        # Roughly 1 card per 80 words, with min 5 and max 40
+        word_count = len(text.split())
+        num_cards = max(5, min(40, round(word_count / 80)))
+
         return f"""{base_instruction}
-Create 10-15 flashcards from the key concepts in the text.
+Create {num_cards} flashcards from the key concepts in the text.
 Each flashcard should have a 'front' (question/concept) and 'back' (answer/definition).
 
 Return your response in JSON format:
@@ -52,6 +167,8 @@ Text:
 """
 
     elif type in ["quiz", "quizzes"]:
+        difficulty = options.get("quiz_difficulty", "medium")
+        
         # Calculate number of questions based on transcript length
         # Roughly 1 question per 100 words, with min 3 and max 15
         word_count = len(text.split())
@@ -59,6 +176,7 @@ Text:
 
         return f"""{base_instruction}
 Create a {num_questions}-question multiple choice quiz based on the text.
+Difficulty Level: {difficulty.upper()}.
 Include the correct answer index (0-3).
 
 Return your response in JSON format:

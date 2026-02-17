@@ -32,15 +32,14 @@ struct CustomTabBar: View {
                 ZStack {
                     Circle()
                         .fill(Color.noteablyPrimary)
-                        .frame(width: 75, height: 75)
+                        .frame(width: 56, height: 56)
                         .shadow(color: Color.noteablyPrimary.opacity(0.3), radius: 10, x: 0, y: 5)
                     
                     Image(systemName: "plus")
-                        .font(.system(size: 36, weight: .semibold))
+                        .font(.system(size: 24, weight: .semibold))
                         .foregroundStyle(Color.noteablyBackground)
                 }
             }
-            .offset(y: -24)
             
             Spacer()
             
@@ -63,7 +62,8 @@ struct CustomTabBar: View {
             )
         }
         .padding(.horizontal, 24)
-        .padding(.top, 12)
+        .padding(.top, 8)
+        .padding(.bottom, -12)
         .background(
             Color.noteablyBackground
                 .ignoresSafeArea(edges: .bottom)

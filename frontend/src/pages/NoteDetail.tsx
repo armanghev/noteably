@@ -1,6 +1,13 @@
-import { ASSISTANT_PANEL_WIDTH, AssistantPanel, AssistantTriggerButton } from '@/components/assistant/AssistantPanel';
+import {
+  ASSISTANT_PANEL_WIDTH,
+  AssistantPanel,
+  AssistantTriggerButton,
+} from "@/components/assistant/AssistantPanel";
 import { ExportButton } from "@/components/export/ExportButton";
 import Layout from "@/components/layout/Layout";
+import { CornellNotes } from "@/components/shared/CornellNotes";
+import { OutlineNotes } from "@/components/shared/OutlineNotes";
+import { QANotes } from "@/components/shared/QANotes";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { JsonDisplay } from "@/components/ui/json-display";
@@ -253,6 +260,9 @@ export default function NoteDetail() {
   // Extract and type content properly
   const summaryContent = getSummaryContent(job);
   const notesContent = getNotesContent(job);
+  console.log("NoteDetail - Job ID:", id);
+  console.log("NoteDetail - Notes Content:", notesContent);
+  console.log("NoteDetail - Job Options:", job.options);
 
   // Parse content for display
   const summaryText = summaryContent?.summary || "No summary available.";
@@ -266,7 +276,9 @@ export default function NoteDetail() {
 
   return (
     <Layout>
-      <div className={`transition-all duration-300 ease-in-out ${isAssistantOpen ? 'layout-squeeze' : ''}`}>
+      <div
+        className={`transition-all duration-300 ease-in-out ${isAssistantOpen ? "layout-squeeze" : ""}`}
+      >
         <style>{`
           @media (min-width: 768px) {
             .layout-squeeze {
@@ -275,146 +287,165 @@ export default function NoteDetail() {
           }
         `}</style>
         <div className="max-w-7xl mx-auto">
-        <Button
-          variant="ghost"
-          onClick={handleBack}
-          className="flex items-center text-muted-foreground hover:text-primary transition-colors mb-6 pl-0 hover:bg-transparent"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          {backLabel}
-        </Button>
+          <Button
+            variant="ghost"
+            onClick={handleBack}
+            className="flex items-center text-muted-foreground hover:text-primary transition-colors mb-6 pl-0 hover:bg-transparent"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            {backLabel}
+          </Button>
 
-        <header className="mb-8">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <div className="flex gap-2 mb-3">
-                <span className="text-xs font-medium px-2 py-1 bg-primary/10 text-primary rounded-md">
-                  {formatFileType(job.file_type)}
-                </span>
-                <span className="text-xs px-2 py-1 bg-muted text-muted-foreground rounded-md">
-                  {new Date(job.created_at).toLocaleDateString()}
-                </span>
+          <header className="mb-8">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <div className="flex gap-2 mb-3">
+                  <span className="text-xs font-medium px-2 py-1 bg-primary/10 text-primary rounded-md">
+                    {formatFileType(job.file_type)}
+                  </span>
+                  <span className="text-xs px-2 py-1 bg-muted text-muted-foreground rounded-md">
+                    {new Date(job.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+                <h1 className="text-4xl font-serif text-foreground mb-2">
+                  {generatedTitle || job.filename}
+                </h1>
               </div>
-              <h1 className="text-4xl font-serif text-foreground mb-2">
-                {generatedTitle || job.filename}
-              </h1>
+              <div className="flex gap-2">
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="text-muted-foreground hover:text-primary rounded-full hover:bg-muted"
+                >
+                  <Share2 className="w-5 h-5" />
+                </Button>
+                <ExportButton
+                  jobId={job.id}
+                  materialTypes={job.material_types}
+                  disabled={job.status !== "completed"}
+                />
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button
-                size="icon"
-                variant="outline"
-                className="text-muted-foreground hover:text-primary rounded-full hover:bg-muted"
-              >
-                <Share2 className="w-5 h-5" />
-              </Button>
-              <ExportButton
-                jobId={job.id}
-                materialTypes={job.material_types}
-                disabled={job.status !== "completed"}
-              />
-            </div>
-          </div>
 
-          {/* Audio Player Placeholder - Only show if audio? */}
-          {/* <div className="p-4 rounded-xl border border-border flex items-end gap-4 bg-background"> ... </div> */}
-        </header>
+            {/* Audio Player Placeholder - Only show if audio? */}
+            {/* <div className="p-4 rounded-xl border border-border flex items-end gap-4 bg-background"> ... </div> */}
+          </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Main Content (Left 3 cols) */}
-          <div className="lg:col-span-3 space-y-8">
-            <Card
-              id="summary"
-              className="p-8 shadow-sm bg-background border border-border scroll-mt-24"
-            >
-              <div className="flex items-center gap-2 mb-6">
-                <BookOpen className="w-5 h-5 text-primary" />
-                <h2 className="text-xl font-medium text-foreground">Summary</h2>
-              </div>
-              <div className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                {summaryText}
-              </div>
-            </Card>
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            {/* Main Content (Left 3 cols) */}
+            <div className="lg:col-span-3 space-y-8">
+              {!notesContent?.cornell && (
+                <Card
+                  id="summary"
+                  className="p-8 shadow-sm bg-background border border-border scroll-mt-24"
+                >
+                  <div className="flex items-center gap-2 mb-6">
+                    <BookOpen className="w-5 h-5 text-primary" />
+                    <h2 className="text-xl font-medium text-foreground">
+                      Summary
+                    </h2>
+                  </div>
+                  <div className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                    {summaryText}
+                  </div>
+                </Card>
+              )}
 
-            {/* Study Notes Markdown Display */}
-            {studyNotesMarkdown && (
+              {/* Study Notes Markdown Display */}
+              {/* Study Notes Display */}
+              {(studyNotesMarkdown ||
+                notesContent?.cornell ||
+                notesContent?.qa ||
+                notesContent?.outline) && (
+                <Card
+                  id="notes"
+                  className="p-8 shadow-sm bg-background border border-border scroll-mt-24"
+                >
+                  <div className="flex items-center gap-2 mb-6">
+                    <BookOpen className="w-5 h-5 text-primary" />
+                    <h2 className="text-xl font-medium text-foreground">
+                      Study Notes
+                    </h2>
+                  </div>
+                  <div
+                    id="study-notes-content"
+                    className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary"
+                  >
+                    {notesContent?.cornell ? (
+                      <CornellNotes
+                        data={notesContent.cornell}
+                        summary={summaryText}
+                      />
+                    ) : notesContent?.qa ? (
+                      <QANotes data={notesContent.qa} />
+                    ) : notesContent?.outline ? (
+                      <OutlineNotes data={notesContent.outline} />
+                    ) : (
+                      <ReactMarkdown>{studyNotesMarkdown}</ReactMarkdown>
+                    )}
+                  </div>
+                </Card>
+              )}
+
+              {/* Transcript Display */}
               <Card
-                id="notes"
+                id="transcript"
                 className="p-8 shadow-sm bg-background border border-border scroll-mt-24"
               >
                 <div className="flex items-center gap-2 mb-6">
-                  <BookOpen className="w-5 h-5 text-primary" />
+                  <FileText className="w-5 h-5 text-primary" />
                   <h2 className="text-xl font-medium text-foreground">
-                    Study Notes
+                    Transcript
                   </h2>
                 </div>
-                <div
-                  id="study-notes-content"
-                  className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary"
-                >
-                  <ReactMarkdown>{studyNotesMarkdown}</ReactMarkdown>
+                <div className="max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                  {transcriptText ? (
+                    <div
+                      id="transcript-content"
+                      className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary leading-relaxed"
+                    >
+                      <ReactMarkdown>{transcriptText}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">
+                      No transcript available.
+                    </p>
+                  )}
                 </div>
               </Card>
-            )}
+            </div>
 
-            {/* Transcript Display */}
-            <Card
-              id="transcript"
-              className="p-8 shadow-sm bg-background border border-border scroll-mt-24"
-            >
-              <div className="flex items-center gap-2 mb-6">
-                <FileText className="w-5 h-5 text-primary" />
-                <h2 className="text-xl font-medium text-foreground">
-                  Transcript
-                </h2>
+            {/* Sidebar Navigation */}
+            <div className="space-y-6">
+              <div className="sticky top-24">
+                <p className="font-medium text-foreground mb-4 pl-4">
+                  On this page
+                </p>
+                <nav className="flex flex-col space-y-1">
+                  {["Summary", "Notes", "Transcript"].map((item) => (
+                    <a
+                      key={item}
+                      href={`#${item.toLowerCase()}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        document
+                          .getElementById(item.toLowerCase())
+                          ?.scrollIntoView({ behavior: "smooth" });
+                        setActiveSection(item.toLowerCase());
+                      }}
+                      className={`px-4 py-2 text-sm rounded-md transition-colors text-left block ${
+                        activeSection === item.toLowerCase()
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "text-muted-foreground hover:text-primary hover:bg-muted/50"
+                      }`}
+                    >
+                      {item}
+                    </a>
+                  ))}
+                </nav>
               </div>
-              <div className="max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                {transcriptText ? (
-                  <div
-                    id="transcript-content"
-                    className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary leading-relaxed"
-                  >
-                    <ReactMarkdown>{transcriptText}</ReactMarkdown>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">
-                    No transcript available.
-                  </p>
-                )}
-              </div>
-            </Card>
-          </div>
-
-          {/* Sidebar Navigation */}
-          <div className="space-y-6">
-            <div className="sticky top-24">
-              <p className="font-medium text-foreground mb-4 pl-4">
-                On this page
-              </p>
-              <nav className="flex flex-col space-y-1">
-                {["Summary", "Notes", "Transcript"].map((item) => (
-                  <a
-                    key={item}
-                    href={`#${item.toLowerCase()}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      document
-                        .getElementById(item.toLowerCase())
-                        ?.scrollIntoView({ behavior: "smooth" });
-                      setActiveSection(item.toLowerCase());
-                    }}
-                    className={`px-4 py-2 text-sm rounded-md transition-colors text-left block ${
-                      activeSection === item.toLowerCase()
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "text-muted-foreground hover:text-primary hover:bg-muted/50"
-                    }`}
-                  >
-                    {item}
-                  </a>
-                ))}
-              </nav>
             </div>
           </div>
-        </div>
         </div>
       </div>
       {id && (

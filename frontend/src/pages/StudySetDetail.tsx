@@ -5,7 +5,10 @@ import {
 } from "@/components/assistant/AssistantPanel";
 import { ExportButton } from "@/components/export/ExportButton";
 import Layout from "@/components/layout/Layout";
+import { CornellNotes } from "@/components/shared/CornellNotes";
 import { DeleteConfirmationDialog } from "@/components/shared/DeleteConfirmationDialog";
+import { OutlineNotes } from "@/components/shared/OutlineNotes";
+import { QANotes } from "@/components/shared/QANotes";
 import { AudioPlayer } from "@/components/ui/audio-player";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -59,7 +62,7 @@ import {
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import { useNavigate, useParams } from "react-router-dom";
@@ -111,7 +114,10 @@ export default function StudySetDetail() {
     defaultLabel: "Back to Study Sets",
   });
 
-  // Determine default tab based on available content
+  const [activeTab, setActiveTab] = useState("summary-notes");
+
+  // Update active tab when job data loads
+  // Determine available content
   const hasSummaryOrNotes =
     job?.material_types?.some(
       (t: MaterialType) => t === "summary" || t === "notes",
@@ -124,16 +130,32 @@ export default function StudySetDetail() {
     ) ?? false;
   const hasSourceFile = !!job?.storage_url;
 
-  const defaultTab = hasSummaryOrNotes
-    ? "summary-notes"
-    : hasFlashcards
-      ? "flashcards"
-      : hasQuiz
-        ? "quiz"
-        : hasSourceFile
-          ? "source"
-          : "summary-notes";
-  const [activeTab, setActiveTab] = useState(defaultTab);
+  // Update active tab when job data loads
+  useEffect(() => {
+    if (!job) return;
+
+    // Only change tab if current active tab is invalid for the new data
+    // OR if we are on the default loading state
+    const currentTabIsValid =
+      (activeTab === "summary-notes" && hasSummaryOrNotes) ||
+      (activeTab === "flashcards" && hasFlashcards) ||
+      (activeTab === "quiz" && hasQuiz) ||
+      (activeTab === "source" && hasSourceFile);
+
+    if (!currentTabIsValid) {
+      if (hasSummaryOrNotes) setActiveTab("summary-notes");
+      else if (hasFlashcards) setActiveTab("flashcards");
+      else if (hasQuiz) setActiveTab("quiz");
+      else if (hasSourceFile) setActiveTab("source");
+    }
+  }, [
+    job,
+    activeTab,
+    hasSummaryOrNotes,
+    hasFlashcards,
+    hasQuiz,
+    hasSourceFile,
+  ]);
 
   // Video player is now handled by VideoPlayer component
 
@@ -340,7 +362,11 @@ export default function StudySetDetail() {
       }
 
       // Default pre rendering
-      return <pre {...props}>{children}</pre>;
+      return (
+        <pre className="overflow-x-auto max-w-full" {...props}>
+          {children}
+        </pre>
+      );
     },
   };
 
@@ -557,6 +583,9 @@ export default function StudySetDetail() {
             <header className="mb-8">
               <div className="flex justify-between items-start mb-4">
                 <div>
+                  <h1 className="text-4xl font-serif text-foreground mb-2">
+                    {generatedTitle}
+                  </h1>
                   <div className="flex gap-2 mb-3">
                     <span className="text-xs font-medium px-2 py-1 bg-primary/10 text-primary rounded-md">
                       {formatFileType(job.file_type)}
@@ -565,9 +594,6 @@ export default function StudySetDetail() {
                       {new Date(job.created_at).toLocaleDateString()}
                     </span>
                   </div>
-                  <h1 className="text-4xl font-serif text-foreground mb-2">
-                    {generatedTitle}
-                  </h1>
                 </div>
                 <div className="flex gap-2 items-center">
                   <ExportButton
@@ -610,20 +636,25 @@ export default function StudySetDetail() {
             {hasSummaryOrNotes && (
               <TabsContent value="summary-notes" className="space-y-8">
                 {/* Summary */}
-                <Card className="p-8 shadow-sm bg-background border border-border">
-                  <div className="flex items-center gap-2 mb-6">
-                    <ScrollText className="w-5 h-5 text-primary" />
-                    <h2 className="text-xl font-medium text-foreground">
-                      Summary
-                    </h2>
-                  </div>
-                  <div className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                    {summaryText}
-                  </div>
-                </Card>
+                {!notesContent?.cornell && (
+                  <Card className="p-8 shadow-sm bg-background border border-border">
+                    <div className="flex items-center gap-2 mb-6">
+                      <ScrollText className="w-5 h-5 text-primary" />
+                      <h2 className="text-xl font-medium text-foreground">
+                        Summary
+                      </h2>
+                    </div>
+                    <div className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                      {summaryText}
+                    </div>
+                  </Card>
+                )}
 
                 {/* Study Notes */}
-                {studyNotesMarkdown && (
+                {(studyNotesMarkdown ||
+                  notesContent?.cornell ||
+                  notesContent?.qa ||
+                  notesContent?.outline) && (
                   <Card className="p-8 shadow-sm bg-background border border-border">
                     <div className="flex items-center gap-2 mb-6">
                       <StickyNote className="w-5 h-5 text-primary" />
@@ -631,10 +662,21 @@ export default function StudySetDetail() {
                         Study Notes
                       </h2>
                     </div>
-                    <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary">
-                      <ReactMarkdown components={markdownComponents}>
-                        {studyNotesMarkdown}
-                      </ReactMarkdown>
+                    <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary break-words">
+                      {notesContent?.cornell ? (
+                        <CornellNotes
+                          data={notesContent.cornell}
+                          summary={summaryText}
+                        />
+                      ) : notesContent?.qa ? (
+                        <QANotes data={notesContent.qa} />
+                      ) : notesContent?.outline ? (
+                        <OutlineNotes data={notesContent.outline} />
+                      ) : (
+                        <ReactMarkdown components={markdownComponents}>
+                          {studyNotesMarkdown}
+                        </ReactMarkdown>
+                      )}
                     </div>
                   </Card>
                 )}

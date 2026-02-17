@@ -68,7 +68,7 @@ struct DashboardView: View {
                         recentActivitySection
                     }
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 32)
+                    .padding(.bottom, 64)
                 }
             }
             .background(Color.noteablyBackground)
@@ -200,7 +200,6 @@ struct DashboardView: View {
                     .foregroundStyle(Color.noteablyForeground)
                     .lineLimit(1)
 
-                StatusBadge(status: job.status)
             }
 
             Spacer()

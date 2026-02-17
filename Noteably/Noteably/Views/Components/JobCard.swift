@@ -17,10 +17,12 @@ struct JobCard: View {
                     )
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(job.filename)
-                        .font(.noteablyBody(15, weight: .semibold))
-                        .foregroundStyle(Color.noteablyForeground)
-                        .lineLimit(1)
+                    if let title = job.summaryTitle {
+                        Text(title)
+                            .font(.noteablyBody(14, weight: .medium))
+                            .foregroundStyle(Color.noteablyForeground)
+                            .lineLimit(1)
+                    }
 
                     Text(formattedDate)
                         .font(.noteablyBody(12))
@@ -28,16 +30,7 @@ struct JobCard: View {
                 }
 
                 Spacer()
-
-                StatusBadge(status: job.status)
-            }
-
-            // Title preview
-            if let title = job.summaryTitle {
-                Text(title)
-                    .font(.noteablyBody(14, weight: .medium))
-                    .foregroundStyle(Color.noteablyForeground)
-                    .lineLimit(1)
+                
             }
 
             // Preview text
@@ -108,49 +101,6 @@ struct JobCard: View {
     }
 }
 
-// MARK: - Status Badge
-
-struct StatusBadge: View {
-    let status: JobStatus
-
-    var body: some View {
-        HStack(spacing: 4) {
-            if status.isProcessing {
-                ProgressView()
-                    .scaleEffect(0.6)
-                    .frame(width: 12, height: 12)
-            }
-            Text(status.displayName)
-                .font(.noteablyBody(11, weight: .medium))
-        }
-        .foregroundStyle(foregroundColor)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(
-            Capsule()
-                .fill(backgroundColor)
-        )
-    }
-
-    private var foregroundColor: Color {
-        switch status {
-        case .completed: return Color.noteablyPrimary
-        case .failed: return Color.noteablyDestructive
-        case .cancelled: return Color.noteablySecondaryText
-        default: return Color.noteablyAccent
-        }
-    }
-
-    private var backgroundColor: Color {
-        switch status {
-        case .completed: return Color.noteablyPrimary.opacity(0.12)
-        case .failed: return Color.noteablyDestructive.opacity(0.10)
-        case .cancelled: return Color.noteablySecondaryText.opacity(0.10)
-        default: return Color.noteablyAccent.opacity(0.12)
-        }
-    }
-}
-
 // MARK: - Material Type Chip
 
 struct MaterialTypeChip: View {
@@ -189,8 +139,6 @@ struct MaterialTypeChip: View {
 #Preview {
     VStack {
         JobCard(job: MockData.jobListItemCompleted)
-        JobCard(job: MockData.jobListItemProcessing)
-        JobCard(job: MockData.jobListItemFailed)
     }
     .padding()
     .background(Color.noteablyBackground)
