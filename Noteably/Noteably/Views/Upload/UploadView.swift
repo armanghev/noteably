@@ -36,6 +36,13 @@ struct UploadView: View {
                         
                         if showUploadControls {
                             materialTypeSection
+                            
+                            AdvancedSettingsView(
+                                options: $viewModel.jobOptions,
+                                selectedTypes: viewModel.selectedMaterialTypes
+                            )
+                            .padding(.top, 8)
+                            
                             uploadButton
                         }
                     }

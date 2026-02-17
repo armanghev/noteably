@@ -52,13 +52,21 @@ enum JobStatus: String, Codable, CaseIterable {
 // MARK: - Job Options
 
 struct JobOptions: Codable {
+    var focus: String?
+    var language: String?
+    var notesStyle: String?
     var summaryLength: String?
     var quizQuestionCount: Int?
-    var difficulty: String?
+    var quizDifficulty: String?
+    var difficulty: String? // Keep for backwards compatibility if needed, but quizDifficulty is preferred
 
     enum CodingKeys: String, CodingKey {
+        case focus
+        case language
+        case notesStyle = "notes_style"
         case summaryLength = "summary_length"
         case quizQuestionCount = "quiz_question_count"
+        case quizDifficulty = "quiz_difficulty"
         case difficulty
     }
 }

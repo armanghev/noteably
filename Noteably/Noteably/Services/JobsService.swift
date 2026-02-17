@@ -43,13 +43,25 @@ final class JobsService {
         materialTypes: [String],
         options: JobOptions? = nil
     ) async throws -> ProcessUploadResponse {
+        var materialTypesString = ""
+        if let data = try? JSONEncoder().encode(materialTypes),
+           let string = String(data: data, encoding: .utf8) {
+            materialTypesString = string
+        } else {
+            materialTypesString = "[\"\(materialTypes.joined(separator: "\",\""))\"]"
+        }
+
         var fields: [String: String] = [
-            "material_types": materialTypes.joined(separator: ",")
+            "material_types": materialTypesString
         ]
+        
         if let options {
-            if let length = options.summaryLength { fields["summary_length"] = length }
-            if let count = options.quizQuestionCount { fields["quiz_question_count"] = "\(count)" }
-            if let difficulty = options.difficulty { fields["difficulty"] = difficulty }
+            let encoder = JSONEncoder()
+            encoder.keyEncodingStrategy = .convertToSnakeCase
+            if let optionsData = try? encoder.encode(options),
+               let optionsString = String(data: optionsData, encoding: .utf8) {
+                fields["options"] = optionsString
+            }
         }
 
         return try await api.upload(
