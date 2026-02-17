@@ -112,6 +112,14 @@ final class AuthService {
         }
     }
 
+    // MARK: - Delete Account
+
+    func deleteAccount() async throws {
+        let _: EmptyResponse = try await api.delete(path: "/api/auth/me/delete")
+        clearSession()
+        CacheService.shared.clearAll()
+    }
+
     // MARK: - Sign Out
 
     func signOut() async {
@@ -231,4 +239,13 @@ final class AuthService {
         self.isAuthenticated = true
     }
     #endif
+}
+
+// MARK: - Empty Response
+
+/// Decodable type for endpoints that return 204 No Content
+private struct EmptyResponse: Decodable {
+    init(from decoder: Decoder) throws {
+        // Accept empty body
+    }
 }

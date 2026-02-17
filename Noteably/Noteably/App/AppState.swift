@@ -54,6 +54,11 @@ final class AppState {
         needsAvatarSetup = false
     }
 
+    func deleteAccount() async throws {
+        try await authService.deleteAccount()
+        await MainActor.run { syncAuthState() }
+    }
+
     func signOut() {
         Task {
             await authService.signOut()
