@@ -295,7 +295,7 @@ def create_api_key(request):
     full_key = generate_full_key_string(prefix, secret)
 
     api_key = APIKey.objects.create(
-        user_id=request.user_id,
+        user=request.user_id,
         name=name,
         prefix=prefix,
         hashed_key=hashed_key,
@@ -319,7 +319,7 @@ def list_api_keys(request):
     from .models import APIKey
     from .serializers import APIKeySerializer
 
-    keys = APIKey.objects.filter(user_id=request.user_id)
+    keys = APIKey.objects.filter(user=request.user_id)
     serializer = APIKeySerializer(keys, many=True)
     return Response(serializer.data)
 
@@ -331,7 +331,7 @@ def revoke_api_key(request, key_id):
     from .models import APIKey
 
     try:
-        key = APIKey.objects.get(id=key_id, user_id=request.user_id)
+        key = APIKey.objects.get(id=key_id, user=request.user_id)
         key.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     except APIKey.DoesNotExist:
@@ -355,7 +355,7 @@ def delete_account(request):
     try:
         from .models import APIKey
 
-        deleted_count, _ = APIKey.objects.filter(user_id=user_id).delete()
+        deleted_count, _ = APIKey.objects.filter(user=user_id).delete()
         logger.info(f"Deleted {deleted_count} API keys for user {user_id}")
     except Exception as e:
         logger.error(f"Failed to delete API keys for user {user_id}: {e}")

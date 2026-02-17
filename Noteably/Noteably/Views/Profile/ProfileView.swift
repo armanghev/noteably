@@ -47,6 +47,24 @@ struct ProfileView: View {
                         }
                     }
 
+                    // Sign Out
+                    Button {
+                        showSignOutConfirm = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                            Text("Sign Out")
+                        }
+                        .font(.noteablyBody(16, weight: .medium))
+                        .foregroundStyle(Color.noteablyDestructive)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
+                                .fill(Color.noteablyDestructive.opacity(0.08))
+                        )
+                    }
+                    
                     // Delete Account
                     Button {
                         showDeleteConfirm = true
@@ -70,24 +88,6 @@ struct ProfileView: View {
                         )
                     }
                     .disabled(isDeletingAccount)
-
-                    // Sign Out
-                    Button {
-                        showSignOutConfirm = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "rectangle.portrait.and.arrow.right")
-                            Text("Sign Out")
-                        }
-                        .font(.noteablyBody(16, weight: .medium))
-                        .foregroundStyle(Color.noteablyDestructive)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
-                                .fill(Color.noteablyDestructive.opacity(0.08))
-                        )
-                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 16)

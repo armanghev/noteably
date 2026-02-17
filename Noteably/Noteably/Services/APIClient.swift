@@ -84,8 +84,14 @@ final class APIClient {
 
         try validateResponse(httpResponse, data: data)
 
+        // Handle 204 No Content with empty body
+        var finalData = data
+        if httpResponse.statusCode == 204 && finalData.isEmpty {
+            finalData = "{}".data(using: .utf8)!
+        }
+
         do {
-            return try decoder.decode(T.self, from: data)
+            return try decoder.decode(T.self, from: finalData)
         } catch {
             throw APIError.decodingError(error)
         }
@@ -139,8 +145,14 @@ final class APIClient {
 
         try validateResponse(httpResponse, data: data)
 
+        // Handle 204 No Content with empty body
+        var finalData = data
+        if httpResponse.statusCode == 204 && finalData.isEmpty {
+            finalData = "{}".data(using: .utf8)!
+        }
+
         do {
-            return try decoder.decode(T.self, from: data)
+            return try decoder.decode(T.self, from: finalData)
         } catch {
             throw APIError.decodingError(error)
         }
