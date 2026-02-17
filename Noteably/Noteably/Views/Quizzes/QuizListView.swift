@@ -38,7 +38,7 @@ struct QuizListView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
-                .padding(.bottom, 32)
+                .padding(.bottom, 64)
             }
             .background(Color.noteablyBackground)
             .navigationTitle("Quizzes")

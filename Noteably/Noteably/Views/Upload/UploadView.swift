@@ -49,7 +49,7 @@ struct UploadView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
-                .padding(.bottom, 100)
+                .padding(.bottom, 64)
             }
             .background(Color.noteablyBackground)
             .navigationTitle("Upload")

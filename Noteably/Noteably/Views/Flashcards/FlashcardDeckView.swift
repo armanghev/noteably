@@ -102,6 +102,7 @@ struct FlashcardDeckView: View {
             }
             .padding(.bottom, 32)
         }
+        .padding(.bottom, 64)
         .background(Color.noteablyBackground)
         .navigationTitle("Study")
         .navigationBarTitleDisplayMode(.inline)

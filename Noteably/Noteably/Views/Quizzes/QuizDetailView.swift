@@ -16,6 +16,7 @@ struct QuizDetailView: View {
                 questionView
             }
         }
+        .padding(.bottom, 64)
         .background(Color.noteablyBackground)
         .navigationTitle("Quiz")
         .navigationBarTitleDisplayMode(.inline)
@@ -42,7 +43,7 @@ struct QuizDetailView: View {
                     VStack(alignment: .leading, spacing: 24) {
                         // Question text
                         Text(question.question)
-                            .font(.noteablySerif(22, weight: .semibold))
+                            .font(.noteablySerif(14, weight: .semibold))
                             .foregroundStyle(Color.noteablyForeground)
                             .lineSpacing(4)
                             .padding(.top, 24)

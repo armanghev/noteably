@@ -52,7 +52,7 @@ struct StudySetDetailView: View {
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.bottom, 32)
+                .padding(.bottom, 64)
             }
         }
         .background(Color.noteablyBackground)
