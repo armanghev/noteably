@@ -216,7 +216,10 @@ export default function Profile() {
                 <div className="pt-4 flex justify-between">
                   <Dialog
                     open={deleteDialogOpen}
-                    onOpenChange={setDeleteDialogOpen}
+                    onOpenChange={(open) => {
+                      if (deleting && !open) return;
+                      setDeleteDialogOpen(open);
+                    }}
                   >
                     <DialogTrigger asChild>
                       <Button
@@ -232,7 +235,15 @@ export default function Profile() {
                         Delete Account
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="border-border">
+                    <DialogContent
+                      className="border-border"
+                      onInteractOutside={(e) => {
+                        if (deleting) e.preventDefault();
+                      }}
+                      onEscapeKeyDown={(e) => {
+                        if (deleting) e.preventDefault();
+                      }}
+                    >
                       <DialogHeader>
                         <DialogTitle>Delete Account</DialogTitle>
                         <DialogDescription>
@@ -245,14 +256,19 @@ export default function Profile() {
                         <Button
                           variant="outline"
                           onClick={() => setDeleteDialogOpen(false)}
+                          disabled={deleting}
                         >
                           Cancel
                         </Button>
                         <Button
                           variant="destructive"
                           onClick={handleDeleteAccount}
+                          disabled={deleting}
                           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
+                          {deleting && (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          )}
                           Delete Account
                         </Button>
                       </DialogFooter>
