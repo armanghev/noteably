@@ -16,9 +16,7 @@ def get_prompt_for_type(type: str, text: str, options: dict = None) -> str:
         base_instruction += " Simplify complex terms. Use analogies. Explain like I'm 5 (ELI5)."
 
     if type == "summary":
-        format_instr = "Structure it with bullet points."
-        if options.get("summary_format") == "paragraphs":
-            format_instr = "Structure it as coherent paragraphs."
+        format_instr = "Structure it as coherent paragraphs."
 
         length_instr = ""
         length_opt = options.get("summary_length", "medium")
