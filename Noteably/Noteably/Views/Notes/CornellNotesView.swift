@@ -5,6 +5,7 @@ struct CornellNotesView: View {
     var summaryText: String?
 
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @State private var cueColumnWidth: CGFloat = 100
 
     var body: some View {
         if sizeClass == .regular {
@@ -14,73 +15,77 @@ struct CornellNotesView: View {
         }
     }
 
-    // MARK: - Landscape layout (GeometryReader-based 30/70 split)
+    // MARK: - Landscape layout (30/70 split)
 
     private var landscapeLayout: some View {
-        // GeometryReader has an intrinsic height of 0, so we read the width
-        // and pass it into a self-sizing VStack via a preference or fixedSize trick.
-        // The cleanest approach that keeps natural height: use a hidden GeometryReader
-        // overlay to read the width, then render the real content with that value.
-        GeometryReader { geometry in
-            VStack(alignment: .leading, spacing: 16) {
-                // Header
-                HStack(spacing: 0) {
-                    Text("Cues / Questions")
-                        .font(.noteablyBody(13, weight: .semibold))
-                        .foregroundStyle(Color.noteablySecondaryText)
-                        .frame(width: geometry.size.width * 0.3, alignment: .leading)
-                    Text("Notes")
-                        .font(.noteablyBody(13, weight: .semibold))
-                        .foregroundStyle(Color.noteablySecondaryText)
+        VStack(alignment: .leading, spacing: 16) {
+            // Column headers
+            HStack(spacing: 0) {
+                Text("Cues / Questions")
+                    .font(.noteablyBody(13, weight: .semibold))
+                    .foregroundStyle(Color.noteablySecondaryText)
+                    .frame(width: cueColumnWidth, alignment: .leading)
+                Text("Notes")
+                    .font(.noteablyBody(13, weight: .semibold))
+                    .foregroundStyle(Color.noteablySecondaryText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.bottom, 4)
+
+            Divider()
+
+            // Cue/Note pairs
+            ForEach(Array(data.cues.enumerated()), id: \.offset) { index, cue in
+                let note = index < data.notes.count ? data.notes[index] : ""
+
+                HStack(alignment: .top, spacing: 0) {
+                    Text(cue)
+                        .font(.noteablyBody(14, weight: .semibold))
+                        .foregroundStyle(Color.noteablyPrimary)
+                        .frame(width: cueColumnWidth, alignment: .leading)
+
+                    Text(note)
+                        .font(.noteablyBody(15))
+                        .foregroundStyle(Color.noteablyForeground)
+                        .lineSpacing(3)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(.bottom, 4)
+                .padding(.vertical, 8)
 
-                Divider()
-
-                ForEach(Array(data.cues.enumerated()), id: \.offset) { index, cue in
-                    let note = index < data.notes.count ? data.notes[index] : ""
-
-                    HStack(alignment: .top, spacing: 0) {
-                        Text(cue)
-                            .font(.noteablyBody(14, weight: .semibold))
-                            .foregroundStyle(Color.noteablyPrimary)
-                            .frame(width: geometry.size.width * 0.3, alignment: .leading)
-
-                        Text(note)
-                            .font(.noteablyBody(15))
-                            .foregroundStyle(Color.noteablyForeground)
-                            .lineSpacing(3)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .padding(.vertical, 8)
-
-                    if index < data.cues.count - 1 {
-                        Divider()
-                    }
-                }
-
-                // Summary
-                if let summary = summaryText, !summary.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Summary")
-                            .font(.noteablyBody(16, weight: .semibold))
-                            .foregroundStyle(Color.noteablyForeground)
-
-                        Text(summary)
-                            .font(.noteablyBody(15))
-                            .foregroundStyle(Color.noteablySecondaryText)
-                            .lineSpacing(3)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(16)
-                    .background(
-                        RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
-                            .fill(Color.noteablyPrimary.opacity(0.05))
-                    )
+                if index < data.cues.count - 1 {
+                    Divider()
                 }
             }
+
+            // Summary
+            if let summary = summaryText, !summary.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Summary")
+                        .font(.noteablyBody(16, weight: .semibold))
+                        .foregroundStyle(Color.noteablyForeground)
+
+                    Text(summary)
+                        .font(.noteablyBody(15))
+                        .foregroundStyle(Color.noteablySecondaryText)
+                        .lineSpacing(3)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
+                        .fill(Color.noteablyPrimary.opacity(0.05))
+                )
+            }
         }
+        .background(
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear { cueColumnWidth = geo.size.width * 0.3 }
+                    .onChange(of: geo.size.width) { _, newWidth in
+                        cueColumnWidth = newWidth * 0.3
+                    }
+            }
+        )
     }
 
     // MARK: - Portrait layout (stacked cards)
