@@ -200,7 +200,6 @@ struct DashboardView: View {
                     .foregroundStyle(Color.noteablyForeground)
                     .lineLimit(1)
 
-                StatusBadge(status: job.status)
             }
 
             Spacer()
