@@ -6,6 +6,10 @@ struct ProfileView: View {
     @Environment(AppState.self) private var appState
     @Environment(AuthService.self) private var authService
     @State private var showSignOutConfirm = false
+    @State private var showDeleteConfirm = false
+    @State private var isDeletingAccount = false
+    @State private var deleteError: String?
+    @State private var showDeleteError = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var isUploadingAvatar = false
     @State private var showImageCropper = false
@@ -42,6 +46,30 @@ struct ProfileView: View {
                             navigationRow(icon: "questionmark.circle", label: "Help & Support", detail: "")
                         }
                     }
+
+                    // Delete Account
+                    Button {
+                        showDeleteConfirm = true
+                    } label: {
+                        HStack {
+                            if isDeletingAccount {
+                                ProgressView()
+                                    .tint(Color.noteablyDestructive)
+                            } else {
+                                Image(systemName: "trash")
+                            }
+                            Text("Delete Account")
+                        }
+                        .font(.noteablyBody(16, weight: .medium))
+                        .foregroundStyle(Color.noteablyDestructive)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
+                                .fill(Color.noteablyDestructive.opacity(0.08))
+                        )
+                    }
+                    .disabled(isDeletingAccount)
 
                     // Sign Out
                     Button {
@@ -83,6 +111,29 @@ struct ProfileView: View {
                 }
             } message: {
                 Text("Are you sure you want to sign out?")
+            }
+            .alert("Delete Account", isPresented: $showDeleteConfirm) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete Account", role: .destructive) {
+                    Task {
+                        isDeletingAccount = true
+                        do {
+                            try await appState.deleteAccount()
+                            dismiss()
+                        } catch {
+                            isDeletingAccount = false
+                            deleteError = error.localizedDescription
+                            showDeleteError = true
+                        }
+                    }
+                }
+            } message: {
+                Text("This will permanently delete your account and all your data including study sets, flashcards, quizzes, and uploaded files. This action cannot be undone.")
+            }
+            .alert("Error", isPresented: $showDeleteError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(deleteError ?? "Failed to delete account. Please try again.")
             }
         }
     }
