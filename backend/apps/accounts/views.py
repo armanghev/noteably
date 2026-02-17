@@ -355,7 +355,7 @@ def delete_account(request):
     try:
         from .models import APIKey
 
-        deleted_count, _ = APIKey.objects.filter(user_id_id=user_id).delete()
+        deleted_count, _ = APIKey.objects.filter(user_id=user_id).delete()
         logger.info(f"Deleted {deleted_count} API keys for user {user_id}")
     except Exception as e:
         logger.error(f"Failed to delete API keys for user {user_id}: {e}")
