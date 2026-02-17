@@ -70,7 +70,34 @@ struct SummaryContent: Codable {
 // MARK: - Notes
 
 struct NotesContent: Codable {
-    let content: String
+    let content: String?
+    let cornell: CornellData?
+    let qa: [QAData]?
+    let outline: OutlineData?
+}
+
+struct CornellData: Codable {
+    let cues: [String]
+    let notes: [String]
+}
+
+struct QAData: Codable, Identifiable {
+    let question: String
+    let answer: String
+
+    var id: String { question }
+}
+
+struct OutlineData: Codable {
+    let title: String
+    let children: [OutlineNode]
+}
+
+struct OutlineNode: Codable, Identifiable {
+    let bullet: String
+    let children: [OutlineNode]
+
+    var id: String { bullet }
 }
 
 // MARK: - Flashcards
