@@ -2,7 +2,6 @@ import SwiftUI
 
 struct CornellNotesView: View {
     let data: CornellData
-    var summaryText: String?
 
     @State private var containerWidth: CGFloat = 0
 
@@ -26,29 +25,7 @@ struct CornellNotesView: View {
         )
     }
 
-    // MARK: - Shared summary section
 
-    @ViewBuilder
-    private var summarySection: some View {
-        if let summary = summaryText, !summary.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Summary")
-                    .font(.noteablyBody(16, weight: .semibold))
-                    .foregroundStyle(Color.noteablyForeground)
-
-                Text(summary)
-                    .font(.noteablyBody(15))
-                    .foregroundStyle(Color.noteablySecondaryText)
-                    .lineSpacing(3)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
-                    .fill(Color.noteablyPrimary.opacity(0.05))
-            )
-        }
-    }
 
     // MARK: - Landscape layout (30/70 split)
 
@@ -92,7 +69,6 @@ struct CornellNotesView: View {
                 }
             }
 
-            summarySection
         }
     }
 
@@ -125,7 +101,6 @@ struct CornellNotesView: View {
                 )
             }
 
-            summarySection
         }
     }
 }
@@ -145,8 +120,7 @@ struct CornellNotesView: View {
                     "Glucose (C₆H₁₂O₆) and oxygen (O₂) are the two main outputs.",
                     "Primarily in the chloroplasts, specifically in the thylakoid membranes."
                 ]
-            ),
-            summaryText: "Photosynthesis is the fundamental process that powers most life on Earth by converting solar energy into chemical energy stored in glucose."
+            )
         )
         .padding(20)
     }
