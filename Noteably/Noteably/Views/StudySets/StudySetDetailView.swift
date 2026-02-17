@@ -147,8 +147,16 @@ struct StudySetDetailView: View {
     private var notesTab: some View {
         VStack(alignment: .leading, spacing: 16) {
             if let notes = viewModel.notes {
-                MarkdownView(text: notes.content)
-                    .textSelection(.enabled)
+                if let content = notes.content {
+                    MarkdownView(text: content)
+                        .textSelection(.enabled)
+                } else {
+                    EmptyStateView(
+                        icon: "doc.text",
+                        title: "No notes",
+                        message: "Notes weren't generated for this study set."
+                    )
+                }
             } else {
                 EmptyStateView(
                     icon: "doc.text",

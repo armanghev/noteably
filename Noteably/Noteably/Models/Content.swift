@@ -91,6 +91,16 @@ struct QAData: Codable, Identifiable {
 struct OutlineData: Codable {
     let title: String
     let children: [OutlineNode]
+
+    private enum CodingKeys: String, CodingKey {
+        case title, children
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        title = try container.decode(String.self, forKey: .title)
+        children = (try? container.decodeIfPresent([OutlineNode].self, forKey: .children)) ?? []
+    }
 }
 
 struct OutlineNode: Codable, Identifiable {
@@ -98,6 +108,16 @@ struct OutlineNode: Codable, Identifiable {
     let children: [OutlineNode]
 
     var id: String { bullet }
+
+    private enum CodingKeys: String, CodingKey {
+        case bullet, children
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        bullet = try container.decode(String.self, forKey: .bullet)
+        children = (try? container.decodeIfPresent([OutlineNode].self, forKey: .children)) ?? []
+    }
 }
 
 // MARK: - Flashcards
