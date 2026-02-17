@@ -3,10 +3,20 @@ import { UserAvatar } from "@/components/profile/UserAvatar";
 import { useTheme } from "@/components/theme/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
+import { authService } from "@/lib/api/services/auth";
 import { supabase } from "@/lib/supabase";
 import {
   Bell,
@@ -16,6 +26,7 @@ import {
   Moon,
   Pencil,
   Sun,
+  Trash2,
 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
@@ -24,6 +35,8 @@ import { APIKeys } from "@/components/profile/APIKeys";
 export default function Profile() {
   const { user, logout, refreshUser } = useAuth();
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!user) return null;
@@ -42,6 +55,17 @@ export default function Profile() {
   const handleLogout = async () => {
     await logout();
     // Redirect handled by AuthContext/Router
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      setDeleting(true);
+      await authService.deleteAccount();
+      await logout();
+    } catch (error) {
+      console.error("Account deletion failed:", error);
+      setDeleting(false);
+    }
   };
 
   const resizeImage = useCallback((file: File): Promise<Blob> => {
@@ -189,7 +213,52 @@ export default function Profile() {
                   </div>
                 </div>
 
-                <div className="pt-4 flex justify-end">
+                <div className="pt-4 flex justify-between">
+                  <Dialog
+                    open={deleteDialogOpen}
+                    onOpenChange={setDeleteDialogOpen}
+                  >
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        disabled={deleting}
+                      >
+                        {deleting ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        ) : (
+                          <Trash2 className="w-4 h-4 mr-2" />
+                        )}
+                        Delete Account
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="border-border">
+                      <DialogHeader>
+                        <DialogTitle>Delete Account</DialogTitle>
+                        <DialogDescription>
+                          This will permanently delete your account and all your
+                          data including study sets, flashcards, quizzes, and
+                          uploaded files. This action cannot be undone.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <Button
+                          variant="outline"
+                          onClick={() => setDeleteDialogOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={handleDeleteAccount}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete Account
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+
                   <Button
                     variant="destructive"
                     onClick={handleLogout}

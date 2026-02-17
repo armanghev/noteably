@@ -5,6 +5,7 @@ export const API_ENDPOINTS = {
         // Note: Supabase handles login/register/logout on frontend
         // Backend endpoints for authenticated user data
         CURRENT_USER: '/api/auth/me',
+        DELETE_ACCOUNT: '/api/auth/me/delete',
         SUBSCRIPTION: '/api/auth/subscription',
         COMPLETE_PROFILE: '/auth/complete-profile',
     },

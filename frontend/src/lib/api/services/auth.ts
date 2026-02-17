@@ -83,6 +83,10 @@ export const authService = {
     await apiClient.post("/auth/complete-profile", data);
   },
 
+  deleteAccount: async (): Promise<void> => {
+    await apiClient.delete(API_ENDPOINTS.AUTH.DELETE_ACCOUNT);
+  },
+
   signInWithGoogle: async (redirectPath = "/signup?oauth=1"): Promise<void> => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
