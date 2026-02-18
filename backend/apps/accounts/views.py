@@ -720,6 +720,25 @@ def confirm_recovery(request):
             os.getenv("SUPABASE_URL"),
             os.getenv("SUPABASE_SERVICE_ROLE_KEY"),
         )
+
+        # Fetch user email (needed to check if new password differs from old)
+        user_record = fresh_client.auth.admin.get_user_by_id(str(user_id))
+        user_email_for_check = user_record.user.email if user_record.user else None
+
+        # Reject if new password is the same as the current password
+        if user_email_for_check:
+            try:
+                fresh_client.auth.sign_in_with_password({"email": user_email_for_check, "password": new_password})
+                # Sign-in succeeded → new password is the same as the old one
+                fresh_client.auth.sign_out()
+                return Response(
+                    {"error": "New password must be different from your previous passwords."},
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+            except Exception:
+                # Sign-in failed → passwords differ → proceed
+                pass
+
         fresh_client.auth.admin.update_user_by_id(
             str(user_id),
             {

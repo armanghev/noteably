@@ -81,7 +81,7 @@ export default function RecoverAccount() {
       await authService.confirmRecovery(recoveryToken, newPassword)
       setStep('success')
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Failed to reset password'
+      const message = error.message || 'Failed to reset password'
       setErrorMessage(message)
     } finally {
       setLoading(false)
