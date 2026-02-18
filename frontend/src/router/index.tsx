@@ -13,6 +13,7 @@ import Notes from "@/pages/Notes";
 import Profile from "@/pages/Profile";
 import QuizDetail from "@/pages/QuizDetail";
 import Quizzes from "@/pages/Quizzes";
+import RecoverAccount from "@/pages/RecoverAccount";
 import Signup from "@/pages/Signup";
 import StudySetDetail from "@/pages/StudySetDetail";
 import StudySets from "@/pages/StudySets";
@@ -30,6 +31,10 @@ export const router = createBrowserRouter([
   {
     path: ROUTES.SIGNUP,
     element: <Signup />,
+  },
+  {
+    path: ROUTES.RECOVER,
+    element: <RecoverAccount />,
   },
   // Protected routes
   {

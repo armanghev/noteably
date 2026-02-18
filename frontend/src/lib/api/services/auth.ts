@@ -96,4 +96,22 @@ export const authService = {
     });
     if (error) throw { message: error.message, status: 400 };
   },
+
+  recoverAccount: async (token: string): Promise<any> => {
+    const response = await apiClient.post("/auth/recover", null, {
+      params: { token },
+    });
+    return response.data;
+  },
+
+  confirmRecovery: async (
+    recoverySessionToken: string,
+    newPassword: string
+  ): Promise<any> => {
+    const response = await apiClient.post("/auth/confirm-recovery", {
+      recovery_session_token: recoverySessionToken,
+      new_password: newPassword,
+    });
+    return response.data;
+  },
 };
