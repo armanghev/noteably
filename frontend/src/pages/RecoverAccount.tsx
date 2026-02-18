@@ -132,22 +132,22 @@ export default function RecoverAccount() {
         {step === 'oauth' && (
           <>
             <CardHeader>
-              <CardTitle>Verify Your Identity</CardTitle>
-              <CardDescription>Sign in with {authProvider || 'your provider'} to prove you own this account</CardDescription>
+              <CardTitle>Restore Your Account</CardTitle>
+              <CardDescription>Complete the recovery process</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-gray-600">
-                Since you previously signed up using {authProvider || 'an OAuth provider'}, please sign in with the same method to verify your identity and restore access.
+                Your account was created with {authProvider || 'an OAuth provider'}. Since you're recovering via the email link, your account ownership has already been verified. Click below to restore access.
               </p>
               <Button
                 onClick={handleOAuthLogin}
                 className="w-full"
                 disabled={loading}
               >
-                {loading ? 'Redirecting...' : `Sign in with ${authProvider || 'OAuth'}`}
+                {loading ? 'Recovering...' : 'Restore Account'}
               </Button>
               <p className="text-xs text-gray-500 text-center">
-                You'll be logged in to complete the recovery process.
+                Your account will be immediately restored and ready to use.
               </p>
             </CardContent>
           </>
