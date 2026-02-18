@@ -22,8 +22,8 @@ def process_pending_deletions(self):
     Find accounts scheduled for deletion (14+ days ago) and perform hard delete.
 
     This task:
-    1. Finds all users with deleted_at > 14 days ago
-    2. For each, deletes: Django models → Storage → Supabase DB → Supabase Auth
+    1. Finds all users with deleted_at older than 14 days
+    2. For each, deletes: APIKeys → Storage files → Jobs (cascade) → Subscriptions → Auth
     3. Logs success/failure for each user
     4. Retries on failure (max 3 times)
 
@@ -45,7 +45,7 @@ def process_pending_deletions(self):
             users_to_delete = _get_users_pending_deletion(cutoff_time)
         except Exception as e:
             logger.error(f"Failed to query pending deletion users: {e}")
-            # Retry with exponential backoff
+            # Retry with 5-minute fixed delay (Celery will retry up to max_retries times)
             raise self.retry(exc=e, countdown=60 * 5, max_retries=3)
 
         logger.info(f"Found {len(users_to_delete)} accounts pending hard deletion")
@@ -83,7 +83,7 @@ def process_pending_deletions(self):
 
 def _get_users_pending_deletion(cutoff_time: datetime) -> list[str]:
     """
-    Get list of user IDs where deleted_at > cutoff_time (14+ days old).
+    Get list of user IDs where deleted_at < cutoff_time (older than 14 days).
 
     Returns:
         List of UUID strings for users scheduled for hard deletion
