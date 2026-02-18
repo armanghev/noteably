@@ -298,10 +298,18 @@ export default function Profile() {
                     >
                       <DialogHeader>
                         <DialogTitle>Delete Account</DialogTitle>
-                        <DialogDescription>
-                          This will permanently delete your account and all your
-                          data including study sets, flashcards, quizzes, and
-                          uploaded files. This action cannot be undone.
+                        <DialogDescription className="space-y-3">
+                          <div>
+                            <strong>Your account will be locked immediately</strong>, but your data will be preserved for 14 days. You can recover your account during this grace period.
+                          </div>
+                          <div>
+                            <strong>What happens:</strong>
+                            <ul className="list-disc ml-4 mt-2 space-y-1 text-sm">
+                              <li>We'll send you a recovery email with a link</li>
+                              <li>Click the link and set a new password to restore access</li>
+                              <li>After 14 days, your account and all data will be permanently deleted</li>
+                            </ul>
+                          </div>
                         </DialogDescription>
                       </DialogHeader>
                       <DialogFooter>
