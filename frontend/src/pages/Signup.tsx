@@ -60,7 +60,14 @@ export default function Signup() {
   const [croppedBlob, setCroppedBlob] = useState<Blob | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  const { register, loading, user, refreshUser, profileCompleted } = useAuth();
+  const {
+    register,
+    loading,
+    user,
+    refreshUser,
+    profileCompleted,
+    signInWithGoogle,
+  } = useAuth();
   const { handleError } = useErrorHandler();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -91,7 +98,7 @@ export default function Signup() {
   const handleGoogleSignUp = async () => {
     try {
       setGoogleLoading(true);
-      await authService.signInWithGoogle();
+      await signInWithGoogle();
     } catch (error) {
       setGoogleLoading(false);
       if (error && typeof error === "object" && "message" in error) {

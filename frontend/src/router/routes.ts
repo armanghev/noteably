@@ -14,4 +14,6 @@ export const ROUTES = {
   QUIZZES_DETAIL: "/quizzes/:id",
   UPLOAD: "/upload",
   PROFILE: "/profile",
+  ACCOUNT_DELETED: "/account-deleted",
+  LINK_ACCOUNT: "/link-account",
 } as const;

@@ -20,7 +20,6 @@ import { authService } from "@/lib/api/services/auth";
 import { supabase } from "@/lib/supabase";
 import {
   Bell,
-  CheckCircle,
   Loader2,
   LogOut,
   Monitor,
@@ -33,6 +32,7 @@ import { useCallback, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { APIKeys } from "@/components/profile/APIKeys";
+import { ROUTES } from "@/router/routes";
 
 export default function Profile() {
   const { user, logout, refreshUser } = useAuth();
@@ -40,7 +40,7 @@ export default function Profile() {
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deletionInitiated, setDeletionInitiated] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!user) return null;
@@ -65,10 +65,7 @@ export default function Profile() {
     try {
       setDeleting(true);
       await authService.deleteAccount();
-      setDeletionInitiated(true);
-      setDeleteDialogOpen(false);
-      // Don't immediately logout - let user see the message
-      // Logout will happen after they read the message or navigate away
+      navigate(ROUTES.ACCOUNT_DELETED);
     } catch (error) {
       console.error("Account deletion failed:", error);
       setDeleting(false);
@@ -152,51 +149,6 @@ export default function Profile() {
     },
     [user.id, resizeImage, refreshUser],
   );
-
-  if (deletionInitiated) {
-    return (
-      <Layout>
-        <div className="max-w-2xl mx-auto">
-          <Card className="border-green-200 bg-green-50">
-            <CardContent className="pt-6">
-              <div className="flex gap-4">
-                <CheckCircle className="h-8 w-8 text-green-600 flex-shrink-0 mt-0.5" />
-                <div className="space-y-4 flex-1">
-                  <div>
-                    <h2 className="text-xl font-semibold text-green-900">Account Deletion Initiated</h2>
-                    <p className="text-green-800 mt-2">
-                      Your account deletion request has been processed. Check your email for recovery instructions.
-                    </p>
-                  </div>
-                  <p className="text-sm text-green-700">
-                    You have a grace period to recover your account by clicking the link in the email we just sent you. After the grace period expires, your account and all associated data will be permanently deleted.
-                  </p>
-                  <div className="pt-4 flex gap-2">
-                    <Button
-                      onClick={() => {
-                        logout();
-                      }}
-                      variant="default"
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      Sign Out
-                    </Button>
-                    <Button
-                      onClick={() => navigate("/")}
-                      variant="outline"
-                      className="border-green-200"
-                    >
-                      Return to Home
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </Layout>
-    );
-  }
 
   return (
     <Layout>
@@ -300,14 +252,26 @@ export default function Profile() {
                         <DialogTitle>Delete Account</DialogTitle>
                         <DialogDescription className="space-y-3">
                           <div>
-                            <strong>Your account will be locked immediately</strong>, but your data will be preserved for 14 days. You can recover your account during this grace period.
+                            <strong>
+                              Your account will be locked immediately
+                            </strong>
+                            , but your data will be preserved for 14 days. You
+                            can recover your account during this grace period.
                           </div>
                           <div>
                             <strong>What happens:</strong>
                             <ul className="list-disc ml-4 mt-2 space-y-1 text-sm">
-                              <li>We'll send you a recovery email with a link</li>
-                              <li>Click the link and set a new password to restore access</li>
-                              <li>After 14 days, your account and all data will be permanently deleted</li>
+                              <li>
+                                We'll send you a recovery email with a link
+                              </li>
+                              <li>
+                                Click the link and set a new password to restore
+                                access
+                              </li>
+                              <li>
+                                After 14 days, your account and all data will be
+                                permanently deleted
+                              </li>
                             </ul>
                           </div>
                         </DialogDescription>

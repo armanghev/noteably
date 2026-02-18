@@ -16,7 +16,13 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
+import { toast } from "sonner";
 
 // Floating UI card component for the brand panel
 function FloatingCard({
@@ -44,13 +50,41 @@ function FloatingCard({
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { login, loading, user, refreshUser, profileCompleted } = useAuth();
+  const {
+    login,
+    loading,
+    user,
+    refreshUser,
+    profileCompleted,
+    signInWithGoogle,
+  } = useAuth();
   const { handleError } = useErrorHandler();
   const navigate = useNavigate();
   const location = useLocation();
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showProfileStep, setShowProfileStep] = useState(false);
-  const [deletionError, setDeletionError] = useState<{ message: string; recoveryAvailable: boolean } | null>(null);
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const error = searchParams.get("error");
+    if (error === "account_scheduled_deletion") {
+      toast.error("Account Pending Deletion", {
+        description:
+          "Your account is currently scheduled for deletion. You can recover it within 14 days.",
+        action: {
+          label: "Recover",
+          onClick: () => navigate("/recover"),
+        },
+        duration: 6000,
+      });
+    } else if (error === "account_exists_with_email") {
+      toast.error("Account Exists", {
+        description:
+          "An account with this email already exists. Please sign in with your password.",
+        duration: 6000,
+      });
+    }
+  }, [searchParams, navigate]);
 
   // Profile completion state
   const [firstName, setFirstName] = useState("");
@@ -144,8 +178,6 @@ export default function Login() {
     }
   };
 
-  const initials =
-    [firstName[0], lastName[0]].filter(Boolean).join("").toUpperCase() || "?";
   const oauthAvatar =
     user?.user_metadata?.picture ?? user?.user_metadata?.avatar_url ?? null;
   const displayAvatar = previewUrl ?? oauthAvatar;
@@ -153,7 +185,7 @@ export default function Login() {
   const handleGoogleSignIn = async () => {
     try {
       setGoogleLoading(true);
-      await authService.signInWithGoogle("/login?oauth=1");
+      await signInWithGoogle("/login?oauth=1");
     } catch (error) {
       setGoogleLoading(false);
       if (error && typeof error === "object" && "message" in error) {
@@ -168,7 +200,6 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setDeletionError(null);
     try {
       await login({ email, password });
       // After login, check if profile is completed
@@ -184,13 +215,19 @@ export default function Login() {
       }
     } catch (error: any) {
       // Check for account deletion error
-      if (error?.type === 'ACCOUNT_PENDING_DELETION') {
-        setDeletionError({
-          message: error.message,
-          recoveryAvailable: error.recoveryAvailable,
-        });
-      } else if (error && typeof error === "object" && "message" in error) {
-        handleError(error as ApiError);
+      if (error && typeof error === "object" && "message" in error) {
+        if (error.type === "ACCOUNT_PENDING_DELETION") {
+          toast.error("Account Pending Deletion", {
+            description: error.message,
+            action: {
+              label: "Recover",
+              onClick: () => navigate("/recover"),
+            },
+            duration: 6000,
+          });
+        } else {
+          handleError(error as ApiError);
+        }
       } else {
         handleError(new Error(String(error)));
       }
@@ -432,39 +469,6 @@ export default function Login() {
                 </div>
               </div>
 
-              {deletionError && (
-                <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
-                  <p className="text-sm font-medium text-amber-900 mb-3">
-                    Account Pending Deletion
-                  </p>
-                  <p className="text-sm text-amber-800 mb-4">
-                    {deletionError.message}
-                  </p>
-                  {deletionError.recoveryAvailable && (
-                    <div className="space-y-3">
-                      <p className="text-sm text-amber-800">
-                        Your account can be recovered for 14 days using the recovery link in your email.
-                      </p>
-                      <Link
-                        to="/recover"
-                        className="inline-block text-sm font-semibold text-primary hover:underline"
-                      >
-                        Go to recovery page
-                      </Link>
-                      <p className="text-xs text-amber-700 mt-2">
-                        Can't find your recovery email?{" "}
-                        <a
-                          href="mailto:support@noteably.app"
-                          className="font-semibold hover:underline"
-                        >
-                          Contact support
-                        </a>
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label
@@ -479,7 +483,6 @@ export default function Login() {
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);
-                      setDeletionError(null);
                     }}
                     className="w-full px-4 py-3 rounded-xl bg-muted/50 border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                     placeholder="you@example.com"
@@ -500,7 +503,6 @@ export default function Login() {
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
-                      setDeletionError(null);
                     }}
                     className="w-full px-4 py-3 rounded-xl bg-muted/50 border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                     placeholder="••••••••"

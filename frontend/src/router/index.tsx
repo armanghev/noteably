@@ -3,6 +3,7 @@ import { ProtectedRoute } from "./ProtectedRoute";
 import { ROUTES } from "./routes";
 
 // Import pages
+import AccountDeleted from "@/pages/AccountDeleted";
 import Dashboard from "@/pages/Dashboard";
 import FlashcardDeck from "@/pages/FlashcardDeck";
 import Flashcards from "@/pages/Flashcards";
@@ -18,6 +19,7 @@ import Signup from "@/pages/Signup";
 import StudySetDetail from "@/pages/StudySetDetail";
 import StudySets from "@/pages/StudySets";
 import Upload from "@/pages/Upload";
+import LinkAccount from "@/pages/LinkAccount";
 
 export const router = createBrowserRouter([
   {
@@ -35,6 +37,14 @@ export const router = createBrowserRouter([
   {
     path: ROUTES.RECOVER,
     element: <RecoverAccount />,
+  },
+  {
+    path: ROUTES.ACCOUNT_DELETED,
+    element: <AccountDeleted />,
+  },
+  {
+    path: ROUTES.LINK_ACCOUNT,
+    element: <LinkAccount />,
   },
   // Protected routes
   {
