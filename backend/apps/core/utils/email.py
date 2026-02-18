@@ -121,3 +121,19 @@ def send_welcome_email(to_email: str, first_name: str = "there"):
     )
 
     return send_email(to_email, subject, html_content)
+
+
+def send_account_deleted_email(to_email: str, first_name: str = "there"):
+    """
+    Send account deletion confirmation email.
+    """
+    subject = "Account Deleted - Noteably"
+
+    html_content = render_to_string(
+        "emails/account_deleted.html",
+        {
+            "first_name": first_name,
+        },
+    )
+
+    return send_email(to_email, subject, html_content)

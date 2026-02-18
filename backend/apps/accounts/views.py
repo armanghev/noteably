@@ -8,7 +8,7 @@ These endpoints are for checking auth status and user info.
 import logging
 
 from apps.core.supabase_client import supabase_client
-from apps.core.utils.email import send_welcome_email
+from apps.core.utils.email import send_account_deleted_email, send_welcome_email
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -348,6 +348,12 @@ def delete_account(request):
     Deletion order: Django models → Supabase Storage → Supabase DB → Supabase Auth
     """
     user_id = request.user_id
+    user_email = request.user.email
+    first_name = (
+        request.user.user_metadata.get("first_name", "there")
+        if hasattr(request.user, "user_metadata")
+        else "there"
+    )
 
     errors = []
 
@@ -422,5 +428,13 @@ def delete_account(request):
             {"error": "Account partially deleted", "details": errors},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+    # Send confirmation email
+    if user_email:
+        try:
+            send_account_deleted_email(user_email, first_name)
+            logger.info(f"Account deletion email sent to {user_email}")
+        except Exception as e:
+            logger.error(f"Failed to send account deletion email to {user_email}: {e}")
 
     return Response(status=status.HTTP_204_NO_CONTENT)

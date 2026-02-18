@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Account Deleted</title>
+    <style>
+      body {
+        font-family:
+          "Inter",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f5f4;
+        color: #1f1f1f;
+      }
+      .container {
+        max-width: 600px;
+        margin: 40px auto;
+        background-color: #ffffff;
+        border-radius: 24px;
+        padding: 40px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      }
+      .logo {
+        font-family: "Playfair Display", serif;
+        font-size: 28px;
+        font-weight: 700;
+        color: #4a6b50;
+        margin-bottom: 30px;
+        text-align: center;
+      }
+      h1 {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: #1f1f1f;
+        text-align: center;
+      }
+      p {
+        font-size: 16px;
+        line-height: 1.6;
+        margin-bottom: 16px;
+        color: #374151;
+      }
+      .cta-container {
+        text-align: center;
+        margin: 32px 0;
+      }
+      .button {
+        display: inline-block;
+        background-color: #4a6b50;
+        color: #ffffff !important;
+        padding: 14px 32px;
+        border-radius: 99px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 16px;
+        box-shadow: 0 4px 6px -1px rgba(74, 107, 80, 0.3);
+      }
+      .link-text {
+        font-size: 12px;
+        color: #9ca3af;
+        word-break: break-all;
+        margin-top: 10px;
+      }
+      .footer {
+        margin-top: 40px;
+        text-align: center;
+        font-size: 12px;
+        color: #9ca3af;
+        border-top: 1px solid #e5e7eb;
+        padding-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="logo">Noteably</div>
+
+      <h1>Account Deleted</h1>
+
+      <p>Hello {{ first_name|default:"there" }},</p>
+
+      <p>
+        We’re writing to confirm that your Noteably account has been
+        successfully deleted. We're sorry to see you go!
+      </p>
+
+      <p>We hope to see you again in the future.</p>
+
+      <div class="cta-container">
+        <a href="https://noteably.ai" class="button">Visit Noteably</a>
+      </div>
+
+      <p>Best regards,<br />The Noteably Team</p>
+
+      <div class="footer">
+        &copy; 2026 Noteably. All rights reserved.<br />
+        You received this email because you had an account with Noteably.
+      </div>
+    </div>
+  </body>
+</html>
