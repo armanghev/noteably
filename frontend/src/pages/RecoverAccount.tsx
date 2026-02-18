@@ -98,11 +98,10 @@ export default function RecoverAccount() {
   }
 
   // Handle OAuth callback - complete recovery after user authenticates
-  const completeOAuthRecovery = async () => {
-    if (!recoveryToken) return
+  const completeOAuthRecovery = async (sessionToken: string) => {
     setLoading(true)
     try {
-      await authService.confirmRecoveryOAuth(recoveryToken)
+      await authService.confirmRecoveryOAuth(sessionToken)
       setStep('success')
     } catch (error: any) {
       const message = error.message || 'Failed to complete recovery'
@@ -128,13 +127,15 @@ export default function RecoverAccount() {
 
   // Re-verify token on mount and check for OAuth callback
   useEffect(() => {
-    if (oauthComplete && user && recoveryToken) {
-      // User just authenticated via OAuth, complete the recovery
-      completeOAuthRecovery()
-    } else if (token) {
+    if (oauthComplete && user && token) {
+      // User just authenticated via OAuth, the token param is the recovery_session_token
+      // Complete recovery directly (skip re-verification)
+      completeOAuthRecovery(token)
+    } else if (token && !oauthComplete) {
+      // Initial page load with recovery token from email
       verifyRecoveryToken()
     }
-  }, [token, oauthComplete, user, recoveryToken])
+  }, [token, oauthComplete, user])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
