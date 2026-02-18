@@ -6,9 +6,16 @@ These endpoints are for checking auth status and user info.
 """
 
 import logging
+import os
+from datetime import datetime, timezone
 
+import requests as http_requests
 from apps.core.supabase_client import supabase_client
-from apps.core.utils.email import send_account_deleted_email, send_welcome_email
+from apps.core.utils.email import (
+    send_deletion_confirmation_email,
+    send_welcome_email,
+)
+from apps.core.utils.token import generate_recovery_token
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -344,8 +351,17 @@ def revoke_api_key(request, key_id):
 @permission_classes([IsAuthenticated])
 def delete_account(request):
     """
-    Permanently delete the authenticated user's account and all associated data.
-    Deletion order: Django models → Supabase Storage → Supabase DB → Supabase Auth
+    Soft-delete the authenticated user's account.
+
+    Sets deleted_at in user metadata (marking account for pending deletion),
+    sends recovery email with 14-day grace period.
+
+    Account is locked immediately by middleware.
+    After 14 days, a background task performs hard deletion.
+
+    Returns:
+        204 No Content on success
+        500 Internal Server Error if critical updates fail
     """
     user_id = request.user_id
     user_email = request.user.email
@@ -355,86 +371,79 @@ def delete_account(request):
         else "there"
     )
 
-    errors = []
-
-    # 1. Delete Django models (APIKeys)
+    # 1. Generate signed recovery token (valid 14 days)
     try:
-        from .models import APIKey
-
-        deleted_count, _ = APIKey.objects.filter(user=user_id).delete()
-        logger.info(f"Deleted {deleted_count} API keys for user {user_id}")
+        recovery_token = generate_recovery_token(user_id)
+        logger.info(f"Generated recovery token for user {user_id}")
     except Exception as e:
-        logger.error(f"Failed to delete API keys for user {user_id}: {e}")
-        errors.append(f"API keys: {str(e)}")
-
-    # 2. Delete Supabase Storage files (uploaded files per job + avatar)
-    try:
-        from apps.ingestion.models import Job
-        from apps.ingestion.supabase_storage import delete_job_folder
-
-        job_ids = list(Job.objects.filter(user_id=user_id).values_list("id", flat=True))
-        for job_id in job_ids:
-            try:
-                delete_job_folder(str(job_id))
-            except Exception as e:
-                logger.error(f"Failed to delete storage for job {job_id}: {e}")
-                errors.append(f"Storage job {job_id}: {str(e)}")
-    except Exception as e:
-        logger.error(f"Failed to delete storage files for user {user_id}: {e}")
-        errors.append(f"Storage: {str(e)}")
-
-    # Delete avatar from avatars bucket
-    try:
-        client = supabase_client.client
-        avatar_key = f"{str(user_id).lower()}/avatar.jpg"
-        client.storage.from_("avatars").remove([avatar_key])
-        logger.info(f"Deleted avatar for user {user_id}")
-    except Exception as e:
-        logger.warning(f"Failed to delete avatar for user {user_id}: {e}")
-        # Not a critical error — avatar may not exist
-
-    # 3. Delete Django models (Jobs cascade → GeneratedContent, QuizAttempt, ChatMessage)
-    try:
-        from apps.ingestion.models import Job
-
-        deleted_count, _ = Job.objects.filter(user_id=user_id).delete()
-        logger.info(f"Deleted {deleted_count} jobs (+ cascaded content) for user {user_id}")
-    except Exception as e:
-        logger.error(f"Failed to delete jobs for user {user_id}: {e}")
-        errors.append(f"Jobs: {str(e)}")
-
-    # 4. Delete Supabase user_subscriptions row
-    try:
-        client = supabase_client.client
-        client.table("user_subscriptions").delete().eq(
-            "user_id", str(user_id)
-        ).execute()
-        logger.info(f"Deleted subscription record for user {user_id}")
-    except Exception as e:
-        logger.warning(f"Failed to delete subscription for user {user_id}: {e}")
-        # Not critical — row may not exist for free tier users
-
-    # 5. Delete user from Supabase Auth (must be last)
-    try:
-        client = supabase_client.client
-        client.auth.admin.delete_user(str(user_id))
-        logger.info(f"Deleted Supabase auth user {user_id}")
-    except Exception as e:
-        logger.error(f"Failed to delete Supabase auth user {user_id}: {e}")
-        errors.append(f"Auth: {str(e)}")
-
-    if errors:
+        logger.error(f"Failed to generate recovery token for {user_id}: {e}")
         return Response(
-            {"error": "Account partially deleted", "details": errors},
+            {"error": "Failed to initiate deletion. Please try again."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-    # Send confirmation email
+    # 2. Set deleted_at timestamp in Supabase user metadata
+    try:
+        auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+        user_token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
+
+        if not user_token:
+            logger.error(f"No token in auth header for user {user_id}")
+            return Response(
+                {"error": "Missing authentication token"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        deleted_at = datetime.now(timezone.utc).isoformat()
+
+        supabase_url = os.getenv("SUPABASE_URL")
+        service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+        resp = http_requests.put(
+            f"{supabase_url}/auth/v1/user",
+            headers={
+                "Authorization": f"Bearer {user_token}",
+                "apikey": service_key,
+                "Content-Type": "application/json",
+            },
+            json={
+                "data": {
+                    "deleted_at": deleted_at,
+                }
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+        logger.info(f"Set deleted_at for user {user_id}")
+    except http_requests.HTTPError as e:
+        error_msg = e.response.json() if e.response is not None else {}
+        logger.error(f"Failed to set deleted_at for {user_id}: {error_msg}")
+        return Response(
+            {"error": "Failed to update account status"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    except Exception as e:
+        logger.error(f"Failed to set deleted_at for {user_id}: {e}")
+        return Response(
+            {"error": "Failed to update account status"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    # 3. Send deletion confirmation email with recovery link
     if user_email:
         try:
-            send_account_deleted_email(user_email, first_name)
-            logger.info(f"Account deletion email sent to {user_email}")
+            frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+            recovery_url = f"{frontend_url}/recover?token={recovery_token}"
+            send_deletion_confirmation_email(
+                email=user_email,
+                first_name=first_name,
+                recovery_link=recovery_url,
+                days_remaining=14,
+            )
+            logger.info(f"Deletion confirmation email sent to {user_email}")
         except Exception as e:
-            logger.error(f"Failed to send account deletion email to {user_email}: {e}")
+            logger.error(f"Failed to send deletion email to {user_email}: {e}")
+            # Note: Don't fail the deletion if email fails to send
+            # User account is already marked for deletion
 
     return Response(status=status.HTTP_204_NO_CONTENT)
