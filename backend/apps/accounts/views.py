@@ -790,123 +790,7 @@ def confirm_recovery(request):
 @permission_classes([AllowAny])
 def confirm_recovery_oauth(request):
     """
-    user_id = request.data.get("user_id")
-    if not user_id:
-         return Response(
-            {"error": "User ID is required"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    
-    # Check if user has an OAuth identity
-    try:
-        user = supabase_client.get_user_by_id(user_id)
-        if not user:
-             return Response(
-                {"error": "User not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        
-        # Check provider
-        app_metadata = user.get("app_metadata", {})
-        provider = app_metadata.get("provider", "email")
-        
-        if provider == "email":
-             return Response(
-                {"error": "This endpoint is for OAuth accounts only"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Clear deleted_at
-        supabase_url = os.getenv("SUPABASE_URL")
-        service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-        
-        # We need to use admin rights to update user metadata without a password
-        try:
-             from supabase import create_client as create_supabase_client
-             admin_client = create_supabase_client(supabase_url, service_key)
-             
-             admin_client.auth.admin.update_user_by_id(
-                str(user_id),
-                {
-                    "user_metadata": {"deleted_at": None},
-                }
-            )
-             logger.info(f"Account restored for OAuth user {user_id}")
-             
-             return Response(
-                {
-                    "message": "Account restored successfully",
-                    "recovery_completed": True
-                },
-                status=status.HTTP_200_OK
-            )
-        except Exception as e:
-             logger.error(f"Failed to restore OAuth account {user_id}: {e}")
-             return Response(
-                {"error": "Failed to restore account"},
-                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-    except Exception as e:
-        logger.error(f"Error in confirm_recovery_oauth: {e}")
-        return Response(
-            {"error": str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
-
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def restore_account(request):
-    """
-    Restore a soft-deleted account by clearing the deleted_at timestamp.
-    Requires authentication (which is now allowed for deleted users).
-    """
-    user_id = request.user_id
-    
-    try:
-        auth_header = request.META.get("HTTP_AUTHORIZATION", "")
-        user_token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
-
-        if not user_token:
-            return Response(
-                {"error": "Missing authentication token"},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
-
-        supabase_url = os.getenv("SUPABASE_URL")
-        service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-
-        # Update user metadata to remove deleted_at
-        # Using the user's token should work since they are technically logged in
-        resp = http_requests.put(
-            f"{supabase_url}/auth/v1/user",
-            headers={
-                "Authorization": f"Bearer {user_token}",
-                "apikey": service_key,
-                "Content-Type": "application/json",
-            },
-            json={
-                "data": {
-                    "deleted_at": None,
-                }
-            },
-            timeout=10,
-        )
-        resp.raise_for_status()
-        
-        logger.info(f"Account restored (undo delete) for user {user_id}")
-        
-        return Response(
-            {"message": "Account restored successfully"},
-            status=status.HTTP_200_OK
-        )
-    except Exception as e:
-        logger.error(f"Failed to restore account for user {user_id}: {e}")
-        return Response(
-            {"error": "Failed to restore account"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
+    Complete account recovery for OAuth users.
 
     OAuth users don't set a new password — instead they verify ownership by
     signing in with their OAuth provider. This endpoint just clears the
@@ -1003,3 +887,39 @@ def restore_account(request):
         },
         status=status.HTTP_200_OK,
     )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def restore_account(request):
+    """
+    Restore a soft-deleted account by clearing the deleted_at timestamp.
+    Requires authentication (which is now allowed for deleted users).
+    """
+    try:
+        user_id = request.user.id
+        
+        supabase_url = os.getenv("SUPABASE_URL")
+        service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+        from supabase import create_client as create_supabase_client
+        supabase = create_supabase_client(supabase_url, service_key)
+
+        # Update user metadata to remove deleted_at
+        supabase.auth.admin.update_user_by_id(
+            str(user_id),
+            {"user_metadata": {"deleted_at": None}}
+        )
+        
+        logger.info(f"Account restored (undo delete) for user {user_id}")
+        
+        return Response(
+            {"message": "Account restored successfully"},
+            status=status.HTTP_200_OK
+        )
+    except Exception as e:
+        logger.error(f"Failed to restore account: {e}")
+        return Response(
+            {"error": "Failed to restore account"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
