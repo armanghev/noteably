@@ -19,6 +19,10 @@ RECOVERY_TOKEN_MAX_AGE_SECONDS = 14 * 24 * 60 * 60
 # Recovery session token validity: 1 hour
 RECOVERY_SESSION_MAX_AGE_SECONDS = 60 * 60
 
+# Track used recovery session tokens for one-time use enforcement
+# In production, this should be replaced with Redis or database storage
+_used_recovery_tokens = set()
+
 
 def generate_recovery_token(user_id: UUID) -> str:
     """
@@ -146,3 +150,30 @@ def verify_recovery_session_token(token: str) -> dict:
     except Exception as e:
         logger.error(f"Error verifying recovery session token: {e}")
         raise BadSignature(f"Invalid or expired recovery session token: {e}")
+
+
+def mark_recovery_token_used(token: str) -> None:
+    """
+    Mark a recovery session token as used (one-time use enforcement).
+
+    In production, this should use Redis or database storage.
+    For MVP, uses in-memory set (will reset on server restart).
+
+    Args:
+        token: The recovery session token to mark as used
+    """
+    _used_recovery_tokens.add(token)
+    logger.debug(f"Marked recovery token as used")
+
+
+def is_recovery_token_used(token: str) -> bool:
+    """
+    Check if a recovery session token has already been used.
+
+    Args:
+        token: The recovery session token to check
+
+    Returns:
+        True if token has already been used, False otherwise
+    """
+    return token in _used_recovery_tokens

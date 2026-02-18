@@ -21,6 +21,9 @@ from apps.core.utils.token import (
     generate_recovery_token,
     generate_recovery_session_token,
     verify_recovery_token,
+    verify_recovery_session_token,
+    mark_recovery_token_used,
+    is_recovery_token_used,
 )
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -30,6 +33,29 @@ from rest_framework.response import Response
 from .permissions import IsAuthenticated
 
 logger = logging.getLogger(__name__)
+
+
+def validate_password_strength(password: str) -> tuple[bool, str]:
+    """
+    Validate password strength.
+
+    Returns a tuple of (is_valid: bool, error_message: str).
+    Error message is empty string if password is valid.
+
+    Requirements:
+    - At least 8 characters
+    - At least one uppercase letter
+    - At least one digit
+    """
+    if not password:
+        return False, "Password is required"
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long"
+    if not any(c.isupper() for c in password):
+        return False, "Password must contain at least one uppercase letter"
+    if not any(c.isdigit() for c in password):
+        return False, "Password must contain at least one digit"
+    return True, ""
 
 
 @api_view(["POST"])
@@ -559,3 +585,175 @@ def recover_account(request):
             {"error": "Failed to verify recovery token"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def confirm_recovery(request):
+    """
+    Reset password and unlock account after recovery verification.
+
+    This endpoint completes the account recovery flow by:
+    1. Validating the recovery session token
+    2. Validating the new password strength
+    3. Updating the password in Supabase Auth
+    4. Clearing the deleted_at flag from user metadata
+    5. Marking the token as used (one-time use enforcement)
+
+    Request Body:
+        {
+            "recovery_session_token": "token-from-recover-endpoint",
+            "new_password": "user-entered-password"
+        }
+
+    Response (200 OK):
+        {
+            "message": "Account recovered successfully",
+            "user_id": "uuid",
+            "email": "string",
+            "recovery_completed": true,
+            "next_step": "You can now log in with your new password"
+        }
+
+    Error Responses:
+        400 Bad Request: Missing required fields
+        401 Unauthorized: Invalid or expired recovery_session_token
+        422 Unprocessable Entity: Weak password
+        500 Internal Server Error: Server errors
+    """
+    # 1. Parse request
+    recovery_session_token = request.data.get("recovery_session_token")
+    new_password = request.data.get("new_password")
+
+    if not recovery_session_token or not new_password:
+        return Response(
+            {
+                "error": "recovery_session_token and new_password are required"
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # 2. Check for token reuse (one-time use enforcement)
+    if is_recovery_token_used(recovery_session_token):
+        logger.warning(
+            "Attempt to reuse recovery session token"
+        )
+        return Response(
+            {
+                "error": "Recovery session token has already been used"
+            },
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    # 3. Validate recovery session token
+    try:
+        session_payload = verify_recovery_session_token(recovery_session_token)
+        user_id = session_payload.get("user_id")
+        if not user_id:
+            logger.warning(
+                "Recovery session token missing user_id"
+            )
+            return Response(
+                {"error": "Invalid recovery session token"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+    except signing.BadSignature as e:
+        logger.warning(
+            f"Recovery session token validation failed: {e}"
+        )
+        return Response(
+            {"error": "Invalid or expired recovery session token"},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+    except Exception as e:
+        logger.warning(
+            f"Recovery session token validation error: {e}"
+        )
+        return Response(
+            {"error": "Invalid or expired recovery session token"},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    # 4. Validate password strength
+    is_valid_password, error_msg = validate_password_strength(new_password)
+    if not is_valid_password:
+        return Response(
+            {"error": error_msg},
+            status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+
+    # 5. Update password in Supabase Auth
+    try:
+        supabase_client.client.auth.admin.update_user_by_id(
+            str(user_id),
+            {"password": new_password}
+        )
+        logger.info(f"Password reset successfully for user {user_id}")
+    except Exception as e:
+        logger.error(f"Failed to reset password for user {user_id}: {e}")
+        return Response(
+            {"error": "Failed to update password. Please try again."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    # 6. Clear deleted_at from user metadata (unlock account)
+    try:
+        supabase_url = os.getenv("SUPABASE_URL")
+        service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+        resp = http_requests.put(
+            f"{supabase_url}/auth/v1/user/{user_id}",
+            headers={
+                "apikey": service_key,
+                "Content-Type": "application/json",
+            },
+            json={
+                "user_metadata": {}
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+        logger.info(f"Cleared deleted_at for user {user_id}")
+    except http_requests.HTTPError as e:
+        error_detail = e.response.json() if e.response else {}
+        logger.error(
+            f"Failed to clear deleted_at for {user_id}: {error_detail}"
+        )
+        return Response(
+            {"error": "Failed to unlock account. Please contact support."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    except Exception as e:
+        logger.error(f"Failed to clear deleted_at for {user_id}: {e}")
+        return Response(
+            {"error": "Failed to unlock account"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    # 7. Mark token as used (one-time use enforcement)
+    mark_recovery_token_used(recovery_session_token)
+
+    # 8. Fetch user info for response
+    user_email = "unknown"
+    try:
+        user_from_supabase = supabase_client.get_user_by_id(str(user_id))
+        if user_from_supabase:
+            user_email = user_from_supabase.get("email", "unknown")
+    except Exception as e:
+        logger.error(f"Failed to fetch user {user_id} after recovery: {e}")
+
+    # 9. Log recovery event
+    logger.info(
+        f"Account recovery completed successfully for user {user_id}"
+    )
+
+    return Response(
+        {
+            "message": "Account recovered successfully",
+            "user_id": user_id,
+            "email": user_email,
+            "recovery_completed": True,
+            "next_step": "You can now log in with your new password",
+        },
+        status=status.HTTP_200_OK,
+    )
