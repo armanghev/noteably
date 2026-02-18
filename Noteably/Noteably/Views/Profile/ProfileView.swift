@@ -10,6 +10,7 @@ struct ProfileView: View {
     @State private var isDeletingAccount = false
     @State private var deleteError: String?
     @State private var showDeleteError = false
+    @State private var showAccountDeleted = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var isUploadingAvatar = false
     @State private var showImageCropper = false
@@ -119,7 +120,7 @@ struct ProfileView: View {
                         isDeletingAccount = true
                         do {
                             try await appState.deleteAccount()
-                            dismiss()
+                            showAccountDeleted = true
                         } catch {
                             isDeletingAccount = false
                             deleteError = error.localizedDescription
@@ -128,12 +129,17 @@ struct ProfileView: View {
                     }
                 }
             } message: {
-                Text("This will permanently delete your account and all your data including study sets, flashcards, quizzes, and uploaded files. This action cannot be undone.")
+                Text("Your account will be locked immediately, but your data will be preserved for 14 days. We'll send you a recovery email with a link to restore access. After 14 days, your account and all data will be permanently deleted.")
             }
             .alert("Error", isPresented: $showDeleteError) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(deleteError ?? "Failed to delete account. Please try again.")
+            }
+            .fullScreenCover(isPresented: $showAccountDeleted) {
+                AccountDeletedView {
+                    showAccountDeleted = false
+                }
             }
         }
     }

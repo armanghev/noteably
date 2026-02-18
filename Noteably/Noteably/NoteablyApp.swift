@@ -10,7 +10,9 @@ struct NoteablyApp: App {
         WindowGroup {
             Group {
                 if appState.isAuthenticated {
-                    if appState.needsProfileCompletion {
+                    if appState.needsAccountLinking {
+                        LinkAccountView()
+                    } else if appState.needsProfileCompletion {
                         CompleteProfileView()
                     } else if appState.needsAvatarSetup {
                         SetupAvatarView {
@@ -28,10 +30,12 @@ struct NoteablyApp: App {
             .environment(authService)
             .animation(.easeInOut(duration: 0.3), value: appState.isAuthenticated)
             .animation(.easeInOut(duration: 0.3), value: appState.needsProfileCompletion)
+            .animation(.easeInOut(duration: 0.3), value: appState.needsAccountLinking)
             .onOpenURL { url in
                 Task {
                     _ = try? await SupabaseConfig.client.auth.session(from: url)
                     appState.syncAuthState()
+                    await appState.checkOAuthIdentityConflict()
                 }
             }
         }

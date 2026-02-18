@@ -9,6 +9,7 @@ enum APIError: LocalizedError {
     case serverError(statusCode: Int, message: String?)
     case networkUnavailable
     case decodingError(Error)
+    case accountPendingDeletion
     case unknown(Error)
 
     var errorDescription: String? {
@@ -25,6 +26,8 @@ enum APIError: LocalizedError {
             return "No internet connection. Please check your network."
         case .decodingError:
             return "Failed to process server response."
+        case .accountPendingDeletion:
+            return "Your account is scheduled for deletion. Check your email for recovery instructions."
         case .unknown(let error):
             return error.localizedDescription
         }
@@ -205,12 +208,48 @@ final class APIClient {
         }
     }
 
+    /// Fire-and-forget request that expects no response body (e.g. 204 No Content).
+    func requestVoid(
+        method: String,
+        path: String,
+        body: (any Encodable)? = nil
+    ) async throws {
+        let url = try buildURL(path: path, queryItems: nil)
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        if let tokenProvider, let token = await tokenProvider() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        if let body {
+            request.httpBody = try encoder.encode(body)
+        }
+
+        let (data, response) = try await performRequest(request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.unknown(URLError(.badServerResponse))
+        }
+
+        try validateResponse(httpResponse, data: data)
+    }
+
     private func validateResponse(_ response: HTTPURLResponse, data: Data) throws {
         switch response.statusCode {
         case 200...299:
             return
         case 401:
             throw APIError.unauthorized
+        case 403:
+            if let body = try? decoder.decode([String: String].self, from: data),
+               let errorMsg = body["error"],
+               errorMsg.contains("scheduled for deletion") {
+                throw APIError.accountPendingDeletion
+            }
+            let message = try? decoder.decode([String: String].self, from: data)["error"]
+            throw APIError.serverError(statusCode: 403, message: message)
         case 404:
             throw APIError.notFound
         default:
@@ -233,5 +272,9 @@ extension APIClient {
 
     func delete<T: Decodable>(path: String) async throws -> T {
         try await request(method: "DELETE", path: path)
+    }
+
+    func deleteVoid(path: String) async throws {
+        try await requestVoid(method: "DELETE", path: path)
     }
 }

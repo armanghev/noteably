@@ -245,7 +245,12 @@ struct SignInView: View {
                 try await appState.signIn(email: email, password: password)
                 dismiss()
             } catch let error as APIError {
-                errorMessage = error.errorDescription
+                switch error {
+                case .accountPendingDeletion:
+                    errorMessage = "Your account is scheduled for deletion. Check your email for a recovery link to restore your account."
+                default:
+                    errorMessage = error.errorDescription
+                }
             } catch {
                 errorMessage = error.localizedDescription
             }

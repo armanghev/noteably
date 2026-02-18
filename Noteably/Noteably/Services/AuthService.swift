@@ -115,9 +115,9 @@ final class AuthService {
     // MARK: - Delete Account
 
     func deleteAccount() async throws {
-        let _: EmptyResponse = try await api.delete(path: "/api/auth/me/delete")
-        clearSession()
-        CacheService.shared.clearAll()
+        try await api.deleteVoid(path: "/api/auth/me/delete")
+        // Sign out locally after successful deletion request
+        await signOut()
     }
 
     // MARK: - Sign Out
