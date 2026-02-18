@@ -11,6 +11,7 @@ final class AppState {
     var needsProfileCompletion = false
     var needsAvatarSetup = false
     var needsAccountLinking = false
+    var isAccountDeleted = false
     var isConnected = true
 
     private let authService = AuthService.shared
@@ -30,6 +31,7 @@ final class AppState {
         isAuthenticated = authService.isAuthenticated
         userId = authService.currentUserId
         needsProfileCompletion = isAuthenticated && !authService.profileCompleted
+        isAccountDeleted = authService.accountScheduledForDeletion != nil
     }
 
     func signIn(email: String, password: String) async throws {
@@ -58,6 +60,11 @@ final class AppState {
 
     func deleteAccount() async throws {
         try await authService.deleteAccount()
+        await MainActor.run { syncAuthState() }
+    }
+
+    func restoreAccount() async throws {
+        try await authService.restoreAccount()
         await MainActor.run { syncAuthState() }
     }
 
@@ -113,6 +120,7 @@ final class AppState {
             if isAuth {
                 self?.userId = self?.authService.currentUserId
                 self?.needsProfileCompletion = !(self?.authService.profileCompleted ?? false)
+                self?.isAccountDeleted = self?.authService.accountScheduledForDeletion != nil
             } else {
                 self?.userId = nil
                 self?.needsProfileCompletion = false

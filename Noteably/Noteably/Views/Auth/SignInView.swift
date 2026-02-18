@@ -11,6 +11,7 @@ struct SignInView: View {
     @State private var isGoogleLoading = false
     @State private var errorMessage: String?
     @State private var appeared = false
+    @State private var showRestorationAlert = false
 
     @FocusState private var focusedField: Field?
 
@@ -40,6 +41,9 @@ struct SignInView: View {
                 }
                 .padding(.top, 8)
             }
+        }
+        .alert(isPresented: $showRestorationAlert) {
+            restorationAlert
         }
         .onAppear {
             withAnimation(.easeOut(duration: 0.6)) {
@@ -232,6 +236,29 @@ struct SignInView: View {
         .opacity(appeared ? 1 : 0)
     }
 
+    private var restorationAlert: Alert {
+        Alert(
+            title: Text("Account Scheduled for Deletion"),
+            message: Text("Your account is currently scheduled for deletion. Would you like to restore it?"),
+            primaryButton: .default(Text("Restore Account")) {
+                Task {
+                    do {
+                        isLoading = true
+                        try await appState.restoreAccount()
+                        isLoading = false
+                        dismiss()
+                    } catch {
+                        isLoading = false
+                        errorMessage = error.localizedDescription
+                    }
+                }
+            },
+            secondaryButton: .cancel(Text("Cancel")) {
+                appState.signOut()
+            }
+        )
+    }
+
     // MARK: - Actions
 
     private func signIn() {
@@ -243,13 +270,13 @@ struct SignInView: View {
         Task {
             do {
                 try await appState.signIn(email: email, password: password)
-                dismiss()
-            } catch let error as APIError {
-                switch error {
-                case .accountPendingDeletion:
-                    errorMessage = "Your account is scheduled for deletion. Check your email for a recovery link to restore your account."
-                default:
-                    errorMessage = error.errorDescription
+                
+                if appState.isAccountDeleted {
+                    // Trigger alert for restoration
+                    isLoading = false
+                    showRestorationAlert = true
+                } else {
+                    dismiss()
                 }
             } catch {
                 errorMessage = error.localizedDescription

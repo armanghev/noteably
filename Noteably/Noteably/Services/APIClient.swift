@@ -243,11 +243,6 @@ final class APIClient {
         case 401:
             throw APIError.unauthorized
         case 403:
-            if let body = try? decoder.decode([String: String].self, from: data),
-               let errorMsg = body["error"],
-               errorMsg.contains("scheduled for deletion") {
-                throw APIError.accountPendingDeletion
-            }
             let message = try? decoder.decode([String: String].self, from: data)["error"]
             throw APIError.serverError(statusCode: 403, message: message)
         case 404:
