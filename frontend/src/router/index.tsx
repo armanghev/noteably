@@ -8,6 +8,7 @@ import Dashboard from "@/pages/Dashboard";
 import FlashcardDeck from "@/pages/FlashcardDeck";
 import Flashcards from "@/pages/Flashcards";
 import LandingPage from "@/pages/LandingPage";
+import LinkAccount from "@/pages/LinkAccount";
 import Login from "@/pages/Login";
 import NoteDetail from "@/pages/NoteDetail";
 import Notes from "@/pages/Notes";
@@ -19,7 +20,6 @@ import Signup from "@/pages/Signup";
 import StudySetDetail from "@/pages/StudySetDetail";
 import StudySets from "@/pages/StudySets";
 import Upload from "@/pages/Upload";
-import LinkAccount from "@/pages/LinkAccount";
 
 export const router = createBrowserRouter([
   {
@@ -36,7 +36,11 @@ export const router = createBrowserRouter([
   },
   {
     path: ROUTES.RECOVER,
-    element: <RecoverAccount />,
+    element: <RecoverAccount />, // Existing recover password page
+  },
+  {
+    path: ROUTES.RECOVER_ACCOUNT,
+    element: <RecoverAccount />, // New recover account page (TODO: check if same component intended or name clash)
   },
   {
     path: ROUTES.ACCOUNT_DELETED,

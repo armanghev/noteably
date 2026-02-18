@@ -3,315 +3,109 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
-import { authService } from "@/lib/api/services/auth";
-import { AlertCircle, CheckCircle } from "lucide-react";
+import { apiClient as api } from "@/lib/api";
+import { ROUTES } from "@/router/routes";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 export default function RecoverAccount() {
+  const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get("token");
-  const oauthComplete = searchParams.get("oauth_complete");
-  const { user } = useAuth();
-
-  const [step, setStep] = useState<
-    "verifying" | "reset" | "oauth" | "success" | "error"
-  >("verifying");
-  const [recoveryToken, setRecoveryToken] = useState<string>("");
-  const [newPassword, setNewPassword] = useState<string>("");
-  const [confirmPassword, setConfirmPassword] = useState<string>("");
-  const [errorMessage, setErrorMessage] = useState<string>("");
   const [loading, setLoading] = useState(false);
-  const [authProvider, setAuthProvider] = useState<string | null>(null);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Validate password requirements
-  const validatePassword = (
-    password: string,
-  ): { valid: boolean; errors: string[] } => {
-    const errors = [];
-    if (password.length < 8) {
-      errors.push("At least 8 characters");
-    }
-    if (!/[A-Z]/.test(password)) {
-      errors.push("At least one uppercase letter");
-    }
-    if (!/\d/.test(password)) {
-      errors.push("At least one digit");
-    }
-    return { valid: errors.length === 0, errors };
-  };
-
-  // Step 1: Verify recovery token on mount
-  const verifyRecoveryToken = async () => {
-    if (!token) {
-      setErrorMessage("No recovery token found. Invalid recovery link.");
-      setStep("error");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await authService.recoverAccount(token);
-      setRecoveryToken(response.recovery_session_token);
-      setAuthProvider(response.auth_provider);
-      // If OAuth user, show OAuth login instead of password reset
-      const nextStep = response.auth_provider ? "oauth" : "reset";
-      setStep(nextStep);
-    } catch (error: any) {
-      const message =
-        error.response?.data?.error || "Failed to verify recovery token";
-      setErrorMessage(message);
-      setStep("error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Step 3: Reset password
-  const handlePasswordReset = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!newPassword || !confirmPassword) {
-      setErrorMessage("Both password fields are required");
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setErrorMessage("Passwords do not match");
-      return;
-    }
-
-    const validation = validatePassword(newPassword);
-    if (!validation.valid) {
-      setErrorMessage(`Password must meet: ${validation.errors.join(", ")}`);
-      return;
-    }
-
-    setLoading(true);
-    setErrorMessage("");
-    try {
-      await authService.confirmRecovery(recoveryToken, newPassword);
-      setStep("success");
-    } catch (error: any) {
-      const message = error.message || "Failed to reset password";
-      setErrorMessage(message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle OAuth callback - complete recovery after user authenticates
-  const completeOAuthRecovery = async (sessionToken: string) => {
-    setLoading(true);
-    try {
-      await authService.confirmRecoveryOAuth(sessionToken);
-      setStep("success");
-    } catch (error: any) {
-      const message = error.message || "Failed to complete recovery";
-      setErrorMessage(message);
-      setStep("error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle Google sign in for OAuth recovery
-  const handleGoogleRecovery = async () => {
-    try {
-      setGoogleLoading(true);
-      await authService.signInWithGoogleForRecovery(recoveryToken);
-      // User will be redirected back to this page with oauth_complete=1 after auth
-    } catch (error: any) {
-      const message = error.message || "Failed to sign in with Google";
-      setErrorMessage(message);
-      setGoogleLoading(false);
-    }
-  };
-
-  // Re-verify token on mount and check for OAuth callback
+  // If user is not logged in or not scheduled for deletion, redirect away
   useEffect(() => {
-    if (oauthComplete && user && token) {
-      // User just authenticated via OAuth, the token param is the recovery_session_token
-      // Complete recovery directly (skip re-verification)
-      completeOAuthRecovery(token);
-    } else if (token && !oauthComplete) {
-      // Initial page load with recovery token from email
-      verifyRecoveryToken();
+    if (!user) {
+      navigate(ROUTES.LOGIN);
+      return;
     }
-  }, [token, oauthComplete, user]);
+
+    if (!user.user_metadata?.deleted_at) {
+      navigate(ROUTES.DASHBOARD);
+      return;
+    }
+  }, [user, navigate]);
+
+  const handleRecover = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await api.post("/auth/me/restore");
+      await refreshUser();
+      // After refresh, the deleted_at should be gone, and the effect above
+      // or the AuthContext logic will redirect to dashboard
+      navigate(ROUTES.DASHBOARD);
+    } catch (err: any) {
+      console.error("Failed to restore account:", err);
+      setError(
+        err.response?.data?.error ||
+          "Failed to restore account. Please try again.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    await logout();
+    navigate(ROUTES.LOGIN);
+  };
+
+  if (!user || !user.user_metadata?.deleted_at) {
+    return null; // or loading spinner while redirecting
+  }
+
+  const deletionDate = new Date(user.user_metadata.deleted_at);
+  const scheduledDeletion = new Date(
+    deletionDate.getTime() + 14 * 24 * 60 * 60 * 1000,
+  ); // 14 days later
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-lg border-border">
-        {step === "verifying" && (
-          <>
-            <CardHeader className="text-center">
-              <CardTitle>Recovering Your Account</CardTitle>
-              <CardDescription>
-                Please wait while we verify your recovery link...
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex justify-center py-8">
-              <div className="animate-spin">
-                <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full" />
-              </div>
-            </CardContent>
-          </>
-        )}
-
-        {step === "oauth" && (
-          <>
-            <CardHeader>
-              <CardTitle>Verify Your Identity</CardTitle>
-              <CardDescription>
-                Sign in with {authProvider || "your provider"} to restore your
-                account
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Your account was created with {authProvider}. To complete the
-                recovery process and verify you own this account, sign in with
-                the same method.
-              </p>
-              <Button
-                onClick={handleGoogleRecovery}
-                className="w-full"
-                disabled={googleLoading}
-              >
-                {googleLoading ? "Signing in..." : `Sign in with Google`}
-              </Button>
-              <p className="text-xs text-muted-foreground text-center">
-                After you authenticate, your account will be immediately
-                restored.
-              </p>
-            </CardContent>
-          </>
-        )}
-
-        {step === "reset" && (
-          <>
-            <CardHeader>
-              <CardTitle>Reset Your Password</CardTitle>
-              <CardDescription>
-                Enter a new password to restore access to your account
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handlePasswordReset} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    New Password
-                  </label>
-                  <Input
-                    type="password"
-                    placeholder="Enter new password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    disabled={loading}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Confirm Password
-                  </label>
-                  <Input
-                    type="password"
-                    placeholder="Confirm password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    disabled={loading}
-                    required
-                  />
-                </div>
-
-                {errorMessage && (
-                  <div className="bg-destructive/10 text-destructive p-3 rounded text-sm flex gap-2 items-start">
-                    <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                    <span>{errorMessage}</span>
-                  </div>
-                )}
-
-                <div className="space-y-2 bg-muted/50 p-3 rounded">
-                  <p className="text-xs font-medium text-foreground">
-                    Password requirements:
-                  </p>
-                  <ul className="text-xs text-muted-foreground space-y-1">
-                    <li>• At least 8 characters</li>
-                    <li>• At least one uppercase letter</li>
-                    <li>• At least one digit</li>
-                  </ul>
-                </div>
-
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Resetting..." : "Reset Password"}
-                </Button>
-              </form>
-            </CardContent>
-          </>
-        )}
-
-        {step === "success" && (
-          <>
-            <CardHeader className="text-center">
-              <div className="flex justify-center mb-4">
-                <CheckCircle className="h-12 w-12 text-primary" />
-              </div>
-              <CardTitle>Account Recovered</CardTitle>
-              <CardDescription>
-                Your account has been successfully restored
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-primary/10 text-primary-foreground p-4 rounded text-center text-sm">
-                <span className="text-primary font-medium">
-                  Your account is now active and your new password is set. You
-                  can log in now.
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground text-center">
-                Click below to return to the login page.
-              </p>
-              <Button onClick={() => navigate("/login")} className="w-full">
-                Go to Login
-              </Button>
-            </CardContent>
-          </>
-        )}
-
-        {step === "error" && (
-          <>
-            <CardHeader className="text-center">
-              <div className="flex justify-center mb-4">
-                <AlertCircle className="h-12 w-12 text-destructive" />
-              </div>
-              <CardTitle>Recovery Failed</CardTitle>
-              <CardDescription>Unable to recover your account</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-destructive/10 text-destructive p-4 rounded text-sm">
-                {errorMessage ||
-                  "An error occurred during account recovery. The recovery link may have expired."}
-              </div>
-              <p className="text-sm text-muted-foreground text-center">
-                If you continue to have issues, please contact support at
-                support@noteably.app
-              </p>
-              <Button onClick={() => navigate("/")} className="w-full">
-                Return to Home
-              </Button>
-            </CardContent>
-          </>
-        )}
+    <div className="flex min-h-screen items-center justify-center p-4 bg-background">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <div className="flex items-center space-x-2">
+            <AlertTriangle className="h-6 w-6 text-destructive" />
+            <CardTitle className="text-2xl">
+              Account Scheduled for Deletion
+            </CardTitle>
+          </div>
+          <CardDescription>
+            Your account is currently scheduled for permanent deletion on{" "}
+            {scheduledDeletion.toLocaleDateString()}.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            You can recover your account and all your data by clicking the
+            button below. If you do nothing, your account will be permanently
+            deleted.
+          </p>
+          {error && (
+            <div className="text-sm font-medium text-destructive">{error}</div>
+          )}
+        </CardContent>
+        <CardFooter className="flex flex-col space-y-2">
+          <Button className="w-full" onClick={handleRecover} disabled={loading}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Recover Account
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={handleCancel}
+            disabled={loading}
+          >
+            Cancel and Log Out
+          </Button>
+        </CardFooter>
       </Card>
     </div>
   );

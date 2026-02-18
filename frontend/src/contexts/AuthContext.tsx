@@ -35,11 +35,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ): Promise<boolean> => {
     // Check for scheduled deletion
     if (session?.user?.user_metadata?.deleted_at) {
-      await supabase.auth.signOut();
-      if (!window.location.pathname.includes("/login")) {
-        window.location.href = "/login?error=account_scheduled_deletion";
+      if (!window.location.pathname.includes("/recover-account")) {
+        window.location.href = "/recover-account";
       }
-      return true; // Conflict found
+      return false; // Allow session to be set so we can use it to restore
     }
 
     // Check for OAuth merge conflict (blocking OAuth if email exists)
