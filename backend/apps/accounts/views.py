@@ -794,6 +794,7 @@ def confirm_recovery(request):
 
 
 @api_view(["POST"])
+@permission_classes([AllowAny])
 def confirm_recovery_oauth(request):
     """
     Complete account recovery for OAuth users.
