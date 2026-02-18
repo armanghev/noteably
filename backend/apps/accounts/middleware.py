@@ -94,14 +94,23 @@ def supabase_auth_middleware(get_response):
                 api_key.last_used_at = timezone.now()
                 api_key.save(update_fields=["last_used_at"])
 
+                # Fetch full user data from Supabase to include user_metadata (for deleted_at check)
+                user_metadata = {}
+                try:
+                    user_from_supabase = supabase_client.get_user_by_id(str(api_key.user_id))
+                    user_metadata = user_from_supabase.get("user_metadata", {}) or {}
+                except Exception as e:
+                    logger.warning(f"Failed to fetch full user data for API key auth: {e}")
+                    # Allow auth to proceed but without metadata - deleted_at check will be skipped
+
                 # Set user data from Supabase (to mimic JWT auth)
-                # We need to fetch the user to get the 'app_metadata' etc. if needed later
-                # For now, we construct a basic user object
+                # Include user_metadata so deleted_at check can access it
                 user_data = {
                     "id": str(api_key.user_id),
                     "aud": "authenticated",
                     "role": "authenticated",
                     "app_metadata": {"provider": "api_key", "key_name": api_key.name},
+                    "user_metadata": user_metadata,
                 }
 
                 request.user = SupabaseUser(user_data)
@@ -109,7 +118,8 @@ def supabase_auth_middleware(get_response):
 
                 # Check if account is scheduled for deletion
                 if hasattr(request.user, 'data') and request.user.data:
-                    deleted_at = request.user.data.get('deleted_at')
+                    user_meta = request.user.data.get('user_metadata', {}) or {}
+                    deleted_at = user_meta.get('deleted_at')
                     if deleted_at:
                         # Account is pending deletion
                         try:
@@ -158,7 +168,8 @@ def supabase_auth_middleware(get_response):
 
             # Check if account is scheduled for deletion
             if hasattr(request.user, 'data') and request.user.data:
-                deleted_at = request.user.data.get('deleted_at')
+                user_meta = request.user.data.get('user_metadata', {}) or {}
+                deleted_at = user_meta.get('deleted_at')
                 if deleted_at:
                     # Account is pending deletion
                     try:
