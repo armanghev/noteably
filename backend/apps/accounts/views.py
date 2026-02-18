@@ -8,14 +8,20 @@ These endpoints are for checking auth status and user info.
 import logging
 import os
 from datetime import datetime, timezone
+from uuid import UUID
 
 import requests as http_requests
+from django.core import signing
 from apps.core.supabase_client import supabase_client
 from apps.core.utils.email import (
     send_deletion_confirmation_email,
     send_welcome_email,
 )
-from apps.core.utils.token import generate_recovery_token
+from apps.core.utils.token import (
+    generate_recovery_token,
+    generate_recovery_session_token,
+    verify_recovery_token,
+)
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -447,3 +453,109 @@ def delete_account(request):
             # User account is already marked for deletion
 
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def recover_account(request):
+    """
+    Verify recovery token and issue short-lived recovery session token.
+
+    This endpoint is called when a user clicks the recovery link from their
+    deletion confirmation email. It verifies the recovery token and returns
+    a short-lived session token for use in the password reset flow.
+
+    Query Parameters:
+        token (required): Signed recovery token from email link
+
+    Response (200 OK):
+        {
+            "recovery_session_token": "short-lived-token",
+            "user_id": "uuid",
+            "email": "user@example.com",
+            "message": "Recovery verified. Please reset your password.",
+            "recovery_expires_in_seconds": 3600
+        }
+
+    Error Responses:
+        400 Bad Request: No token provided or token parsing failed
+        401 Unauthorized: Token is invalid, expired, or not for account deletion
+        500 Internal Server Error: Server error during verification
+    """
+    token = request.query_params.get("token")
+    if not token:
+        logger.warning("Recover endpoint called without token")
+        return Response(
+            {"error": "Recovery token is required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        # Verify the recovery token (signature, expiration, recovery_type)
+        payload = verify_recovery_token(token)
+        user_id = payload.get("user_id")
+        recovery_type = payload.get("recovery_type")
+
+        # Verify it's for account deletion
+        if recovery_type != "account_deletion":
+            logger.warning(f"Invalid recovery type in token: {recovery_type}")
+            return Response(
+                {"error": "Invalid recovery token"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        # Fetch user from Supabase to confirm they exist and get email
+        try:
+            user_from_supabase = supabase_client.get_user_by_id(user_id)
+            if not user_from_supabase:
+                logger.warning(f"User not found for recovery: {user_id}")
+                return Response(
+                    {"error": "User not found"},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+            user_email = user_from_supabase.get("email")
+        except Exception as e:
+            logger.error(f"Failed to fetch user {user_id} during recovery: {e}")
+            return Response(
+                {"error": "Failed to verify user"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # Generate short-lived recovery session token (1 hour)
+        try:
+            recovery_session_token = generate_recovery_session_token(
+                UUID(user_id)
+            )
+        except Exception as e:
+            logger.error(f"Failed to generate recovery session token for {user_id}: {e}")
+            return Response(
+                {"error": "Failed to generate recovery session"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # Log successful recovery verification
+        logger.info(f"Recovery verified for user {user_id}")
+
+        return Response(
+            {
+                "recovery_session_token": recovery_session_token,
+                "user_id": user_id,
+                "email": user_email,
+                "message": "Recovery verified. Please reset your password.",
+                "recovery_expires_in_seconds": 3600,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except signing.BadSignature as e:
+        logger.warning(f"Invalid recovery token signature: {e}")
+        return Response(
+            {"error": "Invalid or expired recovery token"},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+    except Exception as e:
+        logger.error(f"Recovery verification failed: {e}")
+        return Response(
+            {"error": "Failed to verify recovery token"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

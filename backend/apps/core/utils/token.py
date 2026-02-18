@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 # Recovery token validity: 14 days
 RECOVERY_TOKEN_MAX_AGE_SECONDS = 14 * 24 * 60 * 60
 
+# Recovery session token validity: 1 hour
+RECOVERY_SESSION_MAX_AGE_SECONDS = 60 * 60
+
 
 def generate_recovery_token(user_id: UUID) -> str:
     """
@@ -80,3 +83,66 @@ def verify_recovery_token(token: str) -> dict:
     except Exception as e:
         logger.error(f"Error verifying recovery token: {e}")
         raise BadSignature(f"Invalid or expired recovery token: {e}")
+
+
+def generate_recovery_session_token(user_id: UUID) -> str:
+    """
+    Generate a short-lived session token for password reset (1 hour valid).
+
+    This token is issued after verifying a recovery token and is used to allow
+    the user to reset their password during the recovery flow.
+
+    Args:
+        user_id: The user's UUID
+
+    Returns:
+        A signed token string with 1-hour expiration
+    """
+    signer = TimestampSigner()
+    payload = {
+        "user_id": str(user_id),
+        "recovery_session": True,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    token = signer.sign_object(payload)
+    logger.info(f"Generated recovery session token for user {user_id}")
+    return token
+
+
+def verify_recovery_session_token(token: str) -> dict:
+    """
+    Verify and return recovery session token payload if valid.
+
+    The token is checked for:
+    - Valid signature (tamper detection)
+    - Not expired (1-hour max age)
+    - Has recovery_session flag set
+
+    Args:
+        token: The signed token string to verify
+
+    Returns:
+        A dict with keys:
+        - user_id: The user's UUID as a string
+        - recovery_session: Always True for this flow
+        - created_at: ISO format timestamp when token was created
+
+    Raises:
+        BadSignature: If token is invalid, tampered, or expired
+    """
+    signer = TimestampSigner()
+    try:
+        payload = signer.unsign_object(token, max_age=RECOVERY_SESSION_MAX_AGE_SECONDS)
+
+        # Verify it's a recovery session token
+        if not payload.get("recovery_session"):
+            raise BadSignature("Not a recovery session token")
+
+        return payload
+
+    except BadSignature as e:
+        logger.warning(f"Invalid recovery session token: {e}")
+        raise BadSignature(f"Invalid or expired recovery session token: {e}")
+    except Exception as e:
+        logger.error(f"Error verifying recovery session token: {e}")
+        raise BadSignature(f"Invalid or expired recovery session token: {e}")
