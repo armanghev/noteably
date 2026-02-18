@@ -59,17 +59,15 @@ export default function RecoverAccount() {
     }
   }
 
-  // Step 2: Handle OAuth login
+  // Step 2: Handle OAuth login - redirect to login page with recovery token
   const handleOAuthLogin = async () => {
     setLoading(true)
     try {
-      // Call backend to clear deleted_at (OAuth users don't set passwords)
-      // The recovery_session_token proves this is a valid recovery attempt
-      await authService.confirmRecoveryOAuth(recoveryToken)
-      setStep('success')
+      // Redirect to login, which will handle the OAuth flow
+      // After successful login, user will be redirected back to complete recovery
+      window.location.href = `/login?recovery=${encodeURIComponent(recoveryToken)}`
     } catch (error: any) {
-      const message = error.message || 'Failed to complete recovery'
-      setErrorMessage(message)
+      setErrorMessage('Failed to initiate login')
       setLoading(false)
     }
   }
@@ -132,22 +130,22 @@ export default function RecoverAccount() {
         {step === 'oauth' && (
           <>
             <CardHeader>
-              <CardTitle>Restore Your Account</CardTitle>
-              <CardDescription>Complete the recovery process</CardDescription>
+              <CardTitle>Verify Your Identity</CardTitle>
+              <CardDescription>Sign in with {authProvider || 'your provider'} to restore your account</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-gray-600">
-                Your account was created with {authProvider || 'an OAuth provider'}. Since you're recovering via the email link, your account ownership has already been verified. Click below to restore access.
+                Your account was created with {authProvider}. To complete the recovery process and verify you own this account, sign in with the same method.
               </p>
               <Button
                 onClick={handleOAuthLogin}
                 className="w-full"
                 disabled={loading}
               >
-                {loading ? 'Recovering...' : 'Restore Account'}
+                {loading ? 'Redirecting to sign in...' : `Sign in with ${authProvider || 'OAuth'}`}
               </Button>
               <p className="text-xs text-gray-500 text-center">
-                Your account will be immediately restored and ready to use.
+                You'll be redirected to sign in. After authentication, your account will be restored.
               </p>
             </CardContent>
           </>

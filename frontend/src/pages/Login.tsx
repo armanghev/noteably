@@ -63,10 +63,18 @@ export default function Login() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const from = location.state?.from?.pathname || "/dashboard";
+  const searchParams = new URLSearchParams(location.search);
+  const recoveryToken = searchParams.get("recovery");
 
-  // Handle authenticated users: redirect to dashboard or show profile completion
+  // Handle authenticated users: redirect to dashboard, show profile completion, or complete recovery
   useEffect(() => {
     if (user) {
+      // If user is recovering their OAuth account, complete the recovery
+      if (recoveryToken) {
+        completeOAuthRecovery();
+        return;
+      }
+
       if (!profileCompleted) {
         // Show profile completion inline on this page
         setShowProfileStep(true);
@@ -84,7 +92,23 @@ export default function Login() {
         navigate(from, { replace: true });
       }
     }
-  }, [user, profileCompleted, navigate, from]);
+  }, [user, profileCompleted, navigate, from, recoveryToken]);
+
+  const completeOAuthRecovery = async () => {
+    try {
+      setProfileLoading(true);
+      await authService.confirmRecoveryOAuth(recoveryToken!);
+      // Recovery complete, redirect to dashboard
+      navigate("/dashboard", { replace: true });
+    } catch (error) {
+      if (error && typeof error === "object" && "message" in error) {
+        handleError(error as ApiError);
+      } else {
+        handleError(new Error(String(error)));
+      }
+      setProfileLoading(false);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
