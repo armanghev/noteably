@@ -50,6 +50,8 @@ def supabase_auth_middleware(get_response):
             "/api/auth/login",
             "/api/auth/signup",
             "/api/auth/register",
+            "/api/auth/recover",
+            "/api/auth/confirm-recovery",
         ]
 
         if any(request.path.startswith(path) for path in exempt_paths):
@@ -73,7 +75,7 @@ def supabase_auth_middleware(get_response):
         # CHECK FOR API KEY (sk_...)
         if token.startswith("sk_"):
             try:
-                from django.utils import timezone
+                from django.utils import timezone as django_timezone
 
                 from .api_key_utils import hash_key, split_key_string
                 from .models import APIKey
@@ -91,7 +93,7 @@ def supabase_auth_middleware(get_response):
                 )
 
                 # Update usage stats
-                api_key.last_used_at = timezone.now()
+                api_key.last_used_at = django_timezone.now()
                 api_key.save(update_fields=["last_used_at"])
 
                 # Fetch full user data from Supabase to include user_metadata (for deleted_at check)

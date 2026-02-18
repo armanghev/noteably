@@ -156,10 +156,15 @@ def send_deletion_confirmation_email(
         "deletion_deadline": deadline_date,
     }
 
-    html_content = render_to_string(
-        "emails/deletion_confirmation.html",
-        context,
-    )
+    try:
+        html_content = render_to_string(
+            "emails/deletion_confirmation.html",
+            context,
+        )
+        logger.info(f"Successfully rendered deletion_confirmation.html template for {to_email}")
+    except Exception as e:
+        logger.error(f"Failed to render deletion_confirmation.html template: {e}", exc_info=True)
+        raise
 
     return send_email(to_email, subject, html_content)
 

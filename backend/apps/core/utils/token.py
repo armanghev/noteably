@@ -71,21 +71,30 @@ def verify_recovery_token(token: str) -> dict:
     try:
         payload = signer.unsign_object(token, max_age=RECOVERY_TOKEN_MAX_AGE_SECONDS)
 
-        # Calculate remaining days
-        # Note: signer.timestamp() returns the timestamp from when the object was signed
-        signed_timestamp = signer.timestamp()
-        age_seconds = int(datetime.now(timezone.utc).timestamp()) - signed_timestamp
-        remaining_seconds = RECOVERY_TOKEN_MAX_AGE_SECONDS - age_seconds
-        remaining_days = max(0, remaining_seconds // (24 * 60 * 60))
+        # Calculate remaining days from created_at in payload
+        created_at_str = payload.get("created_at")
+        if created_at_str:
+            try:
+                created_at = datetime.fromisoformat(created_at_str)
+                if created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=timezone.utc)
+                age_seconds = int((datetime.now(timezone.utc) - created_at).total_seconds())
+                remaining_seconds = RECOVERY_TOKEN_MAX_AGE_SECONDS - age_seconds
+                remaining_days = max(0, remaining_seconds // (24 * 60 * 60))
+                payload["remaining_days"] = remaining_days
+            except Exception as e:
+                logger.error(f"Failed to parse created_at from token: {e}")
+                payload["remaining_days"] = 14
+        else:
+            payload["remaining_days"] = 14
 
-        payload["remaining_days"] = remaining_days
         return payload
 
     except BadSignature as e:
-        logger.warning(f"Invalid recovery token: {e}")
+        logger.warning(f"Invalid recovery token signature: {e}", exc_info=True)
         raise BadSignature(f"Invalid or expired recovery token: {e}")
     except Exception as e:
-        logger.error(f"Error verifying recovery token: {e}")
+        logger.error(f"Error verifying recovery token: {e}", exc_info=True)
         raise BadSignature(f"Invalid or expired recovery token: {e}")
 
 

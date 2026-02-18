@@ -506,7 +506,7 @@ def delete_account(request):
             frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
             recovery_url = f"{frontend_url}/recover?token={recovery_token}"
             send_deletion_confirmation_email(
-                email=user_email,
+                to_email=user_email,
                 first_name=first_name,
                 recovery_link=recovery_url,
                 days_remaining=14,
@@ -557,9 +557,11 @@ def recover_account(request):
 
     try:
         # Verify the recovery token (signature, expiration, recovery_type)
+        logger.info(f"Attempting to verify recovery token: {token[:50]}...")
         payload = verify_recovery_token(token)
         user_id = payload.get("user_id")
         recovery_type = payload.get("recovery_type")
+        logger.info(f"Token verified successfully for user {user_id}, type: {recovery_type}")
 
         # Verify it's for account deletion
         if recovery_type != "account_deletion":
@@ -569,22 +571,10 @@ def recover_account(request):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        # Fetch user from Supabase to confirm they exist and get email
-        try:
-            user_from_supabase = supabase_client.get_user_by_id(user_id)
-            if not user_from_supabase:
-                logger.warning(f"User not found for recovery: {user_id}")
-                return Response(
-                    {"error": "User not found"},
-                    status=status.HTTP_401_UNAUTHORIZED,
-                )
-            user_email = user_from_supabase.get("email")
-        except Exception as e:
-            logger.error(f"Failed to fetch user {user_id} during recovery: {e}")
-            return Response(
-                {"error": "Failed to verify user"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        # Note: We don't fetch user from Supabase here because deleted/pending deletion
+        # users may be blocked from admin API access. The token verification already
+        # confirmed the user_id is valid. Email will be fetched in confirm-recovery.
+        user_email = None
 
         # Generate short-lived recovery session token (1 hour)
         try:
@@ -721,51 +711,27 @@ def confirm_recovery(request):
             status=status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
 
-    # 5. Update password in Supabase Auth
+    # 5. Clear deleted_at and reset password in a single admin API call
+    # Use a fresh Supabase client to avoid auth state pollution from middleware
     try:
-        supabase_client.client.auth.admin.update_user_by_id(
+        from supabase import create_client as create_supabase_client
+
+        fresh_client = create_supabase_client(
+            os.getenv("SUPABASE_URL"),
+            os.getenv("SUPABASE_SERVICE_ROLE_KEY"),
+        )
+        fresh_client.auth.admin.update_user_by_id(
             str(user_id),
-            {"password": new_password}
+            {
+                "password": new_password,
+                "user_metadata": {"deleted_at": None},
+            }
         )
-        logger.info(f"Password reset successfully for user {user_id}")
+        logger.info(f"Account unlocked and password reset for user {user_id}")
     except Exception as e:
-        logger.error(f"Failed to reset password for user {user_id}: {e}")
+        logger.error(f"Failed to unlock/reset password for user {user_id}: {e}", exc_info=True)
         return Response(
-            {"error": "Failed to update password. Please try again."},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
-
-    # 6. Clear deleted_at from user metadata (unlock account)
-    try:
-        supabase_url = os.getenv("SUPABASE_URL")
-        service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-
-        resp = http_requests.put(
-            f"{supabase_url}/auth/v1/user/{user_id}",
-            headers={
-                "apikey": service_key,
-                "Content-Type": "application/json",
-            },
-            json={
-                "user_metadata": {}
-            },
-            timeout=10,
-        )
-        resp.raise_for_status()
-        logger.info(f"Cleared deleted_at for user {user_id}")
-    except http_requests.HTTPError as e:
-        error_detail = e.response.json() if e.response else {}
-        logger.error(
-            f"Failed to clear deleted_at for {user_id}: {error_detail}"
-        )
-        return Response(
-            {"error": "Failed to unlock account. Please contact support."},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
-    except Exception as e:
-        logger.error(f"Failed to clear deleted_at for {user_id}: {e}")
-        return Response(
-            {"error": "Failed to unlock account"},
+            {"error": "Failed to recover account. Please try again."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
