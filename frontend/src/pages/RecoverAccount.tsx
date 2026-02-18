@@ -4,12 +4,15 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { authService } from '@/lib/api/services/auth'
+import { useAuth } from '@/hooks/useAuth'
 import { AlertCircle, CheckCircle } from 'lucide-react'
 
 export default function RecoverAccount() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
+  const oauthComplete = searchParams.get('oauth_complete')
+  const { user } = useAuth()
 
   const [step, setStep] = useState<'verifying' | 'reset' | 'oauth' | 'success' | 'error'>('verifying')
   const [recoveryToken, setRecoveryToken] = useState<string>('')
@@ -18,6 +21,7 @@ export default function RecoverAccount() {
   const [errorMessage, setErrorMessage] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [authProvider, setAuthProvider] = useState<string | null>(null)
+  const [googleLoading, setGoogleLoading] = useState(false)
 
   // Validate password requirements
   const validatePassword = (password: string): { valid: boolean; errors: string[] } => {
@@ -59,18 +63,6 @@ export default function RecoverAccount() {
     }
   }
 
-  // Step 2: Handle OAuth login - redirect to login page with recovery token
-  const handleOAuthLogin = async () => {
-    setLoading(true)
-    try {
-      // Redirect to login, which will handle the OAuth flow
-      // After successful login, user will be redirected back to complete recovery
-      window.location.href = `/login?recovery=${encodeURIComponent(recoveryToken)}`
-    } catch (error: any) {
-      setErrorMessage('Failed to initiate login')
-      setLoading(false)
-    }
-  }
 
   // Step 3: Reset password
   const handlePasswordReset = async (e: React.FormEvent) => {
@@ -105,10 +97,44 @@ export default function RecoverAccount() {
     }
   }
 
-  // Re-verify token on mount
+  // Handle OAuth callback - complete recovery after user authenticates
+  const completeOAuthRecovery = async () => {
+    if (!recoveryToken) return
+    setLoading(true)
+    try {
+      await authService.confirmRecoveryOAuth(recoveryToken)
+      setStep('success')
+    } catch (error: any) {
+      const message = error.message || 'Failed to complete recovery'
+      setErrorMessage(message)
+      setStep('error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Handle Google sign in for OAuth recovery
+  const handleGoogleRecovery = async () => {
+    try {
+      setGoogleLoading(true)
+      await authService.signInWithGoogleForRecovery(recoveryToken)
+      // User will be redirected back to this page with oauth_complete=1 after auth
+    } catch (error: any) {
+      const message = error.message || 'Failed to sign in with Google'
+      setErrorMessage(message)
+      setGoogleLoading(false)
+    }
+  }
+
+  // Re-verify token on mount and check for OAuth callback
   useEffect(() => {
-    verifyRecoveryToken()
-  }, [token])
+    if (oauthComplete && user && recoveryToken) {
+      // User just authenticated via OAuth, complete the recovery
+      completeOAuthRecovery()
+    } else if (token) {
+      verifyRecoveryToken()
+    }
+  }, [token, oauthComplete, user, recoveryToken])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
@@ -138,14 +164,14 @@ export default function RecoverAccount() {
                 Your account was created with {authProvider}. To complete the recovery process and verify you own this account, sign in with the same method.
               </p>
               <Button
-                onClick={handleOAuthLogin}
+                onClick={handleGoogleRecovery}
                 className="w-full"
-                disabled={loading}
+                disabled={googleLoading}
               >
-                {loading ? 'Redirecting to sign in...' : `Sign in with ${authProvider || 'OAuth'}`}
+                {googleLoading ? 'Signing in...' : `Sign in with Google`}
               </Button>
               <p className="text-xs text-gray-500 text-center">
-                You'll be redirected to sign in. After authentication, your account will be restored.
+                After you authenticate, your account will be immediately restored.
               </p>
             </CardContent>
           </>

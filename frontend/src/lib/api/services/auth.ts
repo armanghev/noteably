@@ -120,6 +120,16 @@ export const authService = {
     if (error) throw { message: error.message, status: 400 };
   },
 
+  signInWithGoogleForRecovery: async (recoveryToken: string): Promise<void> => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/recover?token=${encodeURIComponent(recoveryToken)}&oauth_complete=1`,
+      },
+    });
+    if (error) throw { message: error.message, status: 400 };
+  },
+
   recoverAccount: async (token: string): Promise<any> => {
     const response = await apiClient.post("/auth/recover", null, {
       params: { token },
