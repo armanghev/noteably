@@ -98,10 +98,14 @@ def supabase_auth_middleware(get_response):
                 user_metadata = {}
                 try:
                     user_from_supabase = supabase_client.get_user_by_id(str(api_key.user_id))
+                    if not user_from_supabase:
+                        logger.error(f"Supabase returned None for user ID: {api_key.user_id}")
+                        return JsonResponse({"error": "Authentication error"}, status=500)
                     user_metadata = user_from_supabase.get("user_metadata", {}) or {}
                 except Exception as e:
-                    logger.warning(f"Failed to fetch full user data for API key auth: {e}")
-                    # Allow auth to proceed but without metadata - deleted_at check will be skipped
+                    logger.error(f"Failed to fetch full user data for API key auth: {e}", exc_info=True)
+                    # Fail closed: don't bypass the deletion check if we can't verify the user
+                    return JsonResponse({"error": "Authentication error"}, status=500)
 
                 # Set user data from Supabase (to mimic JWT auth)
                 # Include user_metadata so deleted_at check can access it
@@ -123,7 +127,11 @@ def supabase_auth_middleware(get_response):
                     if deleted_at:
                         # Account is pending deletion
                         try:
-                            deletion_scheduled = datetime.fromisoformat(deleted_at) + timedelta(days=14)
+                            parsed_dt = datetime.fromisoformat(deleted_at)
+                            # Ensure datetime is timezone-aware
+                            if parsed_dt.tzinfo is None:
+                                parsed_dt = parsed_dt.replace(tzinfo=timezone.utc)
+                            deletion_scheduled = parsed_dt + timedelta(days=14)
                             if datetime.now(timezone.utc) < deletion_scheduled:
                                 # Still in grace period, return 403
                                 logger.info(
@@ -173,7 +181,11 @@ def supabase_auth_middleware(get_response):
                 if deleted_at:
                     # Account is pending deletion
                     try:
-                        deletion_scheduled = datetime.fromisoformat(deleted_at) + timedelta(days=14)
+                        parsed_dt = datetime.fromisoformat(deleted_at)
+                        # Ensure datetime is timezone-aware
+                        if parsed_dt.tzinfo is None:
+                            parsed_dt = parsed_dt.replace(tzinfo=timezone.utc)
+                        deletion_scheduled = parsed_dt + timedelta(days=14)
                         if datetime.now(timezone.utc) < deletion_scheduled:
                             # Still in grace period, return 403
                             logger.info(
