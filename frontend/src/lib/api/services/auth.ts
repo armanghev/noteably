@@ -137,4 +137,13 @@ export const authService = {
     });
     return response.data;
   },
+
+  confirmRecoveryOAuth: async (
+    recoverySessionToken: string
+  ): Promise<any> => {
+    const response = await apiClient.post("/auth/confirm-recovery-oauth", {
+      recovery_session_token: recoverySessionToken,
+    });
+    return response.data;
+  },
 };

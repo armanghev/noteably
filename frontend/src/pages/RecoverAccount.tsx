@@ -11,12 +11,13 @@ export default function RecoverAccount() {
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
 
-  const [step, setStep] = useState<'verifying' | 'reset' | 'success' | 'error'>('verifying')
+  const [step, setStep] = useState<'verifying' | 'reset' | 'oauth' | 'success' | 'error'>('verifying')
   const [recoveryToken, setRecoveryToken] = useState<string>('')
   const [newPassword, setNewPassword] = useState<string>('')
   const [confirmPassword, setConfirmPassword] = useState<string>('')
   const [errorMessage, setErrorMessage] = useState<string>('')
   const [loading, setLoading] = useState(false)
+  const [authProvider, setAuthProvider] = useState<string | null>(null)
 
   // Validate password requirements
   const validatePassword = (password: string): { valid: boolean; errors: string[] } => {
@@ -45,7 +46,10 @@ export default function RecoverAccount() {
     try {
       const response = await authService.recoverAccount(token)
       setRecoveryToken(response.recovery_session_token)
-      setStep('reset')
+      setAuthProvider(response.auth_provider)
+      // If OAuth user, show OAuth login instead of password reset
+      const nextStep = response.auth_provider ? 'oauth' : 'reset'
+      setStep(nextStep)
     } catch (error: any) {
       const message = error.response?.data?.error || 'Failed to verify recovery token'
       setErrorMessage(message)
@@ -55,7 +59,22 @@ export default function RecoverAccount() {
     }
   }
 
-  // Step 2: Reset password
+  // Step 2: Handle OAuth login
+  const handleOAuthLogin = async () => {
+    setLoading(true)
+    try {
+      // Call backend to clear deleted_at (OAuth users don't set passwords)
+      // The recovery_session_token proves this is a valid recovery attempt
+      await authService.confirmRecoveryOAuth(recoveryToken)
+      setStep('success')
+    } catch (error: any) {
+      const message = error.message || 'Failed to complete recovery'
+      setErrorMessage(message)
+      setLoading(false)
+    }
+  }
+
+  // Step 3: Reset password
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -106,6 +125,30 @@ export default function RecoverAccount() {
               <div className="animate-spin">
                 <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full" />
               </div>
+            </CardContent>
+          </>
+        )}
+
+        {step === 'oauth' && (
+          <>
+            <CardHeader>
+              <CardTitle>Verify Your Identity</CardTitle>
+              <CardDescription>Sign in with {authProvider || 'your provider'} to prove you own this account</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Since you previously signed up using {authProvider || 'an OAuth provider'}, please sign in with the same method to verify your identity and restore access.
+              </p>
+              <Button
+                onClick={handleOAuthLogin}
+                className="w-full"
+                disabled={loading}
+              >
+                {loading ? 'Redirecting...' : `Sign in with ${authProvider || 'OAuth'}`}
+              </Button>
+              <p className="text-xs text-gray-500 text-center">
+                You'll be logged in to complete the recovery process.
+              </p>
             </CardContent>
           </>
         )}

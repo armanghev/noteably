@@ -12,6 +12,7 @@ urlpatterns = [
     path("me/delete", views.delete_account, name="delete_account"),
     path("recover", views.recover_account, name="recover_account"),
     path("confirm-recovery", views.confirm_recovery, name="confirm_recovery"),
+    path("confirm-recovery-oauth", views.confirm_recovery_oauth, name="confirm_recovery_oauth"),
     path("subscription", views.get_subscription_status, name="subscription_status"),
     path("api-keys", views.list_api_keys, name="list_api_keys"),
     path("api-keys/create", views.create_api_key, name="create_api_key"),

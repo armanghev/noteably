@@ -571,10 +571,19 @@ def recover_account(request):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        # Note: We don't fetch user from Supabase here because deleted/pending deletion
-        # users may be blocked from admin API access. The token verification already
-        # confirmed the user_id is valid. Email will be fetched in confirm-recovery.
+        # Fetch minimal user info to detect auth provider (try/fail gracefully)
         user_email = None
+        auth_provider = None
+        try:
+            user_from_supabase = supabase_client.get_user_by_id(user_id)
+            if user_from_supabase:
+                user_email = user_from_supabase.get("email")
+                # Detect if user authenticated via OAuth
+                app_metadata = user_from_supabase.get("app_metadata", {})
+                if app_metadata.get("provider") and app_metadata.get("provider") != "email":
+                    auth_provider = app_metadata.get("provider")
+        except Exception as e:
+            logger.debug(f"Could not fetch user data during recovery (OK if deleted): {e}")
 
         # Generate short-lived recovery session token (1 hour)
         try:
@@ -596,6 +605,7 @@ def recover_account(request):
                 "recovery_session_token": recovery_session_token,
                 "user_id": user_id,
                 "email": user_email,
+                "auth_provider": auth_provider,
                 "message": "Recovery verified. Please reset your password.",
                 "recovery_expires_in_seconds": 3600,
             },
@@ -778,6 +788,108 @@ def confirm_recovery(request):
             "email": user_email,
             "recovery_completed": True,
             "next_step": "You can now log in with your new password",
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["POST"])
+def confirm_recovery_oauth(request):
+    """
+    Complete account recovery for OAuth users.
+
+    OAuth users don't set a new password — instead they verify ownership by
+    signing in with their OAuth provider. This endpoint just clears the
+    deleted_at flag to unlock the account.
+
+    Request Body:
+        {
+            "recovery_session_token": "short-lived-token-from-/recover"
+        }
+
+    Response (200 OK):
+        {
+            "message": "Account recovered successfully",
+            "user_id": "uuid",
+            "recovery_completed": True
+        }
+
+    Error Responses:
+        400 Bad Request: Missing recovery_session_token
+        401 Unauthorized: Invalid or expired token, or token already used
+        500 Internal Server Error: Server errors
+    """
+    # 1. Parse request
+    recovery_session_token = request.data.get("recovery_session_token")
+
+    if not recovery_session_token:
+        return Response(
+            {"error": "recovery_session_token is required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # 2. Check for token reuse (one-time use enforcement)
+    if is_recovery_token_used(recovery_session_token):
+        logger.warning("Attempt to reuse recovery session token in OAuth recovery")
+        return Response(
+            {"error": "Recovery session token has already been used"},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    # 3. Validate recovery session token
+    try:
+        session_payload = verify_recovery_session_token(recovery_session_token)
+        user_id = session_payload.get("user_id")
+        if not user_id:
+            logger.warning("Recovery session token missing user_id")
+            return Response(
+                {"error": "Invalid recovery session token"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+    except signing.BadSignature as e:
+        logger.warning(f"Recovery session token validation failed: {e}")
+        return Response(
+            {"error": "Invalid or expired recovery session token"},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+    except Exception as e:
+        logger.warning(f"Recovery session token validation error: {e}")
+        return Response(
+            {"error": "Invalid or expired recovery session token"},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    # 4. Clear deleted_at from user metadata to unlock account
+    try:
+        from supabase import create_client as create_supabase_client
+
+        fresh_client = create_supabase_client(
+            os.getenv("SUPABASE_URL"),
+            os.getenv("SUPABASE_SERVICE_ROLE_KEY"),
+        )
+        fresh_client.auth.admin.update_user_by_id(
+            str(user_id),
+            {"user_metadata": {"deleted_at": None}},
+        )
+        logger.info(f"Account unlocked (OAuth recovery) for user {user_id}")
+    except Exception as e:
+        logger.error(f"Failed to unlock account for OAuth recovery {user_id}: {e}", exc_info=True)
+        return Response(
+            {"error": "Failed to recover account. Please try again."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    # 5. Mark token as used (one-time use enforcement)
+    mark_recovery_token_used(recovery_session_token)
+
+    # 6. Log recovery event
+    logger.info(f"OAuth account recovery completed successfully for user {user_id}")
+
+    return Response(
+        {
+            "message": "Account recovered successfully",
+            "user_id": user_id,
+            "recovery_completed": True,
         },
         status=status.HTTP_200_OK,
     )
