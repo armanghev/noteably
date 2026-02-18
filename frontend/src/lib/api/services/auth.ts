@@ -16,29 +16,52 @@ interface AuthResponse {
   message?: string;
 }
 
+export interface AccountDeletionError {
+  type: 'ACCOUNT_PENDING_DELETION'
+  message: string
+  recoveryAvailable: boolean
+  status: number
+}
+
 export const authService = {
   login: async (data: LoginRequest): Promise<void> => {
-    // Call backend proxy which authenticates with Supabase
-    const response = await apiClient.post<AuthResponse>("/auth/login", {
-      email: data.email,
-      password: data.password,
-    });
-
-    const { session } = response.data;
-
-    if (session) {
-      // Set the session in frontend Supabase client
-      const { error } = await supabase.auth.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
+    try {
+      // Call backend proxy which authenticates with Supabase
+      const response = await apiClient.post<AuthResponse>("/auth/login", {
+        email: data.email,
+        password: data.password,
       });
 
-      if (error) {
-        throw {
-          message: error.message,
-          status: error.status,
-        };
+      const { session } = response.data;
+
+      if (session) {
+        // Set the session in frontend Supabase client
+        const { error } = await supabase.auth.setSession({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+        });
+
+        if (error) {
+          throw {
+            message: error.message,
+            status: error.status,
+          };
+        }
       }
+    } catch (error: any) {
+      // Check if account is pending deletion
+      if (error.response?.status === 403) {
+        const errorMsg = error.response?.data?.error || ''
+        if (errorMsg.includes('Account scheduled for deletion') || errorMsg.includes('pending_deletion')) {
+          throw {
+            type: 'ACCOUNT_PENDING_DELETION',
+            message: errorMsg,
+            recoveryAvailable: error.response?.data?.recovery_available ?? true,
+            status: 403,
+          } as AccountDeletionError
+        }
+      }
+      throw error
     }
   },
 

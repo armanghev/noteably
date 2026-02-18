@@ -7,7 +7,7 @@ These endpoints are for checking auth status and user info.
 
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 import requests as http_requests
@@ -108,6 +108,9 @@ def signup(request):
 def login(request):
     """
     Login user via Supabase Auth.
+
+    Checks if account is scheduled for deletion before allowing login.
+    If deleted_at is set and within 14-day grace period, returns 403.
     """
     email = request.data.get("email")
     password = request.data.get("password")
@@ -130,9 +133,45 @@ def login(request):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
+        # Check if account is scheduled for deletion
+        user_data = response.user.model_dump()
+        user_metadata = user_data.get("user_metadata", {}) or {}
+        deleted_at = user_metadata.get("deleted_at")
+
+        if deleted_at:
+            # Account is pending deletion, check if within grace period
+            try:
+                parsed_dt = datetime.fromisoformat(deleted_at)
+                # Ensure datetime is timezone-aware
+                if parsed_dt.tzinfo is None:
+                    parsed_dt = parsed_dt.replace(tzinfo=timezone.utc)
+                deletion_scheduled = parsed_dt + timedelta(days=14)
+                if datetime.now(timezone.utc) < deletion_scheduled:
+                    # Still in grace period, prevent login
+                    logger.info(
+                        f"Login attempt on deleted account: {email} (ID: {user_data.get('id')})"
+                    )
+                    return Response(
+                        {
+                            "error": "Account scheduled for deletion. You have 14 days to recover your account.",
+                            "recovery_available": True,
+                        },
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+            except (ValueError, TypeError) as e:
+                logger.error(f"Error parsing deleted_at timestamp for {email}: {e}")
+                # If there's an error parsing the date, still block the account as a safety measure
+                return Response(
+                    {
+                        "error": "Account scheduled for deletion. You have 14 days to recover your account.",
+                        "recovery_available": True,
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
         return Response(
             {
-                "user": response.user.model_dump(),
+                "user": user_data,
                 "session": response.session.model_dump(),
             },
             status=status.HTTP_200_OK,

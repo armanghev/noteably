@@ -50,6 +50,7 @@ export default function Login() {
   const location = useLocation();
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showProfileStep, setShowProfileStep] = useState(false);
+  const [deletionError, setDeletionError] = useState<{ message: string; recoveryAvailable: boolean } | null>(null);
 
   // Profile completion state
   const [firstName, setFirstName] = useState("");
@@ -167,6 +168,7 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setDeletionError(null);
     try {
       await login({ email, password });
       // After login, check if profile is completed
@@ -180,8 +182,14 @@ export default function Login() {
       } else {
         navigate(from, { replace: true });
       }
-    } catch (error) {
-      if (error && typeof error === "object" && "message" in error) {
+    } catch (error: any) {
+      // Check for account deletion error
+      if (error?.type === 'ACCOUNT_PENDING_DELETION') {
+        setDeletionError({
+          message: error.message,
+          recoveryAvailable: error.recoveryAvailable,
+        });
+      } else if (error && typeof error === "object" && "message" in error) {
         handleError(error as ApiError);
       } else {
         handleError(new Error(String(error)));
@@ -424,6 +432,39 @@ export default function Login() {
                 </div>
               </div>
 
+              {deletionError && (
+                <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-sm font-medium text-amber-900 mb-3">
+                    Account Pending Deletion
+                  </p>
+                  <p className="text-sm text-amber-800 mb-4">
+                    {deletionError.message}
+                  </p>
+                  {deletionError.recoveryAvailable && (
+                    <div className="space-y-3">
+                      <p className="text-sm text-amber-800">
+                        Your account can be recovered for 14 days using the recovery link in your email.
+                      </p>
+                      <Link
+                        to="/recover"
+                        className="inline-block text-sm font-semibold text-primary hover:underline"
+                      >
+                        Go to recovery page
+                      </Link>
+                      <p className="text-xs text-amber-700 mt-2">
+                        Can't find your recovery email?{" "}
+                        <a
+                          href="mailto:support@noteably.app"
+                          className="font-semibold hover:underline"
+                        >
+                          Contact support
+                        </a>
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label
@@ -436,7 +477,10 @@ export default function Login() {
                     id="email"
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setDeletionError(null);
+                    }}
                     className="w-full px-4 py-3 rounded-xl bg-muted/50 border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                     placeholder="you@example.com"
                     required
@@ -454,7 +498,10 @@ export default function Login() {
                     id="password"
                     type="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setDeletionError(null);
+                    }}
                     className="w-full px-4 py-3 rounded-xl bg-muted/50 border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                     placeholder="••••••••"
                     required
