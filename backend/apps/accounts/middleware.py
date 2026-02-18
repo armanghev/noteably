@@ -52,6 +52,7 @@ def supabase_auth_middleware(get_response):
             "/api/auth/register",
             "/api/auth/recover",
             "/api/auth/confirm-recovery",
+            "/api/auth/confirm-recovery-oauth",
         ]
 
         if any(request.path.startswith(path) for path in exempt_paths):
