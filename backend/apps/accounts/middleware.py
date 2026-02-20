@@ -55,8 +55,17 @@ def supabase_auth_middleware(get_response):
             "/api/auth/confirm-recovery-oauth",
         ]
 
+        # Paths that still need token validation but must skip the deletion check
+        skip_deletion_check_paths = [
+            "/api/auth/me/restore",
+        ]
+
         if any(request.path.startswith(path) for path in exempt_paths):
             return get_response(request)
+
+        skip_deletion_check = any(
+            request.path.startswith(path) for path in skip_deletion_check_paths
+        )
 
         # Extract token from Authorization header
         auth_header = request.headers.get("Authorization", "")
@@ -124,7 +133,7 @@ def supabase_auth_middleware(get_response):
                 request.user_id = str(api_key.user_id)
 
                 # Check if account is scheduled for deletion
-                if hasattr(request.user, 'data') and request.user.data:
+                if not skip_deletion_check and hasattr(request.user, 'data') and request.user.data:
                     user_meta = request.user.data.get('user_metadata', {}) or {}
                     deleted_at = user_meta.get('deleted_at')
                     if deleted_at:
@@ -178,7 +187,7 @@ def supabase_auth_middleware(get_response):
             )
 
             # Check if account is scheduled for deletion
-            if hasattr(request.user, 'data') and request.user.data:
+            if not skip_deletion_check and hasattr(request.user, 'data') and request.user.data:
                 user_meta = request.user.data.get('user_metadata', {}) or {}
                 deleted_at = user_meta.get('deleted_at')
                 if deleted_at:

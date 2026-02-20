@@ -15,13 +15,15 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function RecoverAccount() {
-  const { user, logout, refreshUser } = useAuth();
+  const { user, logout, refreshUser, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // If user is not logged in or not scheduled for deletion, redirect away
   useEffect(() => {
+    if (authLoading) return; // Wait for auth to resolve before redirecting
+
     if (!user) {
       navigate(ROUTES.LOGIN);
       return;
@@ -31,7 +33,7 @@ export default function RecoverAccount() {
       navigate(ROUTES.DASHBOARD);
       return;
     }
-  }, [user, navigate]);
+  }, [user, navigate, authLoading]);
 
   const handleRecover = async () => {
     setLoading(true);
@@ -58,7 +60,7 @@ export default function RecoverAccount() {
     navigate(ROUTES.LOGIN);
   };
 
-  if (!user || !user.user_metadata?.deleted_at) {
+  if (authLoading || !user || !user.user_metadata?.deleted_at) {
     return null; // or loading spinner while redirecting
   }
 
@@ -69,7 +71,7 @@ export default function RecoverAccount() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 bg-background">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md border-border">
         <CardHeader className="space-y-1">
           <div className="flex items-center space-x-2">
             <AlertTriangle className="h-6 w-6 text-destructive" />

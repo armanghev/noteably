@@ -65,6 +65,7 @@ export default function Profile() {
     try {
       setDeleting(true);
       await authService.deleteAccount();
+      await logout();
       navigate(ROUTES.ACCOUNT_DELETED);
     } catch (error) {
       console.error("Account deletion failed:", error);
