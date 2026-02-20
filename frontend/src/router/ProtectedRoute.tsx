@@ -6,7 +6,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, loading, profileCompleted } = useAuth();
+  const { isAuthenticated, loading, profileCompleted, user } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -19,6 +19,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Redirect to recover account if scheduled for deletion
+  if (user?.user_metadata?.deleted_at) {
+    return <Navigate to="/recover-account" replace />;
   }
 
   // Redirect to login for profile completion if profile is not completed

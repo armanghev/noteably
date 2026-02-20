@@ -2,6 +2,8 @@ export const ROUTES = {
   HOME: "/",
   LOGIN: "/login",
   SIGNUP: "/signup",
+  RECOVER: "/recover",
+  RECOVER_ACCOUNT: "/recover-account",
   DASHBOARD: "/dashboard",
   STUDY_SETS: "/study-sets",
   STUDY_SETS_DETAIL: "/study-sets/:id",
@@ -13,4 +15,6 @@ export const ROUTES = {
   QUIZZES_DETAIL: "/quizzes/:id",
   UPLOAD: "/upload",
   PROFILE: "/profile",
+  ACCOUNT_DELETED: "/account-deleted",
+  LINK_ACCOUNT: "/link-account",
 } as const;

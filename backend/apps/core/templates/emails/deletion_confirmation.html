@@ -1,0 +1,199 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Account Deletion Scheduled</title>
+    <style>
+      body {
+        font-family:
+          "Inter",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f5f4;
+        color: #1f1f1f;
+      }
+      .container {
+        max-width: 600px;
+        margin: 40px auto;
+        background-color: #ffffff;
+        border-radius: 24px;
+        padding: 40px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      }
+      .logo {
+        font-family: "Playfair Display", serif;
+        font-size: 28px;
+        font-weight: 700;
+        color: #4a6b50;
+        margin-bottom: 30px;
+        text-align: center;
+      }
+      h1 {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: #1f1f1f;
+        text-align: center;
+      }
+      .warning-box {
+        background-color: #fef3c7;
+        border-left: 4px solid #f59e0b;
+        padding: 16px;
+        margin: 24px 0;
+        border-radius: 8px;
+      }
+      .warning-box p {
+        margin: 0;
+        color: #92400e;
+        font-weight: 500;
+      }
+      p {
+        font-size: 16px;
+        line-height: 1.6;
+        margin-bottom: 16px;
+        color: #374151;
+      }
+      .countdown {
+        text-align: center;
+        font-size: 18px;
+        font-weight: 600;
+        color: #dc2626;
+        margin: 24px 0;
+      }
+      .what-will-be-deleted {
+        background-color: #f9fafb;
+        padding: 16px;
+        border-radius: 8px;
+        margin: 24px 0;
+      }
+      .what-will-be-deleted h3 {
+        margin-top: 0;
+        margin-bottom: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #374151;
+      }
+      .what-will-be-deleted ul {
+        margin: 0;
+        padding-left: 20px;
+        color: #374151;
+        font-size: 14px;
+      }
+      .what-will-be-deleted li {
+        margin-bottom: 8px;
+      }
+      .cta-container {
+        text-align: center;
+        margin: 32px 0;
+      }
+      .button {
+        display: inline-block;
+        background-color: #4a6b50;
+        color: #ffffff !important;
+        padding: 14px 32px;
+        border-radius: 99px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 16px;
+        box-shadow: 0 4px 6px -1px rgba(74, 107, 80, 0.3);
+      }
+      .link-text {
+        font-size: 12px;
+        color: #9ca3af;
+        word-break: break-all;
+        margin-top: 10px;
+      }
+      .recovery-info {
+        background-color: #ecfdf5;
+        padding: 16px;
+        border-radius: 8px;
+        margin: 16px 0;
+        border-left: 4px solid #10b981;
+      }
+      .recovery-info p {
+        margin: 0;
+        font-size: 14px;
+        color: #065f46;
+      }
+      .footer {
+        margin-top: 40px;
+        text-align: center;
+        font-size: 12px;
+        color: #9ca3af;
+        border-top: 1px solid #e5e7eb;
+        padding-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="logo">Noteably</div>
+
+      <h1>Account Deletion Scheduled</h1>
+
+      <p>Hello {{ first_name|default:"there" }},</p>
+
+      <div class="warning-box">
+        <p>⏰ Your Noteably account is scheduled for permanent deletion</p>
+      </div>
+
+      <p>
+        You have requested to delete your Noteably account. Your account will be
+        permanently deleted in <strong>{{ days_remaining }} days</strong> if you do
+        not recover it.
+      </p>
+
+      <div class="countdown">
+        Deadline: {{ deletion_deadline|default:"14 days from now" }}
+      </div>
+
+      <h2 style="font-size: 18px; margin-top: 28px">What will be deleted:</h2>
+      <div class="what-will-be-deleted">
+        <ul>
+          <li>All study sets and generated materials</li>
+          <li>Uploaded files (PDFs, audio, video)</li>
+          <li>Notes, flashcards, and quizzes</li>
+          <li>Quiz attempts and learning progress</li>
+          <li>Account information and preferences</li>
+        </ul>
+      </div>
+
+      <div class="recovery-info">
+        <p>
+          <strong>Want to keep your account?</strong> Click the button below to
+          recover your account. You'll set a new password and regain full access
+          immediately.
+        </p>
+      </div>
+
+      <div class="cta-container">
+        <a href="{{ recovery_link }}" class="button">{{ recovery_cta|default:"Recover My Account" }}</a>
+      </div>
+
+      <p style="font-size: 14px; color: #6b7280">
+        Or copy and paste this link in your browser:<br />
+        <span class="link-text">{{ recovery_link }}</span>
+      </p>
+
+      <p style="margin-top: 32px">
+        If you have any questions or need assistance, please contact our support
+        team at <strong>{{ support_email|default:"support@noteably.ai" }}</strong>.
+      </p>
+
+      <p style="margin-bottom: 0">Best regards,<br />The Noteably Team</p>
+
+      <div class="footer">
+        &copy; 2026 Noteably. All rights reserved.<br />
+        You received this email because you requested to delete your Noteably account.
+      </div>
+    </div>
+  </body>
+</html>

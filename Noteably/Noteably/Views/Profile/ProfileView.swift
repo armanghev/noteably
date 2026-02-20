@@ -6,6 +6,11 @@ struct ProfileView: View {
     @Environment(AppState.self) private var appState
     @Environment(AuthService.self) private var authService
     @State private var showSignOutConfirm = false
+    @State private var showDeleteConfirm = false
+    @State private var isDeletingAccount = false
+    @State private var deleteError: String?
+    @State private var showDeleteError = false
+    @State private var showAccountDeleted = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var isUploadingAvatar = false
     @State private var showImageCropper = false
@@ -60,6 +65,30 @@ struct ProfileView: View {
                                 .fill(Color.noteablyDestructive.opacity(0.08))
                         )
                     }
+                    
+                    // Delete Account
+                    Button {
+                        showDeleteConfirm = true
+                    } label: {
+                        HStack {
+                            if isDeletingAccount {
+                                ProgressView()
+                                    .tint(Color.noteablyDestructive)
+                            } else {
+                                Image(systemName: "trash")
+                            }
+                            Text("Delete Account")
+                        }
+                        .font(.noteablyBody(16, weight: .medium))
+                        .foregroundStyle(Color.noteablyDestructive)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
+                                .fill(Color.noteablyDestructive.opacity(0.08))
+                        )
+                    }
+                    .disabled(isDeletingAccount)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
@@ -83,6 +112,34 @@ struct ProfileView: View {
                 }
             } message: {
                 Text("Are you sure you want to sign out?")
+            }
+            .alert("Delete Account", isPresented: $showDeleteConfirm) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete Account", role: .destructive) {
+                    Task {
+                        isDeletingAccount = true
+                        do {
+                            try await appState.deleteAccount()
+                            showAccountDeleted = true
+                        } catch {
+                            isDeletingAccount = false
+                            deleteError = error.localizedDescription
+                            showDeleteError = true
+                        }
+                    }
+                }
+            } message: {
+                Text("Your account will be locked immediately, but your data will be preserved for 14 days. We'll send you a recovery email with a link to restore access. After 14 days, your account and all data will be permanently deleted.")
+            }
+            .alert("Error", isPresented: $showDeleteError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(deleteError ?? "Failed to delete account. Please try again.")
+            }
+            .fullScreenCover(isPresented: $showAccountDeleted) {
+                AccountDeletedView {
+                    showAccountDeleted = false
+                }
             }
         }
     }

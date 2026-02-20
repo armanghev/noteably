@@ -121,3 +121,67 @@ def send_welcome_email(to_email: str, first_name: str = "there"):
     )
 
     return send_email(to_email, subject, html_content)
+
+
+def send_deletion_confirmation_email(
+    to_email: str,
+    first_name: str,
+    recovery_link: str,
+    days_remaining: int = 14,
+) -> None:
+    """
+    Send account deletion confirmation email with recovery link.
+
+    Called immediately when user initiates account deletion.
+    Email includes a recovery link valid for 14 days.
+
+    Args:
+        to_email: Recipient email address
+        first_name: User's first name (for personalization)
+        recovery_link: Full URL to recovery page with token (e.g., https://app.noteably.ai/recover?token=...)
+        days_remaining: Days until permanent deletion (default 14)
+    """
+    subject = "Your Noteably account is scheduled for deletion"
+    from datetime import datetime, timedelta, timezone
+
+    # Calculate deadline date for display
+    deadline_date = (datetime.now(timezone.utc) + timedelta(days=days_remaining)).strftime("%B %d, %Y")
+
+    context = {
+        "first_name": first_name,
+        "days_remaining": days_remaining,
+        "recovery_link": recovery_link,
+        "recovery_cta": "Recover My Account",
+        "support_email": "support@noteably.ai",
+        "deletion_deadline": deadline_date,
+    }
+
+    try:
+        html_content = render_to_string(
+            "emails/deletion_confirmation.html",
+            context,
+        )
+        logger.info(f"Successfully rendered deletion_confirmation.html template for {to_email}")
+    except Exception as e:
+        logger.error(f"Failed to render deletion_confirmation.html template: {e}", exc_info=True)
+        raise
+
+    return send_email(to_email, subject, html_content)
+
+
+def send_account_deleted_email(to_email: str, first_name: str = "there"):
+    """
+    Send account deletion confirmation email (used after hard delete completes).
+
+    This is sent after the 14-day grace period expires and the account is permanently deleted.
+    """
+    subject = "Account Deleted - Noteably"
+
+    html_content = render_to_string(
+        "emails/account_deleted.html",
+        {
+            "first_name": first_name,
+        },
+    )
+
+    return send_email(to_email, subject, html_content)

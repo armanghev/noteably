@@ -18,6 +18,7 @@ final class AuthService {
     private(set) var currentLastName: String?
     private(set) var profileCompleted: Bool = false
     private(set) var isAuthenticated = false
+    private(set) var accountScheduledForDeletion: Date?
 
     private init() {
         Task { await restoreSession() }
@@ -112,6 +113,25 @@ final class AuthService {
         }
     }
 
+    // MARK: - Restore Account
+
+    func restoreAccount() async throws {
+        try await api.post(path: "/api/auth/me/restore")
+        // Refresh session to clear deleted_at in metadata
+        try await supabase.auth.refreshSession()
+        if let session = try? await supabase.auth.session {
+            applySession(session)
+        }
+    }
+
+    // MARK: - Delete Account
+
+    func deleteAccount() async throws {
+        try await api.deleteVoid(path: "/api/auth/me/delete")
+        // Sign out locally after successful deletion request
+        await signOut()
+    }
+
     // MARK: - Sign Out
 
     func signOut() async {
@@ -172,6 +192,22 @@ final class AuthService {
         currentFirstName = session.user.userMetadata["first_name"]?.stringValue
         currentLastName = session.user.userMetadata["last_name"]?.stringValue
         profileCompleted = session.user.userMetadata["profile_completed"]?.boolValue ?? false
+        
+        if let deletedAtString = session.user.userMetadata["deleted_at"]?.stringValue {
+            // ISO8601 parsing
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = formatter.date(from: deletedAtString) {
+                accountScheduledForDeletion = date
+            } else {
+                // Fallback for standard ISO8601
+                let stdFormatter = ISO8601DateFormatter()
+                accountScheduledForDeletion = stdFormatter.date(from: deletedAtString)
+            }
+        } else {
+            accountScheduledForDeletion = nil
+        }
+        
         isAuthenticated = true
     }
 
@@ -183,6 +219,7 @@ final class AuthService {
         currentLastName = nil
         profileCompleted = false
         isAuthenticated = false
+        accountScheduledForDeletion = nil
     }
     
     // MARK: - Avatar Upload
@@ -231,4 +268,13 @@ final class AuthService {
         self.isAuthenticated = true
     }
     #endif
+}
+
+// MARK: - Empty Response
+
+/// Decodable type for endpoints that return 204 No Content
+private struct EmptyResponse: Decodable {
+    init(from decoder: Decoder) throws {
+        // Accept empty body
+    }
 }

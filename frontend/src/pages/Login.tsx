@@ -16,7 +16,13 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
+import { toast } from "sonner";
 
 // Floating UI card component for the brand panel
 function FloatingCard({
@@ -44,12 +50,41 @@ function FloatingCard({
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { login, loading, user, refreshUser, profileCompleted } = useAuth();
+  const {
+    login,
+    loading,
+    user,
+    refreshUser,
+    profileCompleted,
+    signInWithGoogle,
+  } = useAuth();
   const { handleError } = useErrorHandler();
   const navigate = useNavigate();
   const location = useLocation();
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showProfileStep, setShowProfileStep] = useState(false);
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const error = searchParams.get("error");
+    if (error === "account_scheduled_deletion") {
+      toast.error("Account Pending Deletion", {
+        description:
+          "Your account is currently scheduled for deletion. You can recover it within 14 days.",
+        action: {
+          label: "Recover",
+          onClick: () => navigate("/recover"),
+        },
+        duration: 6000,
+      });
+    } else if (error === "account_exists_with_email") {
+      toast.error("Account Exists", {
+        description:
+          "An account with this email already exists. Please sign in with your password.",
+        duration: 6000,
+      });
+    }
+  }, [searchParams, navigate]);
 
   // Profile completion state
   const [firstName, setFirstName] = useState("");
@@ -143,8 +178,6 @@ export default function Login() {
     }
   };
 
-  const initials =
-    [firstName[0], lastName[0]].filter(Boolean).join("").toUpperCase() || "?";
   const oauthAvatar =
     user?.user_metadata?.picture ?? user?.user_metadata?.avatar_url ?? null;
   const displayAvatar = previewUrl ?? oauthAvatar;
@@ -152,7 +185,7 @@ export default function Login() {
   const handleGoogleSignIn = async () => {
     try {
       setGoogleLoading(true);
-      await authService.signInWithGoogle("/login?oauth=1");
+      await signInWithGoogle("/login?oauth=1");
     } catch (error) {
       setGoogleLoading(false);
       if (error && typeof error === "object" && "message" in error) {
@@ -180,9 +213,21 @@ export default function Login() {
       } else {
         navigate(from, { replace: true });
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Check for account deletion error
       if (error && typeof error === "object" && "message" in error) {
-        handleError(error as ApiError);
+        if (error.type === "ACCOUNT_PENDING_DELETION") {
+          toast.error("Account Pending Deletion", {
+            description: error.message,
+            action: {
+              label: "Recover",
+              onClick: () => navigate("/recover"),
+            },
+            duration: 6000,
+          });
+        } else {
+          handleError(error as ApiError);
+        }
       } else {
         handleError(new Error(String(error)));
       }
@@ -436,7 +481,9 @@ export default function Login() {
                     id="email"
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                    }}
                     className="w-full px-4 py-3 rounded-xl bg-muted/50 border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                     placeholder="you@example.com"
                     required
@@ -454,7 +501,9 @@ export default function Login() {
                     id="password"
                     type="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                    }}
                     className="w-full px-4 py-3 rounded-xl bg-muted/50 border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                     placeholder="••••••••"
                     required

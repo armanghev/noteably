@@ -3,16 +3,19 @@ import { ProtectedRoute } from "./ProtectedRoute";
 import { ROUTES } from "./routes";
 
 // Import pages
+import AccountDeleted from "@/pages/AccountDeleted";
 import Dashboard from "@/pages/Dashboard";
 import FlashcardDeck from "@/pages/FlashcardDeck";
 import Flashcards from "@/pages/Flashcards";
 import LandingPage from "@/pages/LandingPage";
+import LinkAccount from "@/pages/LinkAccount";
 import Login from "@/pages/Login";
 import NoteDetail from "@/pages/NoteDetail";
 import Notes from "@/pages/Notes";
 import Profile from "@/pages/Profile";
 import QuizDetail from "@/pages/QuizDetail";
 import Quizzes from "@/pages/Quizzes";
+import RecoverAccount from "@/pages/RecoverAccount";
 import Signup from "@/pages/Signup";
 import StudySetDetail from "@/pages/StudySetDetail";
 import StudySets from "@/pages/StudySets";
@@ -30,6 +33,22 @@ export const router = createBrowserRouter([
   {
     path: ROUTES.SIGNUP,
     element: <Signup />,
+  },
+  {
+    path: ROUTES.RECOVER,
+    element: <RecoverAccount />, // Existing recover password page
+  },
+  {
+    path: ROUTES.RECOVER_ACCOUNT,
+    element: <RecoverAccount />, // New recover account page (TODO: check if same component intended or name clash)
+  },
+  {
+    path: ROUTES.ACCOUNT_DELETED,
+    element: <AccountDeleted />,
+  },
+  {
+    path: ROUTES.LINK_ACCOUNT,
+    element: <LinkAccount />,
   },
   // Protected routes
   {

@@ -14,7 +14,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: (redirectPath?: string) => Promise<void>;
   profileCompleted: boolean;
 }
 
@@ -29,15 +29,81 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ApiError | null>(null);
 
+  // Helper to check for auth conflicts and handle them
+  const checkAuthConflict = async (
+    session: Session | null,
+  ): Promise<boolean> => {
+    // Check for scheduled deletion
+    if (session?.user?.user_metadata?.deleted_at) {
+      if (!window.location.pathname.includes("/recover-account")) {
+        window.location.href = "/recover-account";
+      }
+      return false; // Allow session to be set so we can use it to restore
+    }
+
+    // Check for OAuth merge conflict (blocking OAuth if email exists)
+    const isOAuthFlow = localStorage.getItem("oauth_login_flow") === "true";
+    if (isOAuthFlow && session?.user) {
+      const identities = session.user.identities || [];
+      const hasEmailIdentity = identities.some((id) => id.provider === "email");
+      const hasGoogleIdentity = identities.some(
+        (id) => id.provider === "google",
+      );
+
+      if (hasEmailIdentity && hasGoogleIdentity) {
+        // If we have already verified the link, we allow it.
+        const isVerified =
+          localStorage.getItem(`oauth_link_verified_${session.user.id}`) ===
+          "true";
+        if (isVerified) {
+          return false;
+        }
+
+        // Otherwise, we redirect to link account page
+        if (!window.location.pathname.includes("/link-account")) {
+          // Do NOT sign out. We need the session to verify the password.
+          // But we want to block access to other pages.
+          // Since this check runs on every auth change/init, it effectively gates the app
+          // if we redirect or return "true" (which prevents setting session in the caller).
+
+          // WAIT: If we return 'true' in getSession, we set session to null.
+          // If we set session to null, the user is logged out and can't use the LinkAccount page (if it requires auth).
+          // LinkAccount page needs to make a request.
+          // Logic change: We should set the session BUT redirect to /link-account and maybe set a "restricted" state?
+          // Or we can just let the session be set, but rely on the redirect to keep them on /link-account.
+          // But if they manually navigate away, component mounting might trigger this check again.
+
+          window.location.href = "/link-account";
+          // We return FALSE here so the session IS set, allowing the LinkAccount page to work.
+          // But we need to ensure they can't go to other pages.
+          // The checkAuthConflict is called in useEffect. If they navigate, it might not trigger immediately unless we listen to location changes.
+          // Better approach: In App.tsx or a global guard, or just rely on this redirecting them back if they try to leave.
+          return false;
+        }
+        // If we are already on link-account, let the session be set.
+        return false;
+      }
+    }
+    return false; // No conflict
+  };
+
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      // Check for conflict BEFORE setting session state to avoid flicker
+      const hasConflict = await checkAuthConflict(session);
+      if (hasConflict) {
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
 
-      // Fetch latest user metadata in the background (JWT may have stale data)
-      // This runs outside the auth lock so it's safe
+      // Fetch latest user metadata
       if (session?.user) {
         supabase.auth.getUser().then(({ data: { user: freshUser } }) => {
           if (freshUser) setUser(freshUser);
@@ -45,10 +111,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    // Listen for auth changes — keep synchronous to avoid Supabase auth lock deadlocks
+    // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const hasConflict = await checkAuthConflict(session);
+      if (hasConflict) {
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      // Clear flag if we made it here (successful login or no conflict)
+      if (session) {
+        localStorage.removeItem("oauth_login_flow");
+      }
+
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -92,12 +171,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (redirectPath?: string) => {
     try {
       setLoading(true);
       setError(null);
-      await authService.signInWithGoogle();
+      // Set flag to indicate we are starting an OAuth flow
+      localStorage.setItem("oauth_login_flow", "true");
+      await authService.signInWithGoogle(redirectPath);
     } catch (err) {
+      localStorage.removeItem("oauth_login_flow");
       const apiError = err as ApiError;
       setError(apiError);
       throw apiError;

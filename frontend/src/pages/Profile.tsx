@@ -3,10 +3,20 @@ import { UserAvatar } from "@/components/profile/UserAvatar";
 import { useTheme } from "@/components/theme/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
+import { authService } from "@/lib/api/services/auth";
 import { supabase } from "@/lib/supabase";
 import {
   Bell,
@@ -16,14 +26,21 @@ import {
   Moon,
   Pencil,
   Sun,
+  Trash2,
 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { APIKeys } from "@/components/profile/APIKeys";
+import { ROUTES } from "@/router/routes";
 
 export default function Profile() {
   const { user, logout, refreshUser } = useAuth();
+  const navigate = useNavigate();
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!user) return null;
@@ -42,6 +59,17 @@ export default function Profile() {
   const handleLogout = async () => {
     await logout();
     // Redirect handled by AuthContext/Router
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      setDeleting(true);
+      await authService.deleteAccount();
+      navigate(ROUTES.ACCOUNT_DELETED);
+    } catch (error) {
+      console.error("Account deletion failed:", error);
+      setDeleting(false);
+    }
   };
 
   const resizeImage = useCallback((file: File): Promise<Blob> => {
@@ -189,7 +217,88 @@ export default function Profile() {
                   </div>
                 </div>
 
-                <div className="pt-4 flex justify-end">
+                <div className="pt-4 flex justify-between">
+                  <Dialog
+                    open={deleteDialogOpen}
+                    onOpenChange={(open) => {
+                      if (deleting && !open) return;
+                      setDeleteDialogOpen(open);
+                    }}
+                  >
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        disabled={deleting}
+                      >
+                        {deleting ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        ) : (
+                          <Trash2 className="w-4 h-4 mr-2" />
+                        )}
+                        Delete Account
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent
+                      className="border-border"
+                      onInteractOutside={(e) => {
+                        if (deleting) e.preventDefault();
+                      }}
+                      onEscapeKeyDown={(e) => {
+                        if (deleting) e.preventDefault();
+                      }}
+                    >
+                      <DialogHeader>
+                        <DialogTitle>Delete Account</DialogTitle>
+                        <DialogDescription className="space-y-3">
+                          <div>
+                            <strong>
+                              Your account will be locked immediately
+                            </strong>
+                            , but your data will be preserved for 14 days. You
+                            can recover your account during this grace period.
+                          </div>
+                          <div>
+                            <strong>What happens:</strong>
+                            <ul className="list-disc ml-4 mt-2 space-y-1 text-sm">
+                              <li>
+                                We'll send you a recovery email with a link
+                              </li>
+                              <li>
+                                Click the link and set a new password to restore
+                                access
+                              </li>
+                              <li>
+                                After 14 days, your account and all data will be
+                                permanently deleted
+                              </li>
+                            </ul>
+                          </div>
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <Button
+                          variant="outline"
+                          onClick={() => setDeleteDialogOpen(false)}
+                          disabled={deleting}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={handleDeleteAccount}
+                          disabled={deleting}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          {deleting && (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          )}
+                          Delete Account
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+
                   <Button
                     variant="destructive"
                     onClick={handleLogout}

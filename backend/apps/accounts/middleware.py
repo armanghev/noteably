@@ -1,6 +1,7 @@
 """Middleware for Supabase JWT authentication."""
 
 import logging
+from datetime import datetime, timedelta, timezone
 
 from apps.core.exceptions import AuthenticationError, InvalidTokenError
 from apps.core.supabase_client import supabase_client
@@ -49,6 +50,9 @@ def supabase_auth_middleware(get_response):
             "/api/auth/login",
             "/api/auth/signup",
             "/api/auth/register",
+            "/api/auth/recover",
+            "/api/auth/confirm-recovery",
+            "/api/auth/confirm-recovery-oauth",
         ]
 
         if any(request.path.startswith(path) for path in exempt_paths):
@@ -72,7 +76,7 @@ def supabase_auth_middleware(get_response):
         # CHECK FOR API KEY (sk_...)
         if token.startswith("sk_"):
             try:
-                from django.utils import timezone
+                from django.utils import timezone as django_timezone
 
                 from .api_key_utils import hash_key, split_key_string
                 from .models import APIKey
@@ -90,21 +94,64 @@ def supabase_auth_middleware(get_response):
                 )
 
                 # Update usage stats
-                api_key.last_used_at = timezone.now()
+                api_key.last_used_at = django_timezone.now()
                 api_key.save(update_fields=["last_used_at"])
 
+                # Fetch full user data from Supabase to include user_metadata (for deleted_at check)
+                user_metadata = {}
+                try:
+                    user_from_supabase = supabase_client.get_user_by_id(str(api_key.user_id))
+                    if not user_from_supabase:
+                        logger.error(f"Supabase returned None for user ID: {api_key.user_id}")
+                        return JsonResponse({"error": "Authentication error"}, status=500)
+                    user_metadata = user_from_supabase.get("user_metadata", {}) or {}
+                except Exception as e:
+                    logger.error(f"Failed to fetch full user data for API key auth: {e}", exc_info=True)
+                    # Fail closed: don't bypass the deletion check if we can't verify the user
+                    return JsonResponse({"error": "Authentication error"}, status=500)
+
                 # Set user data from Supabase (to mimic JWT auth)
-                # We need to fetch the user to get the 'app_metadata' etc. if needed later
-                # For now, we construct a basic user object
+                # Include user_metadata so deleted_at check can access it
                 user_data = {
                     "id": str(api_key.user_id),
                     "aud": "authenticated",
                     "role": "authenticated",
                     "app_metadata": {"provider": "api_key", "key_name": api_key.name},
+                    "user_metadata": user_metadata,
                 }
 
                 request.user = SupabaseUser(user_data)
                 request.user_id = str(api_key.user_id)
+
+                # Check if account is scheduled for deletion
+                if hasattr(request.user, 'data') and request.user.data:
+                    user_meta = request.user.data.get('user_metadata', {}) or {}
+                    deleted_at = user_meta.get('deleted_at')
+                    if deleted_at:
+                        # Account is pending deletion
+                        try:
+                            parsed_dt = datetime.fromisoformat(deleted_at)
+                            # Ensure datetime is timezone-aware
+                            if parsed_dt.tzinfo is None:
+                                parsed_dt = parsed_dt.replace(tzinfo=timezone.utc)
+                            deletion_scheduled = parsed_dt + timedelta(days=14)
+                            if datetime.now(timezone.utc) < deletion_scheduled:
+                                # Still in grace period, return 403
+                                logger.info(
+                                    f"Account {api_key.user_id} is scheduled for deletion"
+                                )
+                                return JsonResponse(
+                                    {"error": "Account scheduled for deletion", "recovery_available": True},
+                                    status=403
+                                )
+                        except (ValueError, TypeError) as e:
+                            logger.error(f"Error parsing deleted_at timestamp: {e}")
+                            # If there's an error parsing the date, still block the account as a safety measure
+                            return JsonResponse(
+                                {"error": "Account scheduled for deletion", "recovery_available": True},
+                                status=403
+                            )
+
                 return get_response(request)
 
             except APIKey.DoesNotExist:
@@ -129,6 +176,35 @@ def supabase_auth_middleware(get_response):
             logger.info(
                 f"Supabase Auth: User set to {user_data.get('email')} (ID: {user_data.get('id')})"
             )
+
+            # Check if account is scheduled for deletion
+            if hasattr(request.user, 'data') and request.user.data:
+                user_meta = request.user.data.get('user_metadata', {}) or {}
+                deleted_at = user_meta.get('deleted_at')
+                if deleted_at:
+                    # Account is pending deletion
+                    try:
+                        parsed_dt = datetime.fromisoformat(deleted_at)
+                        # Ensure datetime is timezone-aware
+                        if parsed_dt.tzinfo is None:
+                            parsed_dt = parsed_dt.replace(tzinfo=timezone.utc)
+                        deletion_scheduled = parsed_dt + timedelta(days=14)
+                        if datetime.now(timezone.utc) < deletion_scheduled:
+                            # Still in grace period, return 403
+                            logger.info(
+                                f"Account {user_data.get('email')} (ID: {user_data.get('id')}) is scheduled for deletion"
+                            )
+                            return JsonResponse(
+                                {"error": "Account scheduled for deletion", "recovery_available": True},
+                                status=403
+                            )
+                    except (ValueError, TypeError) as e:
+                        logger.error(f"Error parsing deleted_at timestamp: {e}")
+                        # If there's an error parsing the date, still block the account as a safety measure
+                        return JsonResponse(
+                            {"error": "Account scheduled for deletion", "recovery_available": True},
+                            status=403
+                        )
 
         except (AuthenticationError, InvalidTokenError) as e:
             logger.warning(f"Authentication failed: {e}")
