@@ -1,7 +1,9 @@
 import io
 import logging
+import textwrap
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+import langextract as lx
 import requests
 from apps.generation.models import GeneratedContent
 from apps.generation.service import GeminiService
@@ -10,6 +12,7 @@ from apps.ingestion.supabase_storage import get_signed_url_from_storage_url
 from apps.transcription.models import Transcription
 from apps.transcription.service import TranscriptionService
 from celery import chain, shared_task
+from django.conf import settings
 from django.utils.timezone import now as from_datetime
 from pypdf import PdfReader
 import yt_dlp
@@ -17,16 +20,40 @@ import os
 
 logger = logging.getLogger(__name__)
 
+_PDF_EXTRACTION_PROMPT = textwrap.dedent("""\
+    Extract all key entities from this educational document: topics, definitions,
+    key terms, concepts, people, dates, examples, and important statements.
+    Use exact text from the document. Do not paraphrase or overlap entities.""")
+
+_PDF_EXTRACTION_EXAMPLES = [
+    lx.data.ExampleData(
+        text=(
+            "Photosynthesis is the process by which plants convert sunlight into glucose."
+        ),
+        extractions=[
+            lx.data.Extraction(
+                extraction_class="definition",
+                extraction_text=(
+                    "Photosynthesis is the process by which plants convert sunlight into glucose"
+                ),
+            ),
+            lx.data.Extraction(
+                extraction_class="key_term",
+                extraction_text="Photosynthesis",
+            ),
+        ],
+    )
+]
+
 
 def extract_pdf_text_from_url(url: str) -> str:
-    """Download PDF from URL and extract text."""
+    """Download PDF from URL, extract raw text via pypdf, then annotate with langextract."""
     try:
         # Generate signed URL if needed (for private buckets)
         try:
             signed_url = get_signed_url_from_storage_url(url, expires_in=3600)
             url_to_use = signed_url
         except Exception:
-            # If URL extraction fails, try using the original URL (might be public)
             url_to_use = url
 
         response = requests.get(url_to_use)
@@ -34,10 +61,35 @@ def extract_pdf_text_from_url(url: str) -> str:
 
         with io.BytesIO(response.content) as f:
             reader = PdfReader(f)
-            text = ""
+            raw_text = ""
             for page in reader.pages:
-                text += page.extract_text() + "\n"
-        return text
+                raw_text += page.extract_text() + "\n"
+
+        # Structured extraction with langextract (Gemini backend)
+        result = lx.extract(
+            text_or_documents=raw_text,
+            prompt_description=_PDF_EXTRACTION_PROMPT,
+            examples=_PDF_EXTRACTION_EXAMPLES,
+            model_id="gemini-2.5-flash",
+            api_key=settings.GEMINI_API_KEY,
+        )
+
+        # lx.extract() returns AnnotatedDocument or list[AnnotatedDocument]
+        docs = result if isinstance(result, list) else [result]
+
+        parts = []
+        for doc in docs:
+            doc_text = doc.text or ""
+            parts.append(doc_text)
+            if doc.extractions:
+                entity_lines = [
+                    f"[{e.extraction_class.upper()}] {e.extraction_text}"
+                    for e in doc.extractions
+                ]
+                parts.append("\n--- KEY ENTITIES ---\n" + "\n".join(entity_lines))
+
+        return "\n".join(parts)
+
     except Exception as e:
         logger.error(f"Error extracting PDF text: {e}")
         raise
@@ -112,19 +164,16 @@ def transcribe_media_task(self, job_id):
             job.current_step = "Extracting text..."
             job.save(update_fields=["status", "current_step"])
 
-            raw_text = extract_pdf_text_from_url(job.storage_url)
-
-            logger.info(f"Cleaning up PDF text for job {job_id}")
-            cleaned_text = GeminiService.generate_content(raw_text, "cleanup")
+            extracted_text = extract_pdf_text_from_url(job.storage_url)
 
             Transcription.objects.update_or_create(
                 job=job,
                 defaults={
                     "external_id": "pdf",
-                    "text": cleaned_text,
+                    "text": extracted_text,
                     "raw_response": {
-                        "type": "pdf_extraction",
-                        "raw_text_length": len(raw_text),
+                        "type": "pdf_extraction_langextract",
+                        "extracted_text_length": len(extracted_text),
                     },
                 },
             )
