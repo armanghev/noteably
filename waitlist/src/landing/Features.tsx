@@ -28,7 +28,7 @@ export const Features = () => {
   return (
     <section className="py-24 bg-background relative" id="features">
       {/* Background gradients */}
-      <div className="absolute top-1/2 right-0 -translate-y-1/2 w-96 h-96 bg-primary/5 rounded-full blur-[128px] pointer-events-none" />
+      <div className="hidden md:block absolute top-1/2 right-0 -translate-y-1/2 w-96 h-96 bg-primary/5 rounded-full blur-[128px] pointer-events-none" />
       <div className="container mx-auto px-6 relative z-10 max-w-5xl">
         <FadeIn>
           <div className="flex flex-col-reverse sm:flex-row items-center sm:items-end justify-between gap-8 mb-16 px-4 sm:px-0">

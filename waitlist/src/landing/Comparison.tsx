@@ -10,10 +10,10 @@ export const Comparison = () => {
     useWaitlist();
 
   return (
-    <section className="py-32 bg-background relative overflow-hidden">
+    <section className="py-32 bg-card relative overflow-hidden" id="comparison">
       {/* Background Gradients */}
-      <div className="absolute top-1/2 left-0 -translate-y-1/2 w-96 h-96 bg-primary/5 rounded-full blur-[128px] pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-[128px] pointer-events-none" />
+      <div className="hidden md:block absolute top-1/2 left-0 -translate-y-1/2 w-96 h-96 bg-primary/5 rounded-full blur-[128px] pointer-events-none" />
+      <div className="hidden md:block absolute bottom-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-[128px] pointer-events-none" />
 
       <div className="container mx-auto px-6 relative z-10">
         <div className="text-center mb-20">
@@ -74,7 +74,7 @@ export const Comparison = () => {
             <div className="h-full p-8 rounded-3xl bg-card border-2 border-primary/20 relative overflow-hidden shadow-2xl shadow-primary/5 group hover:border-primary/40 transition-colors">
               {/* Glowing background */}
               <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
-              <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/20 blur-[64px] rounded-full pointer-events-none" />
+              <div className="hidden md:block absolute -top-24 -right-24 w-48 h-48 bg-primary/20 blur-[64px] rounded-full pointer-events-none" />
 
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-8">

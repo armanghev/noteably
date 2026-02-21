@@ -93,7 +93,7 @@ export const Hero = () => {
         className="container mx-auto px-4 mt-16 relative"
         style={{ y }}
       >
-        <Card className="relative rounded-xl overflow-hidden shadow-2xl border-border pt-0 pl-0 pr-0 pb-0 bg-background/50 backdrop-blur-3xl">
+        <Card className="relative rounded-xl overflow-hidden shadow-2xl border-border pt-0 pl-0 pr-0 pb-0 bg-background/80 md:bg-background/50 backdrop-blur-md md:backdrop-blur-3xl">
           {/* macOS Window Header */}
           <div className="h-8 bg-muted/80 backdrop-blur border-b border-border flex items-center px-4 gap-2">
             <div className="w-3 h-3 rounded-full bg-[#FF5F57] border border-[#E0443E]"></div>
