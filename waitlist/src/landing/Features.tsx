@@ -32,10 +32,10 @@ export const Features = () => {
       <div className="hidden md:block absolute top-1/2 right-0 -translate-y-1/2 w-96 h-96 bg-primary/5 rounded-full blur-[128px] pointer-events-none" />
       <div className="container mx-auto px-6 relative z-10 max-w-6xl">
         <div className="flex flex-col lg:flex-row gap-8 lg:gap-16 items-start">
-          {/* Left Side / Top Side (Mobile) */}
+          {/* Left Side / Top Side */}
           <div className="w-full lg:w-5/12 lg:sticky lg:top-32">
             <FadeIn>
-              {/* Mobile Heading + Image Layout */}
+              {/* Mobile Heading + Image Layout (< lg) */}
               <div className="flex lg:hidden flex-col-reverse sm:flex-row items-center sm:items-end justify-between gap-8 mb-12 sm:px-0">
                 <h2 className="text-4xl md:text-5xl font-serif text-foreground leading-[1.1] text-center sm:text-left">
                   Your personal <br />
@@ -50,9 +50,9 @@ export const Features = () => {
                 </div>
               </div>
 
-              {/* Desktop Heading + Big Box Layout */}
+              {/* Desktop Heading + Big Box Layout (>= lg) */}
               <div className="hidden lg:block">
-                <h2 className="text-4xl md:text-5xl lg:text-6xl font-serif mb-12 text-foreground leading-[1.1]">
+                <h2 className="text-4xl md:text-5xl font-serif mb-12 text-foreground leading-[1.1]">
                   Your personal <br />
                   <span className="text-primary italic">AI tutor.</span>
                 </h2>
@@ -95,11 +95,11 @@ export const Features = () => {
           </div>
 
           {/* Right Side / Bottom Side (Features Grid/List) */}
-          <div className="w-full lg:w-7/12 lg:pt-8 w-full">
-            {/* Mobile Grid View */}
+          <div className="w-full lg:w-7/12 lg:pt-8">
+            {/* Mobile Grid View (< lg) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:hidden">
               {features.map((f, i) => (
-                <FadeIn key={i} delay={i * 0.1}>
+                <FadeIn key={`mobile-${i}`} delay={i * 0.1}>
                   <div className="group h-full p-6 sm:p-8 rounded-3xl border border-border hover:border-primary/40 bg-card/40 hover:bg-card transition-all duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1">
                     <div className="flex flex-col h-full">
                       <div className="w-12 h-12 sm:w-14 sm:h-14 mb-4 sm:mb-6 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300 shadow-inner">
@@ -117,20 +117,20 @@ export const Features = () => {
               ))}
             </div>
 
-            {/* Desktop List View */}
+            {/* Desktop List View (>= lg) */}
             <div className="hidden lg:grid grid-cols-1 gap-8">
               {features.map((f, i) => (
                 <FadeIn key={`desktop-${i}`} delay={i * 0.1}>
-                  <div className="group p-6 rounded-2xl border border-border hover:border-primary/50 bg-card/30 hover:bg-card transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-1">
-                    <div className="flex items-start gap-4 flex-row">
-                      <div className="inline-flex p-4 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300 shrink-0">
+                  <div className="group p-4 rounded-2xl border border-border hover:border-primary/50 bg-card/30 hover:bg-card transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-1">
+                    <div className="flex items-start gap-4">
+                      <div className="mb-4 inline-flex p-3 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300 shrink-0">
                         {f.icon}
                       </div>
-                      <div className="pt-1">
+                      <div>
                         <h3 className="text-xl font-serif font-medium mb-2 text-foreground">
                           {f.title}
                         </h3>
-                        <p className="text-muted-foreground leading-relaxed text-base">
+                        <p className="text-muted-foreground leading-relaxed text-sm md:text-base">
                           {f.desc}
                         </p>
                       </div>
