@@ -1,13 +1,15 @@
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { motion, useScroll, useTransform } from "framer-motion";
 import {
   ArrowRight,
   Brain,
   Check,
+  File,
   FileText,
+  Mic,
   Sparkles,
+  Youtube,
   Zap,
 } from "lucide-react";
 import { FadeIn } from "./FadeIn";
@@ -90,114 +92,125 @@ export const Hero = () => {
       </div>
 
       <motion.div
-        className="container mx-auto px-4 mt-16 relative"
+        className="container mx-auto px-4 mt-20 relative"
         style={{ y }}
       >
-        <Card className="relative rounded-xl overflow-hidden shadow-2xl border-border pt-0 pl-0 pr-0 pb-0 bg-background/80 md:bg-background/50 backdrop-blur-md md:backdrop-blur-3xl">
-          {/* macOS Window Header */}
-          <div className="h-8 bg-muted/80 backdrop-blur border-b border-border flex items-center px-4 gap-2">
-            <div className="w-3 h-3 rounded-full bg-[#FF5F57] border border-[#E0443E]"></div>
-            <div className="w-3 h-3 rounded-full bg-[#FEBC2E] border border-[#D89E24]"></div>
-            <div className="w-3 h-3 rounded-full bg-[#28C840] border border-[#1AAB29]"></div>
-            <div className="flex-1 text-center text-xs font-medium text-muted-foreground font-sans">
-              Noteably - New Study Set
+        <div className="relative w-full max-w-5xl mx-auto rounded-3xl overflow-hidden shadow-2xl bg-background/40 backdrop-blur-xl border border-primary/10 p-8 md:p-16 flex flex-col md:flex-row items-center justify-between gap-12">
+          {/* Left Side: Inputs */}
+          <div className="flex flex-row md:flex-col gap-6 md:gap-8 justify-center relative z-10 w-full md:w-1/4">
+            <motion.div
+              animate={{ y: [0, -8, 0], x: [0, 4, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="w-16 h-16 rounded-2xl bg-card border border-border shadow-lg flex items-center justify-center shrink-0"
+            >
+              <Youtube className="w-8 h-8 text-red-500 opacity-80" />
+            </motion.div>
+
+            <motion.div
+              animate={{ y: [0, 10, 0], x: [0, -5, 0] }}
+              transition={{
+                duration: 5,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 1,
+              }}
+              className="w-16 h-16 rounded-2xl bg-card border border-border shadow-lg flex items-center justify-center -ml-4 md:ml-8 shrink-0"
+            >
+              <Mic className="w-8 h-8 text-blue-500 opacity-80" />
+            </motion.div>
+
+            <motion.div
+              animate={{ y: [0, -5, 0], x: [0, 5, 0] }}
+              transition={{
+                duration: 3.5,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 2,
+              }}
+              className="w-16 h-16 rounded-2xl bg-card border border-border shadow-lg flex items-center justify-center shrink-0"
+            >
+              <File className="w-8 h-8 text-emerald-500 opacity-80" />
+            </motion.div>
+          </div>
+
+          {/* Center: AI Engine */}
+          <div className="relative flex items-center justify-center z-10 w-full md:w-2/4 aspect-square md:aspect-auto md:h-64">
+            <div className="absolute inset-0 bg-primary/20 blur-[64px] rounded-full scale-150 animate-pulse pointer-events-none" />
+
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-[-40px] md:inset-[-60px] rounded-full border border-dashed border-primary/20 pointer-events-none"
+            />
+            <motion.div
+              animate={{ rotate: -360 }}
+              transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-[-20px] md:inset-[-30px] rounded-full border border-dashed border-primary/30 pointer-events-none"
+            />
+
+            <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-gradient-to-br from-primary to-primary/80 shadow-xl shadow-primary/30 flex items-center justify-center relative z-20 border-4 border-background">
+              <Brain className="w-12 h-12 md:w-16 md:h-16 text-primary-foreground" />
+              <div className="absolute top-0 right-0 -mt-2 -mr-2 w-8 h-8 rounded-full bg-background flex items-center justify-center shadow-lg border border-border">
+                <Sparkles className="w-4 h-4 text-primary" />
+              </div>
             </div>
           </div>
 
-          {/* App UI Content */}
-          <div className="aspect-[16/10] bg-background flex overflow-hidden relative">
-            {/* Sidebar */}
-            <div className="w-48 bg-muted/50 border-r border-border hidden sm:flex flex-col p-4 gap-4">
-              <div className="flex items-center gap-2 mb-4 opacity-50">
-                <div className="w-8 h-8 rounded-lg bg-border"></div>
-                <div className="w-20 h-4 rounded-md bg-border"></div>
+          {/* Right Side: Outputs */}
+          <div className="flex flex-col gap-4 relative z-10 w-full md:w-1/4">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="w-full bg-card border border-border rounded-xl p-4 shadow-lg flex items-start gap-3 transform md:translate-x-4"
+            >
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <FileText className="w-4 h-4 text-primary" />
               </div>
-              <div className="space-y-2">
-                {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="h-2 w-full bg-border rounded-full opacity-60"
-                  ></div>
-                ))}
+              <div className="space-y-2 w-full pt-1">
+                <div className="h-2 w-16 bg-muted-foreground/30 rounded" />
+                <div className="h-2 w-full bg-muted rounded" />
+                <div className="h-2 w-4/5 bg-muted rounded" />
               </div>
-              <div className="mt-auto space-y-2">
-                <div className="h-8 w-full bg-card border border-border rounded-lg shadow-sm"></div>
-              </div>
-            </div>
+            </motion.div>
 
-            {/* Main Content */}
-            <div className="flex-1 p-6 md:p-8 flex flex-col gap-8">
-              {/* Header */}
-              <div className="flex justify-between items-center">
-                <div>
-                  <div className="h-5 w-32 bg-foreground/10 rounded-md mb-2"></div>
-                  <div className="h-3 w-48 bg-foreground/5 rounded-md"></div>
-                </div>
-                <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/30">
-                  <Sparkles className="w-4 h-4" />
-                </div>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 }}
+              className="w-full bg-card border border-border rounded-xl p-4 shadow-lg flex items-start gap-3"
+            >
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <Brain className="w-4 h-4 text-primary" />
               </div>
+              <div className="w-full pt-1 pb-1">
+                <div className="h-3 w-24 bg-foreground/80 rounded mb-2" />
+                <div className="h-2 w-20 bg-muted-foreground/50 rounded" />
+              </div>
+            </motion.div>
 
-              {/* Upload Zone */}
-              <div className="flex-1 border-2 border-dashed border-primary/30 rounded-2xl bg-card/50 flex flex-col items-center justify-center gap-4 group hover:bg-card/80 transition-colors cursor-pointer">
-                <motion.div className="w-16 h-16 rounded-full bg-background flex items-center justify-center group-hover:scale-110 transition-transform shadow-md">
-                  <div className="w-8 h-8 text-primary opacity-80">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="32"
-                      height="32"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" x2="12" y1="3" y2="15" />
-                    </svg>
-                  </div>
-                </motion.div>
-                <div className="text-center">
-                  <p className="text-primary font-medium mb-1">
-                    Drop your lectures here
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    PDF, MP3, MP4 supported
-                  </p>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.6 }}
+              className="w-full bg-card border border-border rounded-xl p-4 shadow-lg flex items-start gap-3 transform md:-translate-x-4"
+            >
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <Zap className="w-4 h-4 text-primary" />
+              </div>
+              <div className="space-y-2 w-full pt-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full border border-border" />
+                  <div className="h-2 w-full bg-muted rounded" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-primary" />
+                  <div className="h-2 w-4/5 bg-primary/20 rounded" />
                 </div>
               </div>
-
-              {/* Output Cards */}
-              <div className="grid grid-cols-3 gap-4">
-                {[
-                  { label: "Notes", color: "bg-muted" },
-                  { label: "Cards", color: "bg-muted" },
-                  { label: "Quiz", color: "bg-muted" },
-                ].map((item, i) => (
-                  <div
-                    key={i}
-                    className={`${item.color} h-24 rounded-xl p-4 flex flex-col justify-between hover:-translate-y-1 transition-transform shadow-sm`}
-                  >
-                    <div className="w-8 h-8 rounded-full bg-card/50 flex items-center justify-center">
-                      {i === 0 && (
-                        <FileText className="w-4 h-4 text-primary opacity-75" />
-                      )}
-                      {i === 1 && (
-                        <Brain className="w-4 h-4 text-primary opacity-75" />
-                      )}
-                      {i === 2 && (
-                        <Zap className="w-4 h-4 text-primary opacity-75" />
-                      )}
-                    </div>
-                    <div className="h-2 w-12 bg-primary/10 rounded-full"></div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            </motion.div>
           </div>
-        </Card>
+        </div>
       </motion.div>
     </section>
   );

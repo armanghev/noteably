@@ -51,7 +51,7 @@ export const Features = () => {
               </FadeIn>
             </div>
 
-            <div className="w-full lg:w-7/12 lg:pt-8 w-full">
+            <div className="w-full lg:w-7/12 lg:pt-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:hidden">
                 {features.map((f, i) => (
                   <FadeIn key={i} delay={i * 0.1}>
