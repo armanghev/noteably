@@ -14,8 +14,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
-  const resendFromEmail = process.env.RESEND_FROM_EMAIL;
-  const resendToEmail = process.env.RESEND_TO_EMAIL;
+  // Strip any accidental quotes from environment variables
+  const resendFromEmail = process.env.RESEND_FROM_EMAIL?.replace(/^"|"$/g, "");
+  const resendToEmail = process.env.RESEND_TO_EMAIL?.replace(/^"|"$/g, "");
 
   if (!resendFromEmail || !resendToEmail) {
     console.error(
@@ -25,7 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const data = await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: resendFromEmail,
       to: [resendToEmail],
       subject: `New Contact Form Submission: ${subject}`,
@@ -39,6 +40,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         <p>${message.replace(/\n/g, "<br>")}</p>
       `,
     });
+
+    if (error) {
+      console.error("Resend API error:", error);
+      return res.status(400).json({ error: error.message });
+    }
 
     return res.status(200).json({ success: true, data });
   } catch (error) {
