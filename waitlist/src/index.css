@@ -36,7 +36,7 @@
   --sidebar-border: 0.8851 0.0122 111.7823;
   --sidebar-ring: 0.4561 0.0462 144.7706;
   --font-sans: Inter, ui-sans-serif, sans-serif, system-ui;
-  --font-serif: Playfair, ui-serif, serif;
+  --font-serif: Shrikhand, cursive;
   --font-mono: Courier Prime, ui-monospace, monospace;
   --radius: 0.625rem;
   --shadow-x: 0px;
@@ -101,7 +101,7 @@
   --sidebar-border: 0.2547 0.0073 106.909;
   --sidebar-ring: 0.5872 0.0647 145.4012;
   --font-sans: Inter, ui-sans-serif, sans-serif, system-ui;
-  --font-serif: Playfair, ui-serif, serif;
+  --font-serif: Shrikhand, cursive;
   --font-mono: Courier Prime, ui-monospace, monospace;
   --radius: 0.625rem;
   --shadow-x: 0px;
@@ -205,7 +205,7 @@
   .theme {
     --font-sans: Inter, ui-sans-serif, sans-serif, system-ui;
     --font-mono: Courier Prime, ui-monospace, monospace;
-    --font-serif: Playfair, ui-serif, serif;
+    --font-serif: Shrikhand, cursive;
     --radius: 0.625rem;
     --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
     --tracking-tight: calc(var(--tracking-normal) - 0.025em);
@@ -249,7 +249,7 @@
     --sidebar-border: 0.8851 0.0122 111.7823;
     --sidebar-ring: 0.4561 0.0462 144.7706;
     --font-sans: Inter, ui-sans-serif, sans-serif, system-ui;
-    --font-serif: Playfair, ui-serif, serif;
+    --font-serif: Shrikhand, cursive;
     --font-mono: Courier Prime, ui-monospace, monospace;
     --shadow-color: #5f6f52;
     --shadow-opacity: 1;
@@ -311,7 +311,7 @@
     --sidebar-border: 0.2547 0.0073 106.909;
     --sidebar-ring: 0.5872 0.0647 145.4012;
     --font-sans: Inter, ui-sans-serif, sans-serif, system-ui;
-    --font-serif: Playfair, ui-serif, serif;
+    --font-serif: Shrikhand, cursive;
     --font-mono: Courier Prime, ui-monospace, monospace;
     --radius: 0.625rem;
     --shadow-x: 0px;
