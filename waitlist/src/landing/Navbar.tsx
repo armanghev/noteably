@@ -39,7 +39,7 @@ export const Navbar = () => {
           </a>
           <Button
             onClick={() => {
-              document.getElementById("join-waitlist")?.focus();
+              window.dispatchEvent(new Event("open-waitlist"));
             }}
             className="px-6 rounded-full"
           >
@@ -86,7 +86,7 @@ export const Navbar = () => {
               onClick={() => {
                 closeMenu();
                 setTimeout(() => {
-                  document.getElementById("join-waitlist")?.focus();
+                  window.dispatchEvent(new Event("open-waitlist"));
                 }, 100);
               }}
               className="mt-2 rounded-full w-full py-6 text-lg"

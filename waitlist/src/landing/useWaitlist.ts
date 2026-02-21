@@ -21,8 +21,8 @@ export const useWaitlist = () => {
         throw insertError;
       }
       setIsSubmitted(true);
-    } catch (err: any) {
-      setError(err.message || "Failed to join waitlist");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to join waitlist");
     } finally {
       setIsSubmitting(false);
     }

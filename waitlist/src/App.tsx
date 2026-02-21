@@ -1,5 +1,6 @@
 import { Analytics } from "@vercel/analytics/react";
 import { useCallback, useState } from "react";
+import { WaitlistModal } from "./components/WaitlistModal";
 import { CookieBanner } from "./landing/CookieBanner";
 import Landing from "./landing/Landing";
 
@@ -13,6 +14,7 @@ export default function App() {
   return (
     <>
       <Landing />
+      <WaitlistModal />
       <CookieBanner onAccept={handleAcceptAnalytics} />
       {hasConsent && <Analytics />}
     </>

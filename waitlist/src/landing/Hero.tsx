@@ -1,10 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { motion, useScroll, useTransform } from "framer-motion";
 import {
   ArrowRight,
   Brain,
-  Check,
   File,
   FileText,
   Mic,
@@ -13,13 +11,10 @@ import {
   Zap,
 } from "lucide-react";
 import { FadeIn } from "./FadeIn";
-import { useWaitlist } from "./useWaitlist";
 
 export const Hero = () => {
   const { scrollY } = useScroll();
   const y = useTransform(scrollY, [0, 500], [0, 150]);
-  const { email, setEmail, isSubmitting, isSubmitted, error, subscribe } =
-    useWaitlist();
 
   return (
     <section className="relative pt-32 pb-20 overflow-hidden bg-background">
@@ -49,45 +44,15 @@ export const Hero = () => {
         </FadeIn>
 
         <FadeIn delay={0.3}>
-          <form
-            onSubmit={subscribe}
-            className="flex flex-col items-center justify-center w-full max-w-md mx-auto relative"
-          >
-            {isSubmitted ? (
-              <div className="flex items-center gap-2 text-primary font-medium bg-primary/10 px-6 py-4 rounded-full w-full justify-center shadow-inner border border-primary/20">
-                <Check className="w-5 h-5" />
-                <span>You're on the list! We'll be in touch soon.</span>
-              </div>
-            ) : (
-              <div className="w-full">
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full">
-                  <Input
-                    id="join-waitlist"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email"
-                    required
-                    disabled={isSubmitting}
-                    className="h-14 rounded-full px-6 text-base bg-card shadow-sm border-border w-full focus-visible:ring-primary"
-                  />
-                  <Button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="h-14 px-8 rounded-full text-base shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all w-full sm:w-auto shrink-0"
-                  >
-                    {isSubmitting ? "Joining..." : "Join Waitlist"}
-                    {!isSubmitting && <ArrowRight className="ml-2 w-4 h-4" />}
-                  </Button>
-                </div>
-                {error && (
-                  <p className="text-destructive text-sm mt-2 w-full text-center">
-                    {error}
-                  </p>
-                )}
-              </div>
-            )}
-          </form>
+          <div className="flex justify-center w-full mt-8">
+            <Button
+              onClick={() => window.dispatchEvent(new Event("open-waitlist"))}
+              className="h-14 px-8 rounded-full text-base shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all w-full sm:w-auto"
+            >
+              Join Waitlist
+              <ArrowRight className="ml-2 w-5 h-5" />
+            </Button>
+          </div>
         </FadeIn>
       </div>
 

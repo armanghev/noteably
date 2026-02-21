@@ -1,14 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { ArrowRight, Check, Sparkles, X, Zap } from "lucide-react";
 import { FadeIn } from "./FadeIn";
-import { useWaitlist } from "./useWaitlist";
 
 export const Comparison = () => {
-  const { email, setEmail, isSubmitting, isSubmitted, error, subscribe } =
-    useWaitlist();
-
   return (
     <section className="py-32 bg-card relative overflow-hidden" id="comparison">
       {/* Background Gradients */}
@@ -125,42 +120,17 @@ export const Comparison = () => {
               <h3 className="text-2xl font-serif text-center mb-6 text-foreground font-medium">
                 Ready for early access?
               </h3>
-              <form
-                onSubmit={subscribe}
-                className="flex flex-col gap-4 relative"
-              >
-                {isSubmitted ? (
-                  <div className="flex items-center gap-2 text-primary font-medium bg-primary/10 px-6 py-4 rounded-xl w-full justify-center shadow-inner border border-primary/20">
-                    <Check className="w-5 h-5" />
-                    <span>You're on the list! We'll be in touch soon.</span>
-                  </div>
-                ) : (
-                  <>
-                    <Input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Enter your email"
-                      required
-                      disabled={isSubmitting}
-                      className="h-14 rounded-xl px-6 text-base bg-background shadow-sm border-border w-full focus-visible:ring-primary"
-                    />
-                    <Button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="h-14 rounded-xl text-base shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all w-full"
-                    >
-                      {isSubmitting ? "Joining..." : "Join the waitlist now"}
-                      {!isSubmitting && <ArrowRight className="ml-2 w-5 h-5" />}
-                    </Button>
-                    {error && (
-                      <p className="text-destructive text-sm text-center">
-                        {error}
-                      </p>
-                    )}
-                  </>
-                )}
-              </form>
+              <div className="flex flex-col gap-4 relative">
+                <Button
+                  onClick={() =>
+                    window.dispatchEvent(new Event("open-waitlist"))
+                  }
+                  className="h-14 rounded-xl text-base shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all w-full mt-4"
+                >
+                  Join the waitlist now
+                  <ArrowRight className="ml-2 w-5 h-5" />
+                </Button>
+              </div>
               <p className="mt-6 text-sm text-center text-muted-foreground font-medium">
                 Be the first to know when we launch. No spam, ever.
               </p>

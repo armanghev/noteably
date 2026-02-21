@@ -32,7 +32,7 @@ export const BigPicture = () => (
               <div className="pt-8">
                 <Button
                   onClick={() =>
-                    document.getElementById("join-waitlist")?.focus()
+                    window.dispatchEvent(new Event("open-waitlist"))
                   }
                   className="px-8 py-6 rounded-full hover:bg-foreground text-primary-foreground shadow-lg shadow-primary/20"
                 >
