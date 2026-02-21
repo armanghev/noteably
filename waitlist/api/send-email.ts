@@ -14,10 +14,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
+  const resendFromEmail = process.env.RESEND_FROM_EMAIL;
+  const resendToEmail = process.env.RESEND_TO_EMAIL;
+
+  if (!resendFromEmail || !resendToEmail) {
+    console.error(
+      "Missing RESEND_FROM_EMAIL or RESEND_TO_EMAIL environment variables.",
+    );
+    return res.status(500).json({ error: "Server configuration error" });
+  }
+
   try {
     const data = await resend.emails.send({
-      from: "Noteably Contact <onboarding@resend.dev>",
-      to: ["armanghev747@gmail.com"],
+      from: resendFromEmail,
+      to: [resendToEmail],
       subject: `New Contact Form Submission: ${subject}`,
       replyTo: email,
       html: `
