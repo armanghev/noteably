@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 export const Footer = () => (
   <footer className="bg-primary/90 text-primary-foreground/90 py-20 relative overflow-hidden">
     <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none"></div>
@@ -54,12 +56,12 @@ export const Footer = () => (
       <div className="mt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-primary-foreground/60 font-medium">
         <p>© 2026 Noteably Inc. All rights reserved.</p>
         <div className="flex gap-6">
-          <a
-            href="#"
+          <Link
+            to="/privacy-policy"
             className="hover:text-primary-foreground transition-colors"
           >
             Privacy Policy
-          </a>
+          </Link>
           <a
             href="#"
             className="hover:text-primary-foreground transition-colors"

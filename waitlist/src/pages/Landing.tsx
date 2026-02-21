@@ -1,10 +1,10 @@
 import { useEffect } from "react";
-import { BigPicture } from "./BigPicture";
-import { Comparison } from "./Comparison";
-import { Features } from "./Features";
-import { Footer } from "./Footer";
-import { Hero } from "./Hero";
-import { Navbar } from "./Navbar";
+import { BigPicture } from "@/landing/BigPicture";
+import { Comparison } from "@/landing/Comparison";
+import { Features } from "@/landing/Features";
+import { Footer } from "@/landing/Footer";
+import { Hero } from "@/landing/Hero";
+import { Navbar } from "@/landing/Navbar";
 
 export default function Landing() {
   // Use a slight hack to apply dark mode directly if we prefer

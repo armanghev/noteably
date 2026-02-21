@@ -305,3 +305,4 @@ iOSInjectionProject/
 artifacts/
 docs/
 .DS_Store
+.vercel

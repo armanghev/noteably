@@ -1,10 +1,13 @@
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { useCallback, useState } from "react";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { ThemeProvider } from "./components/theme-provider";
 import { WaitlistModal } from "./components/WaitlistModal";
 import { CookieBanner } from "./landing/CookieBanner";
-import Landing from "./landing/Landing";
+import ContactUs from "./pages/ContactUs";
+import Landing from "./pages/Landing";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 export default function App() {
   const [hasConsent, setHasConsent] = useState(false);
@@ -15,9 +18,22 @@ export default function App() {
 
   return (
     <ThemeProvider defaultTheme="dark" storageKey="noteably-waitlist-theme">
-      <Landing />
-      <WaitlistModal />
-      <CookieBanner onAccept={handleAcceptAnalytics} />
+      <BrowserRouter>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <>
+                <Landing />
+                <WaitlistModal />
+                <CookieBanner onAccept={handleAcceptAnalytics} />
+              </>
+            }
+          />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/contact-us" element={<ContactUs />} />
+        </Routes>
+      </BrowserRouter>
       {hasConsent && (
         <>
           <Analytics />
