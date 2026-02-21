@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import { WaitlistModal } from "./components/WaitlistModal";
 import { CookieBanner } from "./landing/CookieBanner";
 import Landing from "./landing/Landing";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 export default function App() {
   const [hasConsent, setHasConsent] = useState(false);
@@ -16,7 +17,12 @@ export default function App() {
       <Landing />
       <WaitlistModal />
       <CookieBanner onAccept={handleAcceptAnalytics} />
-      {hasConsent && <Analytics />}
+      {hasConsent && (
+        <>
+          <Analytics />
+          <SpeedInsights />
+        </>
+      )}
     </>
   );
 }
