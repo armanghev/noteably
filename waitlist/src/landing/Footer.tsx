@@ -38,13 +38,16 @@ export const Footer = () => (
               Company
             </h4>
             <ul className="space-y-4">
-              {["About", "Blog", "Contact"].map((item) => (
-                <li key={item}>
+              {[
+                {name:"About",link:"/about"}, 
+                {name:"Blog",link:"/blog"}, 
+                {name:"Contact Us",link:"/contact-us"}].map((item) => (
+                <li key={item.name}>
                   <a
-                    href="#"
+                    href={item.link}
                     className="text-primary-foreground/70 hover:text-primary-foreground transition-colors font-medium"
                   >
-                    {item}
+                    {item.name}
                   </a>
                 </li>
               ))}
