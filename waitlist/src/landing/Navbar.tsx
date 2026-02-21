@@ -1,3 +1,4 @@
+import { ModeToggle } from "@/components/ModeToggle";
 import { Button } from "@/components/ui/button";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
@@ -37,25 +38,31 @@ export const Navbar = () => {
           >
             How it works
           </a>
-          <Button
-            onClick={() => {
-              window.dispatchEvent(new Event("open-waitlist"));
-            }}
-            className="px-6 rounded-full"
-          >
-            Join Waitlist
-          </Button>
+          <div className="flex items-center gap-2">
+            <ModeToggle />
+            <Button
+              onClick={() => {
+                window.dispatchEvent(new Event("open-waitlist"));
+              }}
+              className="px-6 rounded-full"
+            >
+              Join Waitlist
+            </Button>
+          </div>
         </div>
 
-        {/* Mobile Toggle */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="md:hidden text-foreground"
-          onClick={() => setIsOpen(!isOpen)}
-        >
-          {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </Button>
+        {/* Mobile Toggle & Mode Toggle */}
+        <div className="flex items-center gap-2 md:hidden">
+          <ModeToggle />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-foreground"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </Button>
+        </div>
       </div>
 
       {/* Mobile Menu Overlay */}

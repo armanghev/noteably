@@ -5,7 +5,10 @@ import { FadeIn } from "./FadeIn";
 
 export const Comparison = () => {
   return (
-    <section className="py-32 bg-card relative overflow-hidden" id="comparison">
+    <section
+      className="py-32 bg-background relative overflow-hidden"
+      id="comparison"
+    >
       {/* Background Gradients */}
       <div className="hidden md:block absolute top-1/2 left-0 -translate-y-1/2 w-96 h-96 bg-primary/5 rounded-full blur-[128px] pointer-events-none" />
       <div className="hidden md:block absolute bottom-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-[128px] pointer-events-none" />
@@ -18,10 +21,12 @@ export const Comparison = () => {
               <span>THE UPGRADE</span>
             </div>
             <h2 className="text-4xl md:text-6xl font-serif text-foreground mb-6">
-              Stop learning the{" "}
+              Don't study{" "}
               <span className="italic text-muted-foreground line-through decoration-destructive/50 decoration-2">
-                hard way.
+                harder.
               </span>
+              <br />
+              Study <span className="text-primary italic">smarter.</span>
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto font-medium">
               Traditional studying burns you out. Noteably gives you
@@ -115,25 +120,37 @@ export const Comparison = () => {
 
         {/* CTA */}
         <FadeIn delay={0.4}>
-          <div className="mt-20 max-w-md mx-auto relative z-20" id="pricing">
-            <div className="bg-card p-8 rounded-3xl shadow-2xl border border-primary/20">
-              <h3 className="text-2xl font-serif text-center mb-6 text-foreground font-medium">
-                Ready for early access?
-              </h3>
-              <div className="flex flex-col gap-4 relative">
-                <Button
-                  onClick={() =>
-                    window.dispatchEvent(new Event("open-waitlist"))
-                  }
-                  className="h-14 rounded-xl text-base shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all w-full mt-4"
-                >
-                  Join the waitlist now
-                  <ArrowRight className="ml-2 w-5 h-5" />
-                </Button>
+          <div className="mt-24 max-w-5xl mx-auto relative z-20" id="pricing">
+            <div className="bg-card p-10 md:p-16 rounded-[2.5rem] shadow-2xl border border-primary/20 relative overflow-hidden group">
+              {/* Background Accent */}
+              <div className="absolute top-0 right-0 -mr-24 -mt-24 w-96 h-96 bg-primary/10 blur-[100px] rounded-full pointer-events-none group-hover:bg-primary/15 transition-colors" />
+              <div className="absolute bottom-0 left-0 -ml-24 -mb-24 w-64 h-64 bg-blue-500/5 blur-[80px] rounded-full pointer-events-none" />
+
+              <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-12">
+                <div className="flex-1 text-center md:text-left">
+                  <h3 className="text-3xl md:text-5xl font-serif mb-6 text-foreground font-medium leading-[1.1]">
+                    Ready to trade chaos <br className="hidden md:block" />
+                    for <span className="text-primary">clarity?</span>
+                  </h3>
+                  <p className="text-lg text-muted-foreground font-medium max-w-md mx-auto md:mx-0">
+                    Be the first to know when we launch and get exclusive early
+                    access. No spam, ever.
+                  </p>
+                </div>
+
+                <div className="w-full md:w-auto shrink-0 relative">
+                  <div className="absolute -inset-4 bg-primary/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <Button
+                    onClick={() =>
+                      window.dispatchEvent(new Event("open-waitlist"))
+                    }
+                    className="h-16 px-12 rounded-2xl text-lg shadow-xl shadow-primary/20 hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/30 transition-all w-full md:w-auto relative"
+                  >
+                    Join the waitlist
+                    <ArrowRight className="ml-3 w-6 h-6" />
+                  </Button>
+                </div>
               </div>
-              <p className="mt-6 text-sm text-center text-muted-foreground font-medium">
-                Be the first to know when we launch. No spam, ever.
-              </p>
             </div>
           </div>
         </FadeIn>

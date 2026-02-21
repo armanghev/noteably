@@ -19,7 +19,7 @@ export const BigPicture = () => (
                 "Upload messy lecture recordings or 50-page PDFs.",
                 "Let AI extract the structure, definitions, and key dates.",
                 "Review clear, formatted notes and summaries.",
-                "Export to Notion, Obsidian, or Anki in one click.",
+                "Export to Notion, PDF, or Markdown in one click.",
               ].map((item, i) => (
                 <div key={i} className="flex items-start gap-4">
                   <div className="mt-1 w-6 h-6 shrink-0 rounded-full border border-primary flex items-center justify-center text-primary text-xs font-medium">

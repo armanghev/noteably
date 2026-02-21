@@ -14,7 +14,6 @@ import { FadeIn } from "./FadeIn";
 
 export const Hero = () => {
   const { scrollY } = useScroll();
-  const y = useTransform(scrollY, [0, 500], [0, 150]);
 
   return (
     <section className="relative pt-32 pb-20 overflow-hidden bg-background">
@@ -57,8 +56,8 @@ export const Hero = () => {
       </div>
 
       <motion.div
-        className="container mx-auto px-4 mt-20 relative"
-        style={{ y }}
+        className="container mx-auto px-4 mt-20 md:mt-24 relative"
+        style={{ y: useTransform(scrollY, [0, 500], [0, -30]) }}
       >
         <div className="relative w-full max-w-5xl mx-auto rounded-3xl overflow-hidden shadow-2xl bg-background/40 backdrop-blur-xl border border-primary/10 p-8 md:p-16 flex flex-col md:flex-row items-center justify-between gap-12">
           {/* Left Side: Inputs */}
@@ -99,18 +98,18 @@ export const Hero = () => {
           </div>
 
           {/* Center: AI Engine */}
-          <div className="relative flex items-center justify-center z-10 w-full md:w-2/4 aspect-square md:aspect-auto md:h-64">
-            <div className="absolute inset-0 bg-primary/20 blur-[64px] rounded-full scale-150 animate-pulse pointer-events-none" />
+          <div className="relative flex items-center justify-center z-10 w-full md:w-2/4 aspect-square md:aspect-auto md:h-64 scale-90 md:scale-100">
+            <div className="absolute inset-0 bg-primary/20 blur-[64px] rounded-full scale-110 md:scale-150 animate-pulse pointer-events-none" />
 
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-[-40px] md:inset-[-60px] rounded-full border border-dashed border-primary/20 pointer-events-none"
+              className="absolute inset-[-20px] md:inset-[-60px] rounded-full border border-dashed border-primary/20 pointer-events-none"
             />
             <motion.div
               animate={{ rotate: -360 }}
               transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-[-20px] md:inset-[-30px] rounded-full border border-dashed border-primary/30 pointer-events-none"
+              className="absolute inset-[-10px] md:inset-[-30px] rounded-full border border-dashed border-primary/30 pointer-events-none"
             />
 
             <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-gradient-to-br from-primary to-primary/80 shadow-xl shadow-primary/30 flex items-center justify-center relative z-20 border-4 border-background">

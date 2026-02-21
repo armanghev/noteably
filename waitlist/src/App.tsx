@@ -1,9 +1,10 @@
 import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { useCallback, useState } from "react";
+import { ThemeProvider } from "./components/theme-provider";
 import { WaitlistModal } from "./components/WaitlistModal";
 import { CookieBanner } from "./landing/CookieBanner";
 import Landing from "./landing/Landing";
-import { SpeedInsights } from "@vercel/speed-insights/react";
 
 export default function App() {
   const [hasConsent, setHasConsent] = useState(false);
@@ -13,7 +14,7 @@ export default function App() {
   }, []);
 
   return (
-    <>
+    <ThemeProvider defaultTheme="dark" storageKey="noteably-waitlist-theme">
       <Landing />
       <WaitlistModal />
       <CookieBanner onAccept={handleAcceptAnalytics} />
@@ -23,6 +24,6 @@ export default function App() {
           <SpeedInsights />
         </>
       )}
-    </>
+    </ThemeProvider>
   );
 }
