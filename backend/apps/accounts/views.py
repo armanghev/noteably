@@ -33,6 +33,10 @@ from apps.core.utils.token import (
     mark_email_change_token_used,
     generate_security_action_token,
     verify_security_action_token,
+    generate_security_reset_token,
+    verify_security_reset_token,
+    is_security_reset_token_used,
+    mark_security_reset_token_used,
     generate_email_otp,
     verify_email_otp,
     is_email_otp_verified,
@@ -1399,14 +1403,11 @@ def security_action(request):
             })
 
         else:
-            # password_change or generic: reset to random password, then send a
-            # Supabase password-reset email so the user can set a new one.
+            # password_change or generic: reset to random password, invalidate all sessions,
+            # then return a short-lived reset_session_token so the user can set a new password
+            # directly on this page — no Supabase recovery email needed.
             import secrets
             random_password = secrets.token_urlsafe(32)
-
-            # Fetch the user's current email before locking them out
-            user_record = sb.auth.admin.get_user_by_id(str(user_id))
-            user_email = user_record.user.email if user_record.user else None
 
             sb.auth.admin.update_user_by_id(str(user_id), {"password": random_password})
 
@@ -1420,26 +1421,17 @@ def security_action(request):
                 timeout=10,
             )
 
-            # Trigger Supabase's built-in password reset email so user can regain access
-            if user_email:
-                try:
-                    http_requests.post(
-                        f"{supabase_url}/auth/v1/recover",
-                        headers={
-                            "apikey": service_key,
-                            "Content-Type": "application/json",
-                        },
-                        json={"email": user_email},
-                        timeout=10,
-                    )
-                except Exception as e:
-                    logger.error(f"Failed to trigger password reset email for {user_email}: {e}")
+            # Issue a short-lived (30-min) reset token so the frontend can let the user
+            # set a new password without receiving a separate Supabase recovery email.
+            reset_token = generate_security_reset_token(UUID(user_id))
 
             logger.info(f"Security action (password_change): password reset + sessions invalidated for user {user_id}")
             return Response({
+                "action_type": "password_change",
+                "reset_session_token": reset_token,
                 "message": (
-                    "Your account has been secured. All sessions have been signed out and your password "
-                    "has been reset. Check your email for a link to set a new password."
+                    "Your account has been secured and all sessions have been signed out. "
+                    "Please set a new password below."
                 ),
             })
 
@@ -1449,6 +1441,63 @@ def security_action(request):
             {"error": "Failed to secure account. Please contact support."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def security_set_password(request):
+    """Set a new password after a 'wasn't me' security action.
+
+    Called by the SecurityAction page when action_type == 'password_change'.
+    Accepts the reset_session_token returned by security_action and the new password.
+    """
+    reset_session_token = request.data.get("reset_session_token")
+    new_password = request.data.get("new_password")
+
+    if not reset_session_token or not new_password:
+        return Response(
+            {"error": "reset_session_token and new_password are required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if is_security_reset_token_used(reset_session_token):
+        return Response(
+            {"error": "This reset link has already been used."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    try:
+        payload = verify_security_reset_token(reset_session_token)
+        user_id = payload.get("user_id")
+        if not user_id:
+            raise signing.BadSignature("Missing user_id")
+    except signing.BadSignature:
+        return Response(
+            {"error": "Invalid or expired reset link."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    is_valid_password, error_msg = validate_password_strength(new_password)
+    if not is_valid_password:
+        return Response({"error": error_msg}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+    try:
+        from supabase import create_client as create_supabase_client
+        sb = create_supabase_client(
+            os.getenv("SUPABASE_URL"),
+            os.getenv("SUPABASE_SERVICE_ROLE_KEY"),
+        )
+        sb.auth.admin.update_user_by_id(str(user_id), {"password": new_password})
+        logger.info(f"Password set via security reset token for user {user_id}")
+    except Exception as e:
+        logger.error(f"Failed to set password via security reset for {user_id}: {e}")
+        return Response(
+            {"error": "Failed to set new password. Please try again."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    mark_security_reset_token_used(reset_session_token)
+    return Response({"message": "Password updated successfully. You can now log in."})
 
 
 @api_view(["POST"])

@@ -23,6 +23,7 @@ urlpatterns = [
     path("me/change-password", views.change_password, name="change_password"),
     path("me/set-password", views.set_password, name="set_password"),
     path("security-action", views.security_action, name="security_action"),
+    path("security-set-password", views.security_set_password, name="security_set_password"),
     path("subscription", views.get_subscription_status, name="subscription_status"),
     path("api-keys", views.list_api_keys, name="list_api_keys"),
     path("api-keys/create", views.create_api_key, name="create_api_key"),

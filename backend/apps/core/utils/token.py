@@ -270,6 +270,47 @@ def verify_security_action_token(token: str) -> dict:
         raise BadSignature(f"Invalid or expired security action token: {e}")
 
 
+# Security reset token validity: 30 minutes
+SECURITY_RESET_TOKEN_MAX_AGE_SECONDS = 30 * 60
+
+_used_security_reset_tokens: set = set()
+
+
+def generate_security_reset_token(user_id: UUID) -> str:
+    """Generate a short-lived token for password reset after a security action (30-min validity)."""
+    signer = TimestampSigner()
+    payload = {
+        "user_id": str(user_id),
+        "token_type": "security_reset",
+        "issued_at": datetime.now(timezone.utc).isoformat(),
+    }
+    token = signer.sign_object(payload)
+    logger.info(f"Generated security reset token for user {user_id}")
+    return token
+
+
+def verify_security_reset_token(token: str) -> dict:
+    """Verify security reset token. Returns payload dict if valid."""
+    signer = TimestampSigner()
+    try:
+        payload = signer.unsign_object(token, max_age=SECURITY_RESET_TOKEN_MAX_AGE_SECONDS)
+        if payload.get("token_type") != "security_reset":
+            raise BadSignature("Invalid token type")
+        return payload
+    except BadSignature:
+        raise
+    except Exception as e:
+        raise BadSignature(f"Invalid or expired security reset token: {e}")
+
+
+def is_security_reset_token_used(token: str) -> bool:
+    return token in _used_security_reset_tokens
+
+
+def mark_security_reset_token_used(token: str) -> None:
+    _used_security_reset_tokens.add(token)
+
+
 # Email change OTP: 10-minute validity
 EMAIL_OTP_MAX_AGE_SECONDS = 10 * 60
 EMAIL_OTP_VERIFIED_MAX_AGE_SECONDS = 10 * 60  # Window to submit new email after OTP verified
