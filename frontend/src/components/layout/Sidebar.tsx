@@ -52,13 +52,17 @@ export function AppSidebar() {
             <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
                 <div className={cn("flex items-end justify-start py-4 overflow-hidden pr-2")}>
                     {/* Logo Icon (N) */}
-                    <h1 className="text-2xl font-bold font-serif text-primary shrink-0 transform transition duration-150">N</h1>
+                    <h1 className="text-3xl font-bold font-serif text-primary shrink-0 transform transition duration-150">N</h1>
                     <motion.span
+                        initial={{
+                            display: open ? "inline-block" : "none",
+                            opacity: open ? 1 : 0,
+                        }}
                         animate={{
                             display: animate ? (open ? "inline-block" : "none") : "inline-block",
                             opacity: animate ? (open ? 1 : 0) : 1,
                         }}
-                        className="text-2xl font-semibold font-serif text-primary group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block p-0! m-0!"
+                        className="text-3xl font-semibold font-serif text-primary group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block p-0! m-0!"
                     >
                         oteably
                     </motion.span>

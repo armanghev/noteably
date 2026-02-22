@@ -6,6 +6,13 @@ import { useDashboard } from "@/hooks/useJobs";
 import { ArrowRight, Clock, FileText, Loader2, Upload } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+function getGreetingText(): string {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return "Good morning";
+  if (hour >= 12 && hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { data: dashboardData, isLoading } = useDashboard();
@@ -15,8 +22,9 @@ export default function Dashboard() {
   const totalNotes = dashboardData?.stats.total_notes || 0;
   const totalFlashcards = dashboardData?.stats.total_flashcards || 0;
 
-  const userName =
-    user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User";
+  const firstName = user?.user_metadata?.first_name ?? "";
+  const greeting = getGreetingText();
+  const greetingLine = firstName ? `${greeting}, ${firstName}` : greeting;
 
   if (isLoading) {
     return (
@@ -31,11 +39,11 @@ export default function Dashboard() {
   return (
     <Layout>
       <header className="mb-8">
-        <h1 className="text-3xl font-serif text-foreground mb-2">
-          Welcome back, {userName}
+        <h1 className="text-3xl font-serif font-bold text-foreground mb-2">
+          {greetingLine}
         </h1>
         <p className="text-muted-foreground">
-          Here's what's happening with your study materials.
+          Ready to study?
         </p>
       </header>
 
