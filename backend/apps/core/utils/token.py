@@ -365,3 +365,100 @@ def is_email_otp_verified(user_id: str) -> bool:
 def consume_email_otp_verified(user_id: str) -> None:
     """Consume the OTP-verified state after the new-email request is submitted."""
     _email_otp_verified.pop(str(user_id), None)
+
+
+# Password reset OTP: 10-minute validity (keyed by email, not user_id)
+PASSWORD_RESET_OTP_MAX_AGE_SECONDS = 10 * 60
+PASSWORD_RESET_OTP_VERIFIED_MAX_AGE_SECONDS = 10 * 60
+
+_password_reset_otps: dict = {}          # {email: {"otp": str, "expires_at": float}}
+_password_reset_otp_verified: dict = {}  # {email: expires_at float}
+
+
+def generate_password_reset_otp(email: str) -> str:
+    """Generate a 6-digit OTP for password reset, keyed by normalised email."""
+    import random
+    import time as _time
+    otp = f"{random.randint(0, 999999):06d}"
+    _password_reset_otps[email.lower()] = {
+        "otp": otp,
+        "expires_at": _time.time() + PASSWORD_RESET_OTP_MAX_AGE_SECONDS,
+    }
+    logger.info(f"Generated password reset OTP for email {email}")
+    return otp
+
+
+def verify_password_reset_otp(email: str, otp: str) -> bool:
+    """Verify OTP. Consumes it on success and marks the email as OTP-verified."""
+    import time as _time
+    key = email.lower()
+    entry = _password_reset_otps.get(key)
+    if not entry:
+        return False
+    if _time.time() > entry["expires_at"]:
+        _password_reset_otps.pop(key, None)
+        return False
+    if entry["otp"] != otp:
+        return False
+    _password_reset_otps.pop(key, None)
+    _password_reset_otp_verified[key] = _time.time() + PASSWORD_RESET_OTP_VERIFIED_MAX_AGE_SECONDS
+    return True
+
+
+def is_password_reset_otp_verified(email: str) -> bool:
+    """Check whether the email has a live OTP-verified state for password reset."""
+    import time as _time
+    key = email.lower()
+    expires_at = _password_reset_otp_verified.get(key)
+    if not expires_at:
+        return False
+    if _time.time() > expires_at:
+        _password_reset_otp_verified.pop(key, None)
+        return False
+    return True
+
+
+def consume_password_reset_otp_verified(email: str) -> None:
+    """Consume the OTP-verified state once the reset token has been issued."""
+    _password_reset_otp_verified.pop(email.lower(), None)
+
+
+# Password reset session token: 30-minute validity
+PASSWORD_RESET_SESSION_MAX_AGE_SECONDS = 30 * 60
+
+_used_password_reset_session_tokens: set = set()
+
+
+def generate_password_reset_session_token(user_id: UUID) -> str:
+    """Generate a short-lived token for setting a new password after OTP verification."""
+    signer = TimestampSigner()
+    payload = {
+        "user_id": str(user_id),
+        "token_type": "password_reset_session",
+        "issued_at": datetime.now(timezone.utc).isoformat(),
+    }
+    token = signer.sign_object(payload)
+    logger.info(f"Generated password reset session token for user {user_id}")
+    return token
+
+
+def verify_password_reset_session_token(token: str) -> dict:
+    """Verify password reset session token. Returns payload if valid."""
+    signer = TimestampSigner()
+    try:
+        payload = signer.unsign_object(token, max_age=PASSWORD_RESET_SESSION_MAX_AGE_SECONDS)
+        if payload.get("token_type") != "password_reset_session":
+            raise BadSignature("Invalid token type")
+        return payload
+    except BadSignature:
+        raise
+    except Exception as e:
+        raise BadSignature(f"Invalid or expired password reset session token: {e}")
+
+
+def is_password_reset_session_token_used(token: str) -> bool:
+    return token in _used_password_reset_session_tokens
+
+
+def mark_password_reset_session_token_used(token: str) -> None:
+    _used_password_reset_session_tokens.add(token)

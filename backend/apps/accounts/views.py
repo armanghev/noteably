@@ -19,6 +19,7 @@ from apps.core.utils.email import (
     send_email_change_notification,
     send_email_change_otp_email,
     send_password_changed_notification,
+    send_password_reset_otp_email,
 )
 from apps.core.utils.token import (
     generate_recovery_token,
@@ -41,6 +42,12 @@ from apps.core.utils.token import (
     verify_email_otp,
     is_email_otp_verified,
     consume_email_otp_verified,
+    generate_password_reset_otp,
+    verify_password_reset_otp,
+    generate_password_reset_session_token,
+    verify_password_reset_session_token,
+    is_password_reset_session_token_used,
+    mark_password_reset_session_token_used,
 )
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -1498,6 +1505,149 @@ def security_set_password(request):
 
     mark_security_reset_token_used(reset_session_token)
     return Response({"message": "Password updated successfully. You can now log in."})
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def forgot_password_request_otp(request):
+    """Step 1: Send a 6-digit OTP to the email address for password reset.
+
+    Always returns the same generic message regardless of whether the account exists
+    to avoid leaking user existence information.
+    """
+    email = request.data.get("email", "").strip().lower()
+    if not email:
+        return Response({"error": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    otp = generate_password_reset_otp(email)
+
+    supabase_url = os.getenv("SUPABASE_URL")
+    service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+    # Look up user to personalise email; silently skip sending if user doesn't exist
+    try:
+        resp = http_requests.get(
+            f"{supabase_url}/auth/v1/admin/users",
+            params={"filter": email, "page": 1, "per_page": 1},
+            headers={"Authorization": f"Bearer {service_key}", "apikey": service_key},
+            timeout=10,
+        )
+        users = resp.json().get("users", [])
+        if users:
+            user_meta = users[0].get("user_metadata", {}) or {}
+            first_name = user_meta.get("first_name", "there")
+            send_password_reset_otp_email(email, first_name, otp)
+            logger.info(f"Password reset OTP sent to {email}")
+        else:
+            logger.info(f"Password reset OTP requested for unknown email: {email}")
+    except Exception as e:
+        logger.error(f"Failed to process password reset OTP request for {email}: {e}")
+
+    return Response({
+        "message": "If an account exists for that email, you'll receive a code shortly."
+    })
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def forgot_password_verify_otp(request):
+    """Step 2: Verify the 6-digit OTP and return a short-lived reset session token."""
+    email = request.data.get("email", "").strip().lower()
+    otp = request.data.get("otp", "").strip()
+
+    if not email or not otp:
+        return Response(
+            {"error": "Email and OTP are required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not verify_password_reset_otp(email, otp):
+        return Response(
+            {"error": "Invalid or expired code. Please try again."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Look up user_id by email to embed in the reset token
+    supabase_url = os.getenv("SUPABASE_URL")
+    service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    try:
+        resp = http_requests.get(
+            f"{supabase_url}/auth/v1/admin/users",
+            params={"filter": email, "page": 1, "per_page": 1},
+            headers={"Authorization": f"Bearer {service_key}", "apikey": service_key},
+            timeout=10,
+        )
+        users = resp.json().get("users", [])
+        if not users:
+            logger.warning(f"OTP verified for non-existent email: {email}")
+            return Response(
+                {"error": "Invalid or expired code. Please try again."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user_id = users[0]["id"]
+    except Exception as e:
+        logger.error(f"Failed to look up user for password reset: {e}")
+        return Response(
+            {"error": "Something went wrong. Please try again."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    reset_token = generate_password_reset_session_token(UUID(user_id))
+    logger.info(f"Password reset session token issued for user {user_id}")
+    return Response({"reset_session_token": reset_token})
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def forgot_password_reset(request):
+    """Step 3: Set a new password using the reset session token from step 2."""
+    reset_session_token = request.data.get("reset_session_token")
+    new_password = request.data.get("new_password")
+
+    if not reset_session_token or not new_password:
+        return Response(
+            {"error": "reset_session_token and new_password are required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if is_password_reset_session_token_used(reset_session_token):
+        return Response(
+            {"error": "This reset link has already been used."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    try:
+        payload = verify_password_reset_session_token(reset_session_token)
+        user_id = payload.get("user_id")
+        if not user_id:
+            raise signing.BadSignature("Missing user_id")
+    except signing.BadSignature:
+        return Response(
+            {"error": "Invalid or expired reset token."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    is_valid, error_msg = validate_password_strength(new_password)
+    if not is_valid:
+        return Response({"error": error_msg}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+    try:
+        from supabase import create_client as create_supabase_client
+        sb = create_supabase_client(
+            os.getenv("SUPABASE_URL"),
+            os.getenv("SUPABASE_SERVICE_ROLE_KEY"),
+        )
+        sb.auth.admin.update_user_by_id(str(user_id), {"password": new_password})
+        logger.info(f"Password reset via forgot-password flow for user {user_id}")
+    except Exception as e:
+        logger.error(f"Failed to reset password for {user_id}: {e}")
+        return Response(
+            {"error": "Failed to reset password. Please try again."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    mark_password_reset_session_token_used(reset_session_token)
+    return Response({"message": "Password reset successfully. You can now log in."})
 
 
 @api_view(["POST"])

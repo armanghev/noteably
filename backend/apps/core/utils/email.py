@@ -211,6 +211,16 @@ def send_email_change_notification(to_email: str, first_name: str, new_email: st
     return send_email(to_email, subject, html_content)
 
 
+def send_password_reset_otp_email(to_email: str, first_name: str, otp: str):
+    """Send 6-digit OTP to user's email for password reset."""
+    subject = "Your Noteably password reset code"
+    html_content = render_to_string(
+        "emails/password_reset_otp.html",
+        {"first_name": first_name, "otp": otp},
+    )
+    return send_email(to_email, subject, html_content)
+
+
 def send_password_changed_notification(to_email: str, first_name: str, security_link: str):
     """Send security notification when password is changed."""
     subject = "Your Noteably password was changed"

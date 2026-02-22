@@ -200,4 +200,26 @@ export const authService = {
   fixOAuthMetadata: async (): Promise<void> => {
     await apiClient.post("/auth/me/fix-oauth-metadata");
   },
+
+  forgotPasswordRequestOtp: async (email: string): Promise<void> => {
+    await apiClient.post("/auth/forgot-password/request-otp", { email });
+  },
+
+  forgotPasswordVerifyOtp: async (
+    email: string,
+    otp: string
+  ): Promise<{ reset_session_token: string }> => {
+    const response = await apiClient.post("/auth/forgot-password/verify-otp", { email, otp });
+    return response.data;
+  },
+
+  forgotPasswordReset: async (
+    resetSessionToken: string,
+    newPassword: string
+  ): Promise<void> => {
+    await apiClient.post("/auth/forgot-password/reset", {
+      reset_session_token: resetSessionToken,
+      new_password: newPassword,
+    });
+  },
 };
