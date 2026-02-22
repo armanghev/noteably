@@ -16,6 +16,8 @@ from apps.core.supabase_client import supabase_client
 from apps.core.utils.email import (
     send_deletion_confirmation_email,
     send_welcome_email,
+    send_email_change_notification,
+    send_password_changed_notification,
 )
 from apps.core.utils.token import (
     generate_recovery_token,
@@ -24,6 +26,12 @@ from apps.core.utils.token import (
     verify_recovery_session_token,
     mark_recovery_token_used,
     is_recovery_token_used,
+    generate_email_change_token,
+    verify_email_change_token,
+    is_email_change_token_used,
+    mark_email_change_token_used,
+    generate_security_action_token,
+    verify_security_action_token,
 )
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -923,3 +931,54 @@ def restore_account(request):
             {"error": "Failed to restore account"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["PUT"])
+@permission_classes([IsAuthenticated])
+def update_profile(request):
+    """Update name and/or phone number."""
+    from .serializers import UpdateProfileSerializer
+
+    serializer = UpdateProfileSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+    user_token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
+    if not user_token:
+        return Response({"error": "Missing token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    supabase_url = os.getenv("SUPABASE_URL")
+    service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+    metadata_update = {}
+    for field in ("first_name", "last_name", "phone_number"):
+        if field in serializer.validated_data:
+            metadata_update[field] = serializer.validated_data[field]
+
+    try:
+        resp = http_requests.put(
+            f"{supabase_url}/auth/v1/user",
+            headers={
+                "Authorization": f"Bearer {user_token}",
+                "apikey": service_key,
+                "Content-Type": "application/json",
+            },
+            json={"data": metadata_update},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        logger.info(f"Profile updated for user {request.user_id}")
+        return Response({
+            "message": "Profile updated successfully",
+            "phone_verified": False,
+            **metadata_update,
+        })
+    except http_requests.HTTPError as e:
+        error_body = e.response.json() if e.response is not None else {}
+        error_msg = error_body.get("msg") or error_body.get("message") or str(e)
+        logger.error(f"Profile update failed for {request.user_id}: {error_msg}")
+        return Response({"error": error_msg}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        logger.error(f"Profile update failed for {request.user_id}: {e}")
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
