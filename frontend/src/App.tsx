@@ -20,7 +20,7 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="light" storageKey="noteably-theme">
+      <ThemeProvider defaultTheme="system" storageKey="noteably-theme">
         <AuthProvider>
           <WebSocketProvider>
             <RouterProvider router={router} />

@@ -64,7 +64,7 @@ export default {
           "Roboto",
           "sans-serif",
         ],
-        serif: ['"Playfair Display"', "serif"],
+        serif: ['"Shrikhand"', "cursive"],
       },
     },
   },

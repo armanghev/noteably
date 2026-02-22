@@ -343,7 +343,7 @@ export default function Profile() {
                     <Button
                       variant={theme === "light" ? "default" : "ghost"}
                       size="sm"
-                      onClick={() => setTheme("light")}
+                      onClick={(e) => setTheme("light", { x: e.clientX, y: e.clientY })}
                       className="rounded-full px-3 h-8"
                     >
                       <Sun className="w-4 h-4 mr-2" />
@@ -352,7 +352,7 @@ export default function Profile() {
                     <Button
                       variant={theme === "dark" ? "default" : "ghost"}
                       size="sm"
-                      onClick={() => setTheme("dark")}
+                      onClick={(e) => setTheme("dark", { x: e.clientX, y: e.clientY })}
                       className="rounded-full px-3 h-8"
                     >
                       <Moon className="w-4 h-4 mr-2" />
@@ -361,7 +361,7 @@ export default function Profile() {
                     <Button
                       variant={theme === "system" ? "default" : "ghost"}
                       size="sm"
-                      onClick={() => setTheme("system")}
+                      onClick={(e) => setTheme("system", { x: e.clientX, y: e.clientY })}
                       className="rounded-full px-3 h-8"
                     >
                       <Monitor className="w-4 h-4 mr-2" />

@@ -10,7 +10,12 @@ export function ThemeToggle() {
 
   return (
     <button
-      onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+      onClick={(e) =>
+        setTheme(theme === "light" ? "dark" : "light", {
+          x: e.clientX,
+          y: e.clientY,
+        })
+      }
       className={cn(
         "flex items-center justify-start gap-2 group/sidebar py-2"
       )}

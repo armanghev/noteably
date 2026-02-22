@@ -1,10 +1,11 @@
+import { ModeToggle } from "@/components/theme/mode-toggle";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { AnimatePresence, motion, useScroll, useTransform } from "framer-motion";
 import {
   ArrowRight,
   Brain,
   Check,
+  File,
   FileText,
   GraduationCap,
   Menu,
@@ -14,12 +15,13 @@ import {
   Sparkles,
   Video,
   X,
+  Youtube,
   Zap,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-// FadeIn Component for scroll animations
+// FadeIn Component for scroll animations (uses whileInView)
 const FadeIn = ({
   children,
   delay = 0,
@@ -34,20 +36,58 @@ const FadeIn = ({
     whileInView={{ opacity: 1, y: 0 }}
     viewport={{ once: true, margin: "-50px" }}
     transition={{ duration: 0.6, delay, ease: "easeOut" }}
+    className={`will-change-[opacity,transform] ${className}`}
+  >
+    {children}
+  </motion.div>
+);
+
+// FadeIn on mount only – use for above-the-fold hero content so it always shows
+// on iOS Safari (where IntersectionObserver can fail to fire on initial load)
+const FadeInOnMount = ({
+  children,
+  delay = 0,
+  className = "",
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+}) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.6, delay, ease: "easeOut" }}
     className={className}
   >
     {children}
   </motion.div>
 );
 
+const scrollToSection = (id: string) => {
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+};
+
 const Navbar = () => {
   const navigate = useNavigate();
+  const [isOpen, setIsOpen] = useState(false);
+  const closeMenu = () => setIsOpen(false);
+
+  const handleNavClick = (id: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    closeMenu();
+    scrollToSection(id);
+  };
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-card/80 backdrop-blur-md border-b border-border/20">
-      <div className="container mx-auto px-6 h-20 flex items-center justify-between">
+      <div className="container mx-auto px-6 h-20 flex items-center justify-between relative z-50">
         <div
           className="flex items-center gap-2 cursor-pointer"
-          onClick={() => navigate("/")}
+          onClick={() => {
+            navigate("/");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            closeMenu();
+          }}
         >
           <span className="text-2xl font-serif font-semibold tracking-tight text-primary">
             Noteably
@@ -56,202 +96,270 @@ const Navbar = () => {
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
           <a
             href="#features"
+            onClick={handleNavClick("features")}
             className="hover:text-foreground transition-colors"
           >
             Features
           </a>
           <a
             href="#how-it-works"
+            onClick={handleNavClick("how-it-works")}
             className="hover:text-foreground transition-colors"
           >
             How it works
           </a>
           <a
             href="#pricing"
+            onClick={handleNavClick("pricing")}
             className="hover:text-foreground transition-colors"
           >
             Pricing
           </a>
+          <div className="flex items-center gap-2">
+            <ModeToggle />
+            <Button
+              onClick={() => navigate("/login")}
+              className="px-6 rounded-full"
+            >
+              Get Started
+            </Button>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 md:hidden">
+          <ModeToggle />
           <Button
-            onClick={() => navigate("/login")}
-            className="px-6 rounded-full"
+            variant="ghost"
+            size="icon"
+            className="text-foreground"
+            onClick={() => setIsOpen(!isOpen)}
           >
-            Get Started
+            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </Button>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="md:hidden text-foreground"
-        >
-          <Menu className="w-6 h-6" />
-        </Button>
       </div>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+            className="absolute top-full left-0 right-0 bg-card border-b border-border/20 shadow-xl py-4 px-6 flex flex-col gap-4 md:hidden"
+          >
+            <a
+              href="#features"
+              onClick={handleNavClick("features")}
+              className="text-lg font-medium text-muted-foreground hover:text-foreground transition-colors py-2 border-b border-border/10"
+            >
+              Features
+            </a>
+            <a
+              href="#how-it-works"
+              onClick={handleNavClick("how-it-works")}
+              className="text-lg font-medium text-muted-foreground hover:text-foreground transition-colors py-2 border-b border-border/10"
+            >
+              How it works
+            </a>
+            <a
+              href="#pricing"
+              onClick={handleNavClick("pricing")}
+              className="text-lg font-medium text-muted-foreground hover:text-foreground transition-colors py-2 border-b border-border/10"
+            >
+              Pricing
+            </a>
+            <Button
+              onClick={() => {
+                closeMenu();
+                navigate("/login");
+              }}
+              className="mt-2 rounded-full w-full py-6 text-lg"
+            >
+              Get Started
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   );
 };
 
 const Hero = () => {
   const { scrollY } = useScroll();
-  const y = useTransform(scrollY, [0, 500], [0, 150]);
+  const y = useTransform(scrollY, [0, 500], [0, -30]);
   const navigate = useNavigate();
 
+  const scrollToHowItWorks = () => {
+    document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
-    <section className="relative pt-32 pb-20 overflow-hidden bg-background">
+    <section className="relative pt-24 pb-12 md:pt-32 md:pb-20 overflow-hidden bg-background">
       <div className="container mx-auto px-6 text-center z-10 relative">
-        <FadeIn>
+        <FadeInOnMount>
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card border border-border mb-8 shadow-sm">
             <Sparkles className="w-4 h-4 text-primary" />
             <span className="text-xs uppercase tracking-wider font-semibold text-primary">
               AI-Powered Study Assistant
             </span>
           </div>
-        </FadeIn>
+        </FadeInOnMount>
 
-        <FadeIn delay={0.1}>
+        <FadeInOnMount delay={0.1}>
           <h1 className="text-6xl md:text-8xl font-serif mb-6 text-foreground leading-[0.95]">
             Turn content into <br />{" "}
             <span className="italic text-primary">knowledge.</span>
           </h1>
-        </FadeIn>
+        </FadeInOnMount>
 
-        <FadeIn delay={0.2}>
+        <FadeInOnMount delay={0.2}>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
             Upload any video, audio, or PDF. Noteably automatically generates
             structured notes, flashcards, and quizzes so you can focus on
             mastering the material.
           </p>
-        </FadeIn>
+        </FadeInOnMount>
 
-        <FadeIn delay={0.3}>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <FadeInOnMount delay={0.3}>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto">
             <Button
               onClick={() => navigate("/dashboard")}
-              className="px-8 py-6 rounded-full text-base shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all"
+              className="h-14 px-8 rounded-full text-base shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all w-full sm:w-auto"
             >
               Generate Study Set
-              <ArrowRight className="ml-2 w-4 h-4" />
+              <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
             <Button
               variant="outline"
-              className="px-8 py-6 rounded-full text-base bg-card hover:bg-muted font-medium"
+              onClick={scrollToHowItWorks}
+              className="h-14 px-8 py-6 rounded-full text-base bg-card hover:bg-muted font-medium w-full sm:w-auto"
             >
               <Play className="mr-2 w-4 h-4 fill-current" />
               See How It Works
             </Button>
           </div>
-        </FadeIn>
+        </FadeInOnMount>
       </div>
 
       <motion.div
-        className="container mx-auto px-4 mt-16 relative"
+        className="container mx-auto px-4 mt-20 md:mt-24 relative"
         style={{ y }}
       >
-        <Card className="relative rounded-xl overflow-hidden shadow-2xl border-border pt-0 pl-0 pr-0 pb-0">
-          {/* macOS Window Header */}
-          <div className="h-8 bg-muted border-b border-border flex items-center px-4 gap-2">
-            <div className="w-3 h-3 rounded-full bg-[#FF5F57] border border-[#E0443E]"></div>
-            <div className="w-3 h-3 rounded-full bg-[#FEBC2E] border border-[#D89E24]"></div>
-            <div className="w-3 h-3 rounded-full bg-[#28C840] border border-[#1AAB29]"></div>
-            <div className="flex-1 text-center text-xs font-medium text-muted-foreground font-sans">
-              Noteably - New Study Set
+        <div className="relative w-full max-w-5xl mx-auto rounded-3xl overflow-hidden shadow-2xl bg-background/40 backdrop-blur-xl border border-primary/10 p-8 md:p-16 flex flex-col md:flex-row items-center justify-between gap-12">
+          {/* Left Side: Inputs */}
+          <div className="flex flex-row md:flex-col gap-6 md:gap-8 justify-center relative z-10 w-full md:w-1/4">
+            <motion.div
+              animate={{ y: [0, -8, 0], x: [0, 4, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="w-16 h-16 rounded-2xl bg-card border border-border shadow-lg flex items-center justify-center shrink-0"
+            >
+              <Youtube className="w-8 h-8 text-red-500 opacity-80" />
+            </motion.div>
+
+            <motion.div
+              animate={{ y: [0, 10, 0], x: [0, -5, 0] }}
+              transition={{
+                duration: 5,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 1,
+              }}
+              className="w-16 h-16 rounded-2xl bg-card border border-border shadow-lg flex items-center justify-center -ml-4 md:ml-8 shrink-0"
+            >
+              <Mic className="w-8 h-8 text-blue-500 opacity-80" />
+            </motion.div>
+
+            <motion.div
+              animate={{ y: [0, -5, 0], x: [0, 5, 0] }}
+              transition={{
+                duration: 3.5,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 2,
+              }}
+              className="w-16 h-16 rounded-2xl bg-card border border-border shadow-lg flex items-center justify-center shrink-0"
+            >
+              <File className="w-8 h-8 text-emerald-500 opacity-80" />
+            </motion.div>
+          </div>
+
+          {/* Center: AI Engine */}
+          <div className="relative flex items-center justify-center z-10 w-full md:w-2/4 aspect-square md:aspect-auto md:h-64 scale-90 md:scale-100">
+            <div className="absolute inset-0 bg-primary/20 blur-[64px] rounded-full scale-110 md:scale-150 animate-pulse pointer-events-none" />
+
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-[-20px] md:inset-[-60px] rounded-full border border-dashed border-primary/20 pointer-events-none"
+            />
+            <motion.div
+              animate={{ rotate: -360 }}
+              transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-[-10px] md:inset-[-30px] rounded-full border border-dashed border-primary/30 pointer-events-none"
+            />
+
+            <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-gradient-to-br from-primary to-primary/80 shadow-xl shadow-primary/30 flex items-center justify-center relative z-20 border-4 border-background">
+              <Brain className="w-12 h-12 md:w-16 md:h-16 text-primary-foreground" />
+              <div className="absolute top-0 right-0 -mt-2 -mr-2 w-8 h-8 rounded-full bg-background flex items-center justify-center shadow-lg border border-border">
+                <Sparkles className="w-4 h-4 text-primary" />
+              </div>
             </div>
           </div>
 
-          {/* App UI Content */}
-          <div className="aspect-[16/10] bg-background flex overflow-hidden relative">
-            {/* Sidebar */}
-            <div className="w-48 bg-muted/50 border-r border-border hidden sm:flex flex-col p-4 gap-4">
-              <div className="flex items-center gap-2 mb-4 opacity-50">
-                <div className="w-8 h-8 rounded-lg bg-border"></div>
-                <div className="w-20 h-4 rounded-md bg-border"></div>
+          {/* Right Side: Outputs */}
+          <div className="flex flex-col gap-4 relative z-10 w-full md:w-1/4">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="w-full bg-card border border-border rounded-xl p-4 shadow-lg flex items-start gap-3 transform md:translate-x-4"
+            >
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <FileText className="w-4 h-4 text-primary" />
               </div>
-              <div className="space-y-2">
-                {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="h-2 w-full bg-border rounded-full opacity-60"
-                  ></div>
-                ))}
+              <div className="space-y-2 w-full pt-1">
+                <div className="h-2 w-16 bg-muted-foreground/30 rounded" />
+                <div className="h-2 w-full bg-muted rounded" />
+                <div className="h-2 w-4/5 bg-muted rounded" />
               </div>
-              <div className="mt-auto space-y-2">
-                <div className="h-8 w-full bg-card border border-border rounded-lg shadow-sm"></div>
-              </div>
-            </div>
+            </motion.div>
 
-            {/* Main Content */}
-            <div className="flex-1 p-6 md:p-8 flex flex-col gap-8">
-              {/* Header */}
-              <div className="flex justify-between items-center">
-                <div>
-                  <div className="h-5 w-32 bg-foreground/10 rounded-md mb-2"></div>
-                  <div className="h-3 w-48 bg-foreground/5 rounded-md"></div>
-                </div>
-                <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                  <Sparkles className="w-4 h-4" />
-                </div>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 }}
+              className="w-full bg-card border border-border rounded-xl p-4 shadow-lg flex items-start gap-3"
+            >
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <Brain className="w-4 h-4 text-primary" />
               </div>
+              <div className="w-full pt-1 pb-1">
+                <div className="h-3 w-24 bg-foreground/80 rounded mb-2" />
+                <div className="h-2 w-20 bg-muted-foreground/50 rounded" />
+              </div>
+            </motion.div>
 
-              {/* Upload Zone */}
-              <div className="flex-1 border-2 border-dashed border-primary/30 rounded-2xl bg-card/50 flex flex-col items-center justify-center gap-4 group hover:bg-card/80 transition-colors cursor-pointer">
-                <motion.div className="w-16 h-16 rounded-full bg-background flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <div className="w-8 h-8 text-primary opacity-80">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="32"
-                      height="32"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" x2="12" y1="3" y2="15" />
-                    </svg>
-                  </div>
-                </motion.div>
-                <div className="text-center">
-                  <p className="text-primary font-medium mb-1">
-                    Drop your lectures here
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    PDF, MP3, MP4 supported
-                  </p>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.6 }}
+              className="w-full bg-card border border-border rounded-xl p-4 shadow-lg flex items-start gap-3 transform md:-translate-x-4"
+            >
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <Zap className="w-4 h-4 text-primary" />
+              </div>
+              <div className="space-y-2 w-full pt-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full border border-border" />
+                  <div className="h-2 w-full bg-muted rounded" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-primary" />
+                  <div className="h-2 w-4/5 bg-primary/20 rounded" />
                 </div>
               </div>
-
-              {/* Output Cards */}
-              <div className="grid grid-cols-3 gap-4">
-                {[
-                  { label: "Notes", color: "bg-muted" },
-                  { label: "Cards", color: "bg-muted" },
-                  { label: "Quiz", color: "bg-muted" },
-                ].map((item, i) => (
-                  <div
-                    key={i}
-                    className={`${item.color} h-24 rounded-xl p-4 flex flex-col justify-between hover:-translate-y-1 transition-transform shadow-sm`}
-                  >
-                    <div className="w-8 h-8 rounded-full bg-card/50 flex items-center justify-center">
-                      {i === 0 && (
-                        <FileText className="w-4 h-4 text-primary opacity-75" />
-                      )}
-                      {i === 1 && (
-                        <Brain className="w-4 h-4 text-primary opacity-75" />
-                      )}
-                      {i === 2 && (
-                        <Zap className="w-4 h-4 text-primary opacity-75" />
-                      )}
-                    </div>
-                    <div className="h-2 w-12 bg-primary/10 rounded-full"></div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            </motion.div>
           </div>
-        </Card>
+        </div>
       </motion.div>
     </section>
   );
@@ -282,75 +390,118 @@ const Features = () => {
   ];
 
   return (
-    <section className="py-24 bg-background" id="features">
-      <div className="container mx-auto px-6">
-        <div className="flex flex-col lg:flex-row gap-16 items-start">
-          {/* Left Side: Visual & Headline */}
-          <div className="w-full lg:w-5/12 sticky top-32">
-            <FadeIn>
-              <h2 className="text-4xl md:text-5xl font-serif mb-12 text-foreground leading-[1.1]">
-                Your personal <br />
-                <span className="text-primary italic">AI tutor.</span>
-              </h2>
-
-              <div className="relative w-full aspect-square max-w-md mx-auto lg:mx-0">
-                {/* Glowing background effect */}
-                <div className="absolute inset-0 bg-primary/20 blur-[80px] rounded-full scale-90" />
-
-                <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-b from-primary/5 to-transparent flex items-center justify-center p-8">
-                  <div className="relative w-64 h-64 rounded-full overflow-hidden border-4 border-background shadow-lg">
+    <section className="py-12 md:py-24 bg-background relative" id="features">
+      {/* Mobile / Tablet Layout */}
+      <div className="block lg:hidden">
+        <div className="hidden md:block absolute top-1/2 right-0 -translate-y-1/2 w-96 h-96 bg-primary/5 rounded-full blur-[128px] pointer-events-none" />
+        <div className="container mx-auto px-6 relative z-10 max-w-6xl">
+          <div className="flex flex-col lg:flex-row gap-8 lg:gap-16 items-start">
+            <div className="w-full lg:w-5/12 lg:sticky lg:top-32">
+              <FadeIn>
+                <div className="flex lg:hidden sm:flex-row flex-col items-center sm:items-end justify-between gap-8 mb-12 sm:px-0">
+                  <h2 className="text-4xl md:text-5xl font-serif text-foreground leading-[1.1] sm:text-left text-center">
+                    Your personal <br />
+                    <span className="text-primary italic">AI tutor.</span>
+                  </h2>
+                  <div className="w-40 h-40 sm:w-48 sm:h-48 rounded-full overflow-hidden border-[6px] border-background shadow-2xl shrink-0 -mt-8 sm:mt-0">
                     <img
                       src="/nota.png"
                       alt="Nota AI Agent"
                       className="w-full h-full object-cover"
                     />
                   </div>
-
-                  {/* Chat bubble */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                    whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ delay: 0.5, duration: 0.5 }}
-                    className="absolute bottom-8 right-8 bg-background/90 backdrop-blur-md p-4 rounded-xl shadow-lg border border-primary/20 max-w-[220px]"
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <Sparkles className="w-3 h-3 text-primary" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-                        Nota
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground font-medium">
-                      "I've analyzed your lecture. Ready to quiz you on the key
-                      concepts?"
-                    </p>
-                  </motion.div>
                 </div>
-              </div>
-            </FadeIn>
-          </div>
-
-          {/* Right Side: Features Grid */}
-          <div className="w-full lg:w-7/12 pt-8">
-            <div className="grid grid-cols-1 gap-8">
-              {features.map((f, i) => (
-                <FadeIn key={i} delay={i * 0.1}>
-                  <div className="group p-4 rounded-2xl border border-border hover:border-primary/50 bg-card/30 hover:bg-card transition-all duration-300">
-                    <div className="flex items-start gap-4">
-                      <div className="mb-4 inline-flex p-3 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300 shrink-0">
-                        {f.icon}
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-serif font-medium mb-2 text-foreground">
+              </FadeIn>
+            </div>
+            <div className="w-full lg:w-7/12 lg:pt-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:hidden">
+                {features.map((f, i) => (
+                  <FadeIn key={i} delay={i * 0.1}>
+                    <div className="group h-full p-6 sm:p-8 rounded-3xl border border-border hover:border-primary/40 bg-card/40 hover:bg-card transition-all duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1">
+                      <div className="flex flex-col h-full">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 mb-4 sm:mb-6 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300 shadow-inner">
+                          {f.icon}
+                        </div>
+                        <h3 className="text-xl sm:text-2xl font-serif font-medium mb-2 sm:mb-3 text-foreground">
                           {f.title}
                         </h3>
-                        <p className="text-muted-foreground leading-relaxed text-sm md:text-base">
+                        <p className="text-muted-foreground text-sm sm:text-base flex-grow">
                           {f.desc}
                         </p>
                       </div>
                     </div>
+                  </FadeIn>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop Layout */}
+      <div className="hidden lg:block">
+        <div className="absolute top-1/2 right-0 -translate-y-1/2 w-96 h-96 bg-primary/5 rounded-full blur-[128px] pointer-events-none" />
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="flex flex-col lg:flex-row gap-16 items-start">
+            <div className="w-full lg:w-5/12 sticky top-32">
+              <FadeIn>
+                <h2 className="text-4xl md:text-5xl font-serif mb-12 text-foreground leading-[1.1]">
+                  Your personal <br />
+                  <span className="text-primary italic">AI tutor.</span>
+                </h2>
+                <div className="relative w-full aspect-square max-w-md mx-auto lg:mx-0">
+                  <div className="absolute inset-0 bg-primary/20 blur-[80px] rounded-full scale-90" />
+                  <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-b from-primary/5 to-transparent flex items-center justify-center p-8 border border-primary/10">
+                    <div className="relative w-64 h-64 rounded-full overflow-hidden border-4 border-background shadow-lg">
+                      <img
+                        src="/nota.png"
+                        alt="Nota AI Agent"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ delay: 0.5, duration: 0.5 }}
+                      className="absolute bottom-8 right-8 bg-background/90 backdrop-blur-md p-4 rounded-xl shadow-lg border border-primary/20 max-w-[220px]"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <Sparkles className="w-3 h-3 text-primary" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                          Nota
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground font-medium">
+                        "I've analyzed your lecture. Ready to quiz you on the
+                        key concepts?"
+                      </p>
+                    </motion.div>
                   </div>
-                </FadeIn>
-              ))}
+                </div>
+              </FadeIn>
+            </div>
+            <div className="w-full lg:w-7/12 pt-8">
+              <div className="grid grid-cols-1 gap-8">
+                {features.map((f, i) => (
+                  <FadeIn key={i} delay={i * 0.1}>
+                    <div className="group p-4 rounded-2xl border border-border hover:border-primary/50 bg-card/30 hover:bg-card transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-1">
+                      <div className="flex items-start gap-4">
+                        <div className="mb-4 inline-flex p-3 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300 shrink-0">
+                          {f.icon}
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-serif font-medium mb-2 text-foreground">
+                            {f.title}
+                          </h3>
+                          <p className="text-muted-foreground leading-relaxed text-sm md:text-base">
+                            {f.desc}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </FadeIn>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -604,8 +755,10 @@ const KnowledgePipeline = () => {
   );
 };
 
-const BigPicture = () => (
-  <section className="py-24 bg-background overflow-hidden relative">
+const BigPicture = () => {
+  const navigate = useNavigate();
+  return (
+  <section className="py-12 md:py-24 bg-background overflow-hidden relative" id="how-it-works">
     <div className="container mx-auto px-6 relative z-10">
       <div className="flex flex-col md:flex-row items-center gap-16">
         <div className="w-full md:w-1/2">
@@ -618,18 +771,21 @@ const BigPicture = () => (
                 "Upload messy lecture recordings or 50-page PDFs.",
                 "Let AI extract the structure, definitions, and key dates.",
                 "Review clear, formatted notes and summaries.",
-                "Export to Notion, Obsidian, or Anki in one click.",
+                "Export to Notion, PDF, or Markdown in one click.",
               ].map((item, i) => (
                 <div key={i} className="flex items-start gap-4">
                   <div className="mt-1 w-6 h-6 shrink-0 rounded-full border border-primary flex items-center justify-center text-primary text-xs font-medium">
                     {i + 1}
                   </div>
-                  <p className="text-muted-foreground">{item}</p>
+                  <p className="text-muted-foreground font-medium">{item}</p>
                 </div>
               ))}
 
               <div className="pt-8">
-                <Button className="px-8 py-6 rounded-full hover:bg-foreground text-primary-foreground">
+                <Button
+                  onClick={() => navigate("/dashboard")}
+                  className="px-8 py-6 rounded-full hover:bg-foreground text-primary-foreground shadow-lg shadow-primary/20"
+                >
                   Start Organizing
                 </Button>
               </div>
@@ -640,7 +796,7 @@ const BigPicture = () => (
         <div className="w-full md:w-1/2 relative">
           <FadeIn
             delay={0.2}
-            className="relative rounded-3xl overflow-hidden shadow-2xl bg-accent/50"
+            className="relative rounded-3xl overflow-hidden shadow-2xl bg-accent/50 border border-border"
           >
             <KnowledgePipeline />
           </FadeIn>
@@ -648,29 +804,32 @@ const BigPicture = () => (
       </div>
     </div>
   </section>
-);
+  );
+};
 
 const Comparison = () => (
-  <section className="py-32 bg-background relative overflow-hidden">
+  <section className="py-16 md:py-32 bg-background relative overflow-hidden" id="comparison">
     {/* Background Gradients */}
-    <div className="absolute top-1/2 left-0 -translate-y-1/2 w-96 h-96 bg-primary/5 rounded-full blur-[128px] pointer-events-none" />
-    <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-[128px] pointer-events-none" />
+    <div className="hidden md:block absolute top-1/2 left-0 -translate-y-1/2 w-96 h-96 bg-primary/5 rounded-full blur-[128px] pointer-events-none" />
+    <div className="hidden md:block absolute bottom-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-[128px] pointer-events-none" />
 
     <div className="container mx-auto px-6 relative z-10">
       <div className="text-center mb-20">
         <FadeIn>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium mb-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium mb-4 border border-primary/20 shadow-inner">
             <Sparkles className="w-3 h-3" />
             <span>THE UPGRADE</span>
           </div>
           <h2 className="text-4xl md:text-6xl font-serif text-foreground mb-6">
-            Stop learning the{" "}
+            Don't study{" "}
             <span className="italic text-muted-foreground line-through decoration-destructive/50 decoration-2">
-              hard way.
+              harder.
             </span>
+            <br />
+            Study <span className="text-primary italic">smarter.</span>
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Traditional studying burns you out. Noteably gives you superpowers.
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto font-medium">
+            Traditional studying burns you out. Noteably supercharges your learning.
           </p>
         </FadeIn>
       </div>
@@ -682,7 +841,7 @@ const Comparison = () => (
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-destructive/20 to-transparent opacity-50" />
 
             <div className="flex items-center gap-4 mb-8">
-              <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center">
+              <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center shadow-sm">
                 <X className="w-6 h-6 text-muted-foreground" />
               </div>
               <h3 className="text-2xl font-serif text-muted-foreground">
@@ -699,16 +858,13 @@ const Comparison = () => (
               ].map((item, i) => (
                 <li
                   key={i}
-                  className="flex items-center gap-4 text-muted-foreground/60 group-hover:text-muted-foreground transition-colors"
+                  className="flex items-center gap-4 text-muted-foreground/60 group-hover:text-muted-foreground transition-colors font-medium"
                 >
                   <X className="w-5 h-5 text-destructive/50 shrink-0" />
                   <span>{item}</span>
                 </li>
               ))}
             </ul>
-
-            {/* Dusty overlay effect */}
-            <div className="absolute inset-0 bg-noise opacity-[0.03] pointer-events-none" />
           </div>
         </FadeIn>
 
@@ -717,19 +873,19 @@ const Comparison = () => (
           <div className="h-full p-8 rounded-3xl bg-card border-2 border-primary/20 relative overflow-hidden shadow-2xl shadow-primary/5 group hover:border-primary/40 transition-colors">
             {/* Glowing background */}
             <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
-            <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/20 blur-[64px] rounded-full pointer-events-none" />
+            <div className="hidden md:block absolute -top-24 -right-24 w-48 h-48 bg-primary/20 blur-[64px] rounded-full pointer-events-none" />
 
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
                     <Zap className="w-6 h-6" />
                   </div>
                   <h3 className="text-2xl font-serif text-foreground">
                     With Noteably
                   </h3>
                 </div>
-                <div className="bg-primary/10 text-primary text-sm font-bold px-3 py-1 rounded-full border border-primary/20">
+                <div className="bg-primary/10 text-primary text-sm font-bold px-3 py-1 rounded-full border border-primary/20 shadow-sm text-nowrap">
                   10x FASTER
                 </div>
               </div>
@@ -763,7 +919,7 @@ const Comparison = () => (
 
       {/* CTA */}
       <FadeIn delay={0.4}>
-        <div className="mt-16 text-center">
+        <div className="mt-16 text-center" id="pricing">
           <Button
             className="px-8 py-6 rounded-full text-lg shadow-xl shadow-primary/20 hover:scale-105 transition-transform"
             onClick={() => (window.location.href = "/signup")}
@@ -780,65 +936,57 @@ const Comparison = () => (
   </section>
 );
 
-const Footer = () => (
-  <footer className="bg-primary/80 text-primary-foreground/90 py-20">
-    <div className="container mx-auto px-6">
-      <div className="flex flex-col md:flex-row justify-between items-start gap-12">
+const Footer = () => {
+  const navigate = useNavigate();
+  return (
+  <footer className="bg-primary/90 text-primary-foreground/90 py-12 md:py-20 relative overflow-hidden">
+    <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none" />
+    <div className="container mx-auto px-6 relative z-10">
+      <div className="flex flex-col md:flex-row justify-between items-start gap-12 border-b border-primary-foreground/10 pb-12">
         <div className="max-w-md">
           <h2 className="text-3xl font-serif mb-6 text-primary-foreground">
             Connect with intelligence.
           </h2>
-          <p className="text-primary-foreground/60 mb-8 leading-relaxed">
+          <p className="text-primary-foreground/80 mb-8 leading-relaxed font-medium">
             Stop wasting time on prep work. Let AI handle the structure so you
-            can focus on the learning. Join thousands of students and
+            can focus on learning. Join thousands of students and
             professionals today.
           </p>
-          <Button className="px-8 py-6 rounded-full bg-secondary text-primary hover:bg-card">
+          <Button
+            onClick={() => navigate("/signup")}
+            className="px-8 py-6 rounded-full bg-secondary text-primary hover:bg-card"
+          >
             Start Free Trial
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 gap-12 md:gap-24 text-sm">
+        <div className="grid grid-cols-2 gap-12 sm:gap-24 text-sm">
           <div>
-            <h4 className="font-serif text-lg text-primary-foreground mb-4">
+            <h4 className="font-semibold text-primary-foreground mb-6 uppercase tracking-wider text-sm">
               Product
             </h4>
-            <ul className="space-y-3 text-primary-foreground/60">
-              <li>
-                <a
-                  href="#"
-                  className="hover:text-primary-foreground transition-colors"
-                >
-                  Features
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="hover:text-primary-foreground transition-colors"
-                >
-                  Pricing
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="hover:text-primary-foreground transition-colors"
-                >
-                  API
-                </a>
-              </li>
+            <ul className="space-y-4">
+              {["Features", "Pricing", "FAQ"].map((item) => (
+                <li key={item}>
+                  <a
+                    href={`#${item.toLowerCase()}`}
+                    className="text-primary-foreground/70 hover:text-primary-foreground transition-colors font-medium"
+                  >
+                    {item}
+                  </a>
+                </li>
+              ))}
             </ul>
           </div>
           <div>
-            <h4 className="font-serif text-lg text-primary-foreground mb-4">
+            <h4 className="font-semibold text-primary-foreground mb-6 uppercase tracking-wider text-sm">
               Company
             </h4>
-            <ul className="space-y-3 text-primary-foreground/60">
+            <ul className="space-y-4">
               <li>
                 <a
                   href="#"
-                  className="hover:text-primary-foreground transition-colors"
+                  className="text-primary-foreground/70 hover:text-primary-foreground transition-colors font-medium"
                 >
                   About
                 </a>
@@ -846,7 +994,7 @@ const Footer = () => (
               <li>
                 <a
                   href="#"
-                  className="hover:text-primary-foreground transition-colors"
+                  className="text-primary-foreground/70 hover:text-primary-foreground transition-colors font-medium"
                 >
                   Blog
                 </a>
@@ -854,9 +1002,9 @@ const Footer = () => (
               <li>
                 <a
                   href="#"
-                  className="hover:text-primary-foreground transition-colors"
+                  className="text-primary-foreground/70 hover:text-primary-foreground transition-colors font-medium"
                 >
-                  Contact
+                  Contact Us
                 </a>
               </li>
             </ul>
@@ -864,20 +1012,25 @@ const Footer = () => (
         </div>
       </div>
 
-      <div className="mt-20 pt-8 border-t border-primary-foreground/10 flex flex-col md:flex-row justify-between items-center text-xs text-primary-foreground/40">
-        <p>© 2024 Noteably. All rights reserved.</p>
-        <div className="flex gap-6 mt-4 md:mt-0">
-          <a href="#">Privacy</a>
-          <a href="#">Terms</a>
+      <div className="mt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-primary-foreground/60 font-medium">
+        <p>© 2026 Noteably Inc. All rights reserved.</p>
+        <div className="flex gap-6">
+          <a href="#" className="hover:text-primary-foreground transition-colors">
+            Privacy Policy
+          </a>
+          <a href="#" className="hover:text-primary-foreground transition-colors">
+            Terms of Service
+          </a>
         </div>
       </div>
     </div>
   </footer>
-);
+  );
+};
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen font-sans bg-background">
+    <div className="min-h-screen font-sans bg-background text-foreground antialiased selection:bg-primary/30 scroll-smooth">
       <Navbar />
       <Hero />
       <Features />
