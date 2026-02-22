@@ -982,3 +982,132 @@ def update_profile(request):
     except Exception as e:
         logger.error(f"Profile update failed for {request.user_id}: {e}")
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def request_email_change(request):
+    """Initiate email change: verify password, send confirmation to new email."""
+    from .serializers import ChangeEmailSerializer
+
+    serializer = ChangeEmailSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    new_email = serializer.validated_data["new_email"]
+    current_password = serializer.validated_data["current_password"]
+    user_email = request.user.email
+    user_id = request.user_id
+
+    user_metadata = request.user.data.get("user_metadata", {}) or {}
+    first_name = user_metadata.get("first_name", "there")
+
+    if new_email == user_email:
+        return Response(
+            {"error": "New email must be different from your current email."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Verify current password
+    try:
+        supabase_url = os.getenv("SUPABASE_URL")
+        service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        resp = http_requests.post(
+            f"{supabase_url}/auth/v1/token?grant_type=password",
+            headers={"apikey": service_key, "Content-Type": "application/json"},
+            json={"email": user_email, "password": current_password},
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            return Response(
+                {"error": "Current password is incorrect."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+    except Exception as e:
+        logger.error(f"Password verification failed for email change: {e}")
+        return Response(
+            {"error": "Current password is incorrect."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    # Generate email change token
+    token = generate_email_change_token(user_id, new_email)
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    confirmation_link = f"{frontend_url}/confirm-email-change?token={token}"
+
+    # Send confirmation to new email
+    from apps.core.utils.email import send_email
+    html = f"""
+    <div style="font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 40px; background: #fff; border-radius: 24px;">
+        <h1 style="color: #4a6b50; text-align: center;">Noteably</h1>
+        <h2 style="text-align: center;">Confirm Your New Email</h2>
+        <p>Hello {first_name},</p>
+        <p>You requested to change your Noteably email address. Click the button below to confirm.</p>
+        <div style="text-align: center; margin: 32px 0;">
+            <a href="{confirmation_link}" style="background: #4a6b50; color: #fff; padding: 14px 32px; border-radius: 99px; text-decoration: none; font-weight: 600;">Confirm New Email</a>
+        </div>
+        <p style="font-size: 14px; color: #6b7280;">This link expires in 24 hours. If you didn't request this, ignore this email.</p>
+    </div>
+    """
+    send_email(new_email, "Confirm Your New Email - Noteably", html)
+
+    # Send security notification to old email
+    security_token = generate_security_action_token(user_id)
+    security_link = f"{frontend_url}/security-action?token={security_token}"
+    try:
+        send_email_change_notification(user_email, first_name, new_email, security_link)
+    except Exception as e:
+        logger.error(f"Failed to send email change notification: {e}")
+
+    logger.info(f"Email change requested for user {user_id}: {user_email} -> {new_email}")
+    return Response({
+        "message": f"Verification email sent to {new_email}",
+        "confirmation_sent_to": new_email,
+    })
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def confirm_email_change(request):
+    """Confirm email change using verification token from email link."""
+    token = request.data.get("token")
+    if not token:
+        return Response({"error": "Token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if is_email_change_token_used(token):
+        return Response(
+            {"error": "This verification link has already been used."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        payload = verify_email_change_token(token)
+    except Exception:
+        return Response(
+            {"error": "Invalid or expired verification link."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    user_id = payload["user_id"]
+    new_email = payload["new_email"]
+
+    # Update email via Supabase admin API
+    try:
+        supabase_url = os.getenv("SUPABASE_URL")
+        service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        from supabase import create_client as create_supabase_client
+        sb = create_supabase_client(supabase_url, service_key)
+        sb.auth.admin.update_user_by_id(user_id, {"email": new_email})
+    except Exception as e:
+        logger.error(f"Failed to update email for user {user_id}: {e}")
+        return Response(
+            {"error": "Failed to update email. Please try again."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    mark_email_change_token_used(token)
+    logger.info(f"Email changed for user {user_id} to {new_email}")
+    return Response({
+        "message": "Email changed successfully.",
+        "new_email": new_email,
+    })
