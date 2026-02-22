@@ -1325,3 +1325,72 @@ def security_action(request):
     return Response({
         "message": "Your account has been secured. Your password has been reset and all sessions have been logged out. Please use 'Forgot Password' to set a new password.",
     })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def fix_oauth_metadata(request):
+    """
+    Restore correct metadata after OAuth sign-in overwrites it.
+
+    Called from the frontend after an existing email user links/signs in via OAuth.
+    Supabase OAuth merges metadata and overwrites sub, name, full_name, picture,
+    and avatar_url with provider values. This endpoint corrects them back.
+    """
+    auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+    user_token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
+    if not user_token:
+        return Response({"error": "Missing token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    supabase_url = os.getenv("SUPABASE_URL")
+    service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    user_id = request.user_id
+
+    user_metadata = request.user.data.get("user_metadata", {}) or {}
+    first_name = user_metadata.get("first_name", "")
+    last_name = user_metadata.get("last_name", "")
+    full_name = f"{first_name} {last_name}".strip()
+
+    # Check for user-uploaded avatar in Supabase storage
+    storage_bucket = os.getenv("SUPABASE_STORAGE_BUCKET", "avatars")
+    avatar_storage_url = (
+        f"{supabase_url}/storage/v1/object/public/{storage_bucket}/{user_id}/avatar.jpg"
+    )
+    uploaded_picture = None
+    try:
+        import time
+        head_resp = http_requests.head(avatar_storage_url, timeout=5)
+        if head_resp.status_code == 200:
+            uploaded_picture = f"{avatar_storage_url}?t={int(time.time())}"
+    except Exception:
+        pass
+
+    metadata_payload = {
+        "sub": user_id,
+        "name": full_name,
+        "full_name": full_name,
+    }
+    if uploaded_picture:
+        metadata_payload["picture"] = uploaded_picture
+        metadata_payload["avatar_url"] = uploaded_picture
+
+    try:
+        resp = http_requests.put(
+            f"{supabase_url}/auth/v1/user",
+            headers={
+                "Authorization": f"Bearer {user_token}",
+                "apikey": service_key,
+                "Content-Type": "application/json",
+            },
+            json={"data": metadata_payload},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        logger.info(f"OAuth metadata restored for user {user_id}")
+        return Response({"message": "Metadata restored."})
+    except Exception as e:
+        logger.error(f"Failed to fix OAuth metadata for {user_id}: {e}")
+        return Response(
+            {"error": "Failed to restore metadata."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

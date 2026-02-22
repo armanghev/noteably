@@ -15,6 +15,7 @@ urlpatterns = [
     path("confirm-recovery-oauth", views.confirm_recovery_oauth, name="confirm_recovery_oauth"),
     path("me/restore", views.restore_account, name="restore_account"),
     path("me/update", views.update_profile, name="update_profile"),
+    path("me/fix-oauth-metadata", views.fix_oauth_metadata, name="fix_oauth_metadata"),
     path("me/request-email-change", views.request_email_change, name="request_email_change"),
     path("confirm-email-change", views.confirm_email_change, name="confirm_email_change"),
     path("me/change-password", views.change_password, name="change_password"),

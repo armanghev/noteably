@@ -189,4 +189,8 @@ export const authService = {
       new_password: newPassword,
     });
   },
+
+  fixOAuthMetadata: async (): Promise<void> => {
+    await apiClient.post("/auth/me/fix-oauth-metadata");
+  },
 };
