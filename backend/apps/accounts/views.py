@@ -1244,11 +1244,30 @@ def change_password(request):
     except Exception:
         pass  # Sign-in failed = passwords differ, which is what we want
 
-    # Update password via admin API
+    # Update password using the user's own JWT so only other sessions are invalidated,
+    # not the current one. (Admin API would wipe all sessions including this one.)
+    auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+    user_token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
     try:
-        from supabase import create_client as create_supabase_client
-        sb = create_supabase_client(supabase_url, service_key)
-        sb.auth.admin.update_user_by_id(str(user_id), {"password": new_password})
+        pw_resp = http_requests.put(
+            f"{supabase_url}/auth/v1/user",
+            headers={
+                "Authorization": f"Bearer {user_token}",
+                "apikey": service_key,
+                "Content-Type": "application/json",
+            },
+            json={"password": new_password},
+            timeout=10,
+        )
+        pw_resp.raise_for_status()
+    except http_requests.HTTPError as e:
+        error_body = e.response.json() if e.response is not None else {}
+        error_msg = error_body.get("msg") or error_body.get("message") or str(e)
+        logger.error(f"Failed to update password for {user_id}: {error_msg}")
+        return Response(
+            {"error": "Failed to change password. Please try again."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
     except Exception as e:
         logger.error(f"Failed to update password for {user_id}: {e}")
         return Response(
