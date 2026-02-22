@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import apiClient from "@/lib/api/client";
+import { supabase } from "@/lib/supabase";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -11,6 +12,7 @@ export default function SecurityAction() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [state, setState] = useState<State>("loading");
+  const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const calledRef = useRef(false);
 
@@ -27,6 +29,11 @@ export default function SecurityAction() {
 
     apiClient
       .post("/auth/security-action", { token })
+      .then((res) => {
+        setSuccessMsg(res.data?.message ?? "Your account has been secured.");
+        // Sign out locally so the user isn't auto-redirected to the dashboard
+        return supabase.auth.signOut();
+      })
       .then(() => {
         setState("success");
       })
@@ -57,14 +64,7 @@ export default function SecurityAction() {
                 <CheckCircle2 className="h-12 w-12 text-green-500" />
                 <div className="space-y-2">
                   <h2 className="text-xl font-semibold">Account Secured</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Your account has been secured. Your password has been reset and all
-                    sessions have been logged out.
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Please use <span className="font-medium text-foreground">Forgot Password</span> on
-                    the login page to set a new password and regain access.
-                  </p>
+                  <p className="text-sm text-muted-foreground">{successMsg}</p>
                 </div>
                 <Button className="mt-2" onClick={() => navigate("/login")}>
                   Go to Login

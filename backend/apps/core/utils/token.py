@@ -232,16 +232,27 @@ def mark_email_change_token_used(token: str) -> None:
 SECURITY_ACTION_TOKEN_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
 
 
-def generate_security_action_token(user_id: UUID) -> str:
-    """Generate a signed token for 'wasn't me' security actions (7-day validity)."""
+def generate_security_action_token(
+    user_id: UUID,
+    action_type: str = "generic",
+    old_email: str = None,
+) -> str:
+    """Generate a signed token for 'wasn't me' security actions (7-day validity).
+
+    action_type: "email_change" or "password_change" or "generic"
+    old_email: the email to revert to (for email_change actions)
+    """
     signer = TimestampSigner()
     payload = {
         "user_id": str(user_id),
         "token_type": "security_action",
+        "action_type": action_type,
         "issued_at": datetime.now(timezone.utc).isoformat(),
     }
+    if old_email:
+        payload["old_email"] = old_email
     token = signer.sign_object(payload)
-    logger.info(f"Generated security action token for user {user_id}")
+    logger.info(f"Generated security action token for user {user_id} (action_type={action_type})")
     return token
 
 

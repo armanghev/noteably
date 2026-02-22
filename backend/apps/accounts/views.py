@@ -1124,7 +1124,7 @@ def request_email_change(request):
     send_email(new_email, "Confirm Your New Email - Noteably", html)
 
     # Security notification to old email
-    security_token = generate_security_action_token(user_id)
+    security_token = generate_security_action_token(user_id, action_type="email_change", old_email=user_email)
     security_link = f"{frontend_url}/security-action?token={security_token}"
     try:
         send_email_change_notification(user_email, first_name, new_email, security_link)
@@ -1163,13 +1163,16 @@ def confirm_email_change(request):
     user_id = payload["user_id"]
     new_email = payload["new_email"]
 
-    # Update email via Supabase admin API
+    # Update email via Supabase admin API (also sync the email field in user_metadata)
     try:
         supabase_url = os.getenv("SUPABASE_URL")
         service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
         from supabase import create_client as create_supabase_client
         sb = create_supabase_client(supabase_url, service_key)
-        sb.auth.admin.update_user_by_id(user_id, {"email": new_email})
+        sb.auth.admin.update_user_by_id(user_id, {
+            "email": new_email,
+            "user_metadata": {"email": new_email},
+        })
     except Exception as e:
         logger.error(f"Failed to update email for user {user_id}: {e}")
         return Response(
@@ -1255,7 +1258,7 @@ def change_password(request):
 
     # Send security notification
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
-    security_token = generate_security_action_token(user_id)
+    security_token = generate_security_action_token(user_id, action_type="password_change")
     security_link = f"{frontend_url}/security-action?token={security_token}"
     try:
         send_password_changed_notification(user_email, first_name, security_link)
@@ -1309,7 +1312,13 @@ def set_password(request):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def security_action(request):
-    """Handle 'wasn't me' link: reset password + invalidate all sessions."""
+    """Handle 'wasn't me' link: secure the account based on what action triggered the alert.
+
+    - email_change: revert the email to old_email, invalidate all sessions.
+      The user still knows their password so they can log straight back in.
+    - password_change / generic: reset password to random, invalidate sessions,
+      then trigger a Supabase password-reset email so the user can regain access.
+    """
     token = request.data.get("token")
     if not token:
         return Response({"error": "Token is required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -1323,32 +1332,91 @@ def security_action(request):
         )
 
     user_id = payload["user_id"]
+    action_type = payload.get("action_type", "generic")
+    old_email = payload.get("old_email")
 
     supabase_url = os.getenv("SUPABASE_URL")
     service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
     try:
         from supabase import create_client as create_supabase_client
-        import secrets
         sb = create_supabase_client(supabase_url, service_key)
 
-        # Generate random password (forces user to reset)
-        random_password = secrets.token_urlsafe(32)
-        sb.auth.admin.update_user_by_id(str(user_id), {"password": random_password})
+        if action_type == "email_change" and old_email:
+            # Revert auth email and metadata email back to the original address.
+            # No password reset — the user still knows their password.
+            sb.auth.admin.update_user_by_id(str(user_id), {
+                "email": old_email,
+                "user_metadata": {"email": old_email},
+            })
 
-        # Sign out all sessions
-        resp = http_requests.post(
-            f"{supabase_url}/auth/v1/logout",
-            headers={
-                "Authorization": f"Bearer {service_key}",
-                "apikey": service_key,
-                "Content-Type": "application/json",
-            },
-            json={"scope": "global"},
-            timeout=10,
-        )
-        # Note: Supabase may not support global logout via admin API in all versions.
-        # The password reset itself invalidates the current session effectively.
+            # Invalidate all active sessions via admin API.
+            sessions_resp = http_requests.delete(
+                f"{supabase_url}/auth/v1/admin/users/{user_id}/sessions",
+                headers={
+                    "Authorization": f"Bearer {service_key}",
+                    "apikey": service_key,
+                },
+                timeout=10,
+            )
+            if sessions_resp.status_code not in (200, 204):
+                logger.warning(
+                    f"Session deletion may have failed for user {user_id}: "
+                    f"status={sessions_resp.status_code} body={sessions_resp.text}"
+                )
+
+            logger.info(f"Security action (email_change): email reverted to {old_email} for user {user_id}")
+            return Response({
+                "message": (
+                    f"Your email has been reverted to {old_email} and all sessions have been signed out. "
+                    "You can log back in with your original email and password."
+                ),
+            })
+
+        else:
+            # password_change or generic: reset to random password, then send a
+            # Supabase password-reset email so the user can set a new one.
+            import secrets
+            random_password = secrets.token_urlsafe(32)
+
+            # Fetch the user's current email before locking them out
+            user_record = sb.auth.admin.get_user_by_id(str(user_id))
+            user_email = user_record.user.email if user_record.user else None
+
+            sb.auth.admin.update_user_by_id(str(user_id), {"password": random_password})
+
+            # Invalidate all active sessions
+            http_requests.delete(
+                f"{supabase_url}/auth/v1/admin/users/{user_id}/sessions",
+                headers={
+                    "Authorization": f"Bearer {service_key}",
+                    "apikey": service_key,
+                },
+                timeout=10,
+            )
+
+            # Trigger Supabase's built-in password reset email so user can regain access
+            if user_email:
+                try:
+                    http_requests.post(
+                        f"{supabase_url}/auth/v1/recover",
+                        headers={
+                            "apikey": service_key,
+                            "Content-Type": "application/json",
+                        },
+                        json={"email": user_email},
+                        timeout=10,
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to trigger password reset email for {user_email}: {e}")
+
+            logger.info(f"Security action (password_change): password reset + sessions invalidated for user {user_id}")
+            return Response({
+                "message": (
+                    "Your account has been secured. All sessions have been signed out and your password "
+                    "has been reset. Check your email for a link to set a new password."
+                ),
+            })
 
     except Exception as e:
         logger.error(f"Security action failed for user {user_id}: {e}")
@@ -1356,11 +1424,6 @@ def security_action(request):
             {"error": "Failed to secure account. Please contact support."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-
-    logger.info(f"Security action completed for user {user_id}: password reset + sessions invalidated")
-    return Response({
-        "message": "Your account has been secured. Your password has been reset and all sessions have been logged out. Please use 'Forgot Password' to set a new password.",
-    })
 
 
 @api_view(["POST"])
