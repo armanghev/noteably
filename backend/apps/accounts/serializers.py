@@ -35,6 +35,16 @@ class UpdateProfileSerializer(serializers.Serializer):
     last_name = serializers.CharField(max_length=50, required=False)
     phone_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
 
+    def validate_phone_number(self, value):
+        if not value:
+            return value
+        import re
+        if not re.match(r'^\+1\d{10}$', value):
+            raise serializers.ValidationError(
+                "Phone number must be a valid US number (e.g. +18188188181)."
+            )
+        return value
+
     def validate(self, data):
         if not data:
             raise serializers.ValidationError("At least one field must be provided.")

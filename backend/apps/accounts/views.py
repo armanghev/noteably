@@ -201,6 +201,7 @@ def complete_profile(request):
 
     import requests as http_requests
 
+    import re
     first_name = request.data.get("first_name", "").strip()
     last_name = request.data.get("last_name", "").strip()
     phone_number = request.data.get("phone_number", "").strip() or None
@@ -208,6 +209,11 @@ def complete_profile(request):
     if not first_name or not last_name:
         return Response(
             {"error": "First name and last name are required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if phone_number and not re.match(r'^\+1\d{10}$', phone_number):
+        return Response(
+            {"error": "Phone number must be a valid US number (e.g. +18188188181)."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 

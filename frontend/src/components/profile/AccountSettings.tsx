@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput, isValidPhone } from "@/components/ui/phone-input";
 import { useAuth } from "@/hooks/useAuth";
 import { authService } from "@/lib/api/services/auth";
 import {
@@ -46,6 +47,10 @@ export function AccountSettings() {
   }
 
   async function handleSave() {
+    if (form.phone_number && !isValidPhone(form.phone_number)) {
+      setMessage({ type: "error", text: "Please enter a valid phone number." });
+      return;
+    }
     setSaving(true);
     setMessage(null);
     try {
@@ -149,11 +154,9 @@ export function AccountSettings() {
             )}
           </Label>
           {editing ? (
-            <Input
-              id="phone_number"
+            <PhoneInput
               value={form.phone_number}
-              onChange={(e) => setForm((f) => ({ ...f, phone_number: e.target.value }))}
-              placeholder="+1 (555) 000-0000"
+              onChange={(v) => setForm((f) => ({ ...f, phone_number: v }))}
             />
           ) : (
             <p className="text-sm">

@@ -6,6 +6,7 @@ import { useErrorHandler } from "@/hooks/useErrorHandler";
 import { authService } from "@/lib/api/services/auth";
 import { supabase } from "@/lib/supabase";
 import type { ApiError } from "@/types";
+import { PhoneInput, isValidPhone } from "@/components/ui/phone-input";
 import {
   Camera,
   Check,
@@ -152,6 +153,10 @@ export default function Signup() {
     e.preventDefault();
     if (!firstName.trim() || !lastName.trim()) {
       handleError({ message: "First name and last name are required" });
+      return;
+    }
+    if (phoneNumber && !isValidPhone(phoneNumber)) {
+      handleError({ message: "Please enter a valid phone number." });
       return;
     }
     try {
@@ -686,14 +691,12 @@ export default function Signup() {
                       (optional)
                     </span>
                   </label>
-                  <input
-                    id="phone"
-                    type="tel"
+                  <PhoneInput
                     value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-input border border-border focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary transition-all"
-                    placeholder="+1 (555) 123-4567"
+                    onChange={setPhoneNumber}
                     disabled={profileLoading}
+                    placeholder="Phone number"
+                    className="rounded-xl bg-input border-border focus-within:ring-ring/20"
                   />
                 </div>
 
