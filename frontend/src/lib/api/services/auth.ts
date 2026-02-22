@@ -165,10 +165,17 @@ export const authService = {
     await apiClient.put(API_ENDPOINTS.AUTH.UPDATE_PROFILE, data);
   },
 
-  requestEmailChange: async (newEmail: string, currentPassword: string): Promise<void> => {
+  requestEmailOtp: async (): Promise<void> => {
+    await apiClient.post("/auth/me/request-email-otp");
+  },
+
+  verifyEmailOtp: async (otp: string): Promise<void> => {
+    await apiClient.post("/auth/me/verify-email-otp", { otp });
+  },
+
+  requestEmailChange: async (newEmail: string): Promise<void> => {
     await apiClient.post(API_ENDPOINTS.AUTH.REQUEST_EMAIL_CHANGE, {
       new_email: newEmail,
-      current_password: currentPassword,
     });
   },
 

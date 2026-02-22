@@ -17,6 +17,7 @@ from apps.core.utils.email import (
     send_deletion_confirmation_email,
     send_welcome_email,
     send_email_change_notification,
+    send_email_change_otp_email,
     send_password_changed_notification,
 )
 from apps.core.utils.token import (
@@ -32,6 +33,10 @@ from apps.core.utils.token import (
     mark_email_change_token_used,
     generate_security_action_token,
     verify_security_action_token,
+    generate_email_otp,
+    verify_email_otp,
+    is_email_otp_verified,
+    consume_email_otp_verified,
 )
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -1022,16 +1027,67 @@ def update_profile(request):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+def request_email_otp(request):
+    """Step 1: Send a 6-digit OTP to the user's current email to verify identity."""
+    user_id = request.user_id
+    user_email = request.user.email
+    user_metadata = request.user.data.get("user_metadata", {}) or {}
+    first_name = user_metadata.get("first_name", "there")
+
+    otp = generate_email_otp(user_id)
+    try:
+        send_email_change_otp_email(user_email, first_name, otp)
+    except Exception as e:
+        logger.error(f"Failed to send email change OTP to {user_email}: {e}")
+        return Response(
+            {"error": "Failed to send verification code. Please try again."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    logger.info(f"Email change OTP sent to {user_email} for user {user_id}")
+    return Response({"message": "Verification code sent to your current email."})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def verify_email_change_otp(request):
+    """Step 2: Verify the 6-digit OTP. On success, allows the user to submit a new email."""
+    from .serializers import VerifyEmailOTPSerializer
+
+    serializer = VerifyEmailOTPSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    otp = serializer.validated_data["otp"]
+    user_id = request.user_id
+
+    if not verify_email_otp(user_id, otp):
+        return Response(
+            {"error": "Invalid or expired verification code."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    logger.info(f"Email change OTP verified for user {user_id}")
+    return Response({"message": "Code verified. You may now enter your new email."})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def request_email_change(request):
-    """Initiate email change: verify password, send confirmation to new email."""
+    """Step 3: Submit new email. Requires OTP to have been verified first (step 2)."""
     from .serializers import ChangeEmailSerializer
+
+    if not is_email_otp_verified(request.user_id):
+        return Response(
+            {"error": "Please verify your identity with the code sent to your current email first."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
     serializer = ChangeEmailSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     new_email = serializer.validated_data["new_email"]
-    current_password = serializer.validated_data["current_password"]
     user_email = request.user.email
     user_id = request.user_id
 
@@ -1044,41 +1100,21 @@ def request_email_change(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Verify current password
-    try:
-        supabase_url = os.getenv("SUPABASE_URL")
-        service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-        resp = http_requests.post(
-            f"{supabase_url}/auth/v1/token?grant_type=password",
-            headers={"apikey": service_key, "Content-Type": "application/json"},
-            json={"email": user_email, "password": current_password},
-            timeout=10,
-        )
-        if resp.status_code != 200:
-            return Response(
-                {"error": "Current password is incorrect."},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
-    except Exception as e:
-        logger.error(f"Password verification failed for email change: {e}")
-        return Response(
-            {"error": "Current password is incorrect."},
-            status=status.HTTP_401_UNAUTHORIZED,
-        )
+    # Consume the verified state so it can't be reused
+    consume_email_otp_verified(user_id)
 
-    # Generate email change token
+    # Generate confirmation token and send to new email
     token = generate_email_change_token(user_id, new_email)
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
     confirmation_link = f"{frontend_url}/confirm-email-change?token={token}"
 
-    # Send confirmation to new email
     from apps.core.utils.email import send_email
     html = f"""
     <div style="font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 40px; background: #fff; border-radius: 24px;">
         <h1 style="color: #4a6b50; text-align: center;">Noteably</h1>
         <h2 style="text-align: center;">Confirm Your New Email</h2>
         <p>Hello {first_name},</p>
-        <p>You requested to change your Noteably email address. Click the button below to confirm.</p>
+        <p>You requested to change your Noteably email address to <strong>{new_email}</strong>. Click the button below to confirm.</p>
         <div style="text-align: center; margin: 32px 0;">
             <a href="{confirmation_link}" style="background: #4a6b50; color: #fff; padding: 14px 32px; border-radius: 99px; text-decoration: none; font-weight: 600;">Confirm New Email</a>
         </div>
@@ -1087,7 +1123,7 @@ def request_email_change(request):
     """
     send_email(new_email, "Confirm Your New Email - Noteably", html)
 
-    # Send security notification to old email
+    # Security notification to old email
     security_token = generate_security_action_token(user_id)
     security_link = f"{frontend_url}/security-action?token={security_token}"
     try:
@@ -1097,7 +1133,7 @@ def request_email_change(request):
 
     logger.info(f"Email change requested for user {user_id}: {user_email} -> {new_email}")
     return Response({
-        "message": f"Verification email sent to {new_email}",
+        "message": f"Confirmation email sent to {new_email}.",
         "confirmation_sent_to": new_email,
     })
 

@@ -13,50 +13,108 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { authService } from "@/lib/api/services/auth";
 import { AlertCircle, CheckCircle2, Loader2, Mail } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
-type DialogState = "idle" | "form" | "confirmation_sent";
+// idle → otp_sent → enter_new_email → confirmation_sent
+type DialogState = "idle" | "otp_sent" | "enter_new_email" | "confirmation_sent";
 
 export function ChangeEmail() {
   const { user } = useAuth();
   const [dialogState, setDialogState] = useState<DialogState>("idle");
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [newEmail, setNewEmail] = useState("");
-  const [currentPassword, setCurrentPassword] = useState("");
+  const [confirmedEmail, setConfirmedEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const meta = user?.app_metadata ?? {};
-  const providers: string[] = meta.providers ?? [];
-  const hasPassword = providers.includes("email");
-
-  function handleOpen() {
-    setNewEmail("");
-    setCurrentPassword("");
-    setError(null);
-    setDialogState("form");
-  }
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   function handleClose() {
     setDialogState("idle");
+    setOtp(["", "", "", "", "", ""]);
+    setNewEmail("");
     setError(null);
   }
 
-  async function handleSubmit() {
-    if (!newEmail || !currentPassword) {
-      setError("Please fill in all fields.");
+  // Step 1: request OTP to current email
+  async function handleRequestOtp() {
+    setLoading(true);
+    setError(null);
+    try {
+      await authService.requestEmailOtp();
+      setOtp(["", "", "", "", "", ""]);
+      setDialogState("otp_sent");
+      setTimeout(() => otpRefs.current[0]?.focus(), 50);
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.error || "Failed to send verification code. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // OTP input helpers
+  function handleOtpChange(index: number, value: string) {
+    if (!/^\d*$/.test(value)) return;
+    const next = [...otp];
+    next[index] = value.slice(-1);
+    setOtp(next);
+    if (value && index < 5) otpRefs.current[index + 1]?.focus();
+  }
+
+  function handleOtpKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  }
+
+  function handleOtpPaste(e: React.ClipboardEvent) {
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (pasted.length === 6) {
+      setOtp(pasted.split(""));
+      otpRefs.current[5]?.focus();
+    }
+  }
+
+  // Step 2: verify OTP
+  async function handleVerifyOtp() {
+    const code = otp.join("");
+    if (code.length < 6) {
+      setError("Please enter the full 6-digit code.");
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      await authService.requestEmailChange(newEmail, currentPassword);
+      await authService.verifyEmailOtp(code);
+      setDialogState("enter_new_email");
+    } catch (err: any) {
+      setError(err?.response?.data?.error || "Invalid or expired code. Please try again.");
+      setOtp(["", "", "", "", "", ""]);
+      otpRefs.current[0]?.focus();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Step 3: submit new email
+  async function handleSubmitNewEmail() {
+    if (!newEmail) {
+      setError("Please enter your new email address.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await authService.requestEmailChange(newEmail);
+      setConfirmedEmail(newEmail);
       setDialogState("confirmation_sent");
     } catch (err: any) {
-      const msg =
+      setError(
         err?.response?.data?.error ||
-        err?.response?.data?.detail ||
-        "Failed to send confirmation email.";
-      setError(msg);
+        err?.response?.data?.new_email?.[0] ||
+        "Failed to send confirmation email."
+      );
     } finally {
       setLoading(false);
     }
@@ -71,35 +129,88 @@ export function ChangeEmail() {
             <h3 className="text-sm font-semibold">Email Address</h3>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">{user?.email}</p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleOpen}
-              disabled={!hasPassword}
-              title={!hasPassword ? "Set a password first to change your email." : undefined}
-            >
-              Change
-            </Button>
-          </div>
-          {!hasPassword && (
-            <p className="text-xs text-muted-foreground">
-              Set a password first to change your email address.
-            </p>
-          )}
+        <CardContent className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">{user?.email}</p>
+          <Button variant="outline" size="sm" onClick={handleRequestOtp} disabled={loading}>
+            {loading && dialogState === "idle" ? (
+              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+            ) : null}
+            Change
+          </Button>
         </CardContent>
       </Card>
 
       <Dialog open={dialogState !== "idle"} onOpenChange={(open) => !open && handleClose()}>
         <DialogContent className="sm:max-w-md border-border">
-          {dialogState === "form" && (
+
+          {/* Step 1: OTP entry */}
+          {dialogState === "otp_sent" && (
             <>
               <DialogHeader>
-                <DialogTitle>Change Email Address</DialogTitle>
+                <DialogTitle>Verify Your Identity</DialogTitle>
                 <DialogDescription>
-                  Enter your new email address and current password to confirm.
+                  We sent a 6-digit code to{" "}
+                  <span className="font-medium text-foreground">{user?.email}</span>. Enter it
+                  below to continue.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-2">
+                {error && (
+                  <div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    {error}
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Verification Code</Label>
+                  <div className="flex justify-center gap-2" onPaste={handleOtpPaste}>
+                    {otp.map((digit, i) => (
+                      <input
+                        key={i}
+                        ref={(el) => { otpRefs.current[i] = el; }}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) => handleOtpChange(i, e.target.value)}
+                        onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                        className="h-12 w-10 rounded-lg border border-border bg-background text-center text-lg font-semibold focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleRequestOtp}
+                  disabled={loading}
+                  className="w-full text-center text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 disabled:opacity-50"
+                >
+                  Didn't receive it? Resend code
+                </button>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={handleClose} disabled={loading}>
+                  Cancel
+                </Button>
+                <Button onClick={handleVerifyOtp} disabled={loading || otp.join("").length < 6}>
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Verify
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {/* Step 2: New email entry */}
+          {dialogState === "enter_new_email" && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Enter New Email Address</DialogTitle>
+                <DialogDescription>
+                  Identity verified. Enter the new email address you'd like to use.
                 </DialogDescription>
               </DialogHeader>
 
@@ -119,18 +230,8 @@ export function ChangeEmail() {
                     onChange={(e) => setNewEmail(e.target.value)}
                     placeholder="you@example.com"
                     autoComplete="email"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="current_password_email">Current Password</Label>
-                  <Input
-                    id="current_password_email"
-                    type="password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="Your current password"
-                    autoComplete="current-password"
-                    onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                    autoFocus
+                    onKeyDown={(e) => e.key === "Enter" && handleSubmitNewEmail()}
                   />
                 </div>
               </div>
@@ -139,7 +240,7 @@ export function ChangeEmail() {
                 <Button variant="outline" onClick={handleClose} disabled={loading}>
                   Cancel
                 </Button>
-                <Button onClick={handleSubmit} disabled={loading}>
+                <Button onClick={handleSubmitNewEmail} disabled={loading || !newEmail}>
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Send Confirmation
                 </Button>
@@ -147,17 +248,18 @@ export function ChangeEmail() {
             </>
           )}
 
+          {/* Step 3: Confirmation sent */}
           {dialogState === "confirmation_sent" && (
             <>
               <DialogHeader>
-                <DialogTitle>Check Your Email</DialogTitle>
+                <DialogTitle>Check Your New Email</DialogTitle>
               </DialogHeader>
               <div className="flex flex-col items-center gap-3 py-4 text-center">
                 <CheckCircle2 className="h-12 w-12 text-green-500" />
                 <p className="text-sm text-muted-foreground">
                   A confirmation link has been sent to{" "}
-                  <span className="font-medium text-foreground">{newEmail}</span>. Click the link to
-                  complete your email change.
+                  <span className="font-medium text-foreground">{confirmedEmail}</span>. Click
+                  the link to complete your email change.
                 </p>
                 <p className="text-xs text-muted-foreground">
                   You'll also receive a security notification at your current email address.
@@ -168,6 +270,7 @@ export function ChangeEmail() {
               </DialogFooter>
             </>
           )}
+
         </DialogContent>
       </Dialog>
     </>

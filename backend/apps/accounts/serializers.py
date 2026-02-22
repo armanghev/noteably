@@ -41,9 +41,17 @@ class UpdateProfileSerializer(serializers.Serializer):
         return data
 
 
+class VerifyEmailOTPSerializer(serializers.Serializer):
+    otp = serializers.CharField(min_length=6, max_length=6, required=True)
+
+    def validate_otp(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("OTP must be a 6-digit number.")
+        return value
+
+
 class ChangeEmailSerializer(serializers.Serializer):
     new_email = serializers.EmailField(required=True)
-    current_password = serializers.CharField(required=True, write_only=True)
 
     def validate_new_email(self, value):
         return value.lower().strip()

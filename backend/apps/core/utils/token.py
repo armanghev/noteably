@@ -257,3 +257,59 @@ def verify_security_action_token(token: str) -> dict:
         raise
     except Exception as e:
         raise BadSignature(f"Invalid or expired security action token: {e}")
+
+
+# Email change OTP: 10-minute validity
+EMAIL_OTP_MAX_AGE_SECONDS = 10 * 60
+EMAIL_OTP_VERIFIED_MAX_AGE_SECONDS = 10 * 60  # Window to submit new email after OTP verified
+
+_email_otps: dict = {}          # {user_id: {"otp": str, "expires_at": float}}
+_email_otp_verified: dict = {}  # {user_id: expires_at float}
+
+
+def generate_email_otp(user_id: str) -> str:
+    """Generate a 6-digit OTP for email change verification, sent to the current email."""
+    import random
+    import time as _time
+    otp = f"{random.randint(0, 999999):06d}"
+    _email_otps[str(user_id)] = {
+        "otp": otp,
+        "expires_at": _time.time() + EMAIL_OTP_MAX_AGE_SECONDS,
+    }
+    logger.info(f"Generated email change OTP for user {user_id}")
+    return otp
+
+
+def verify_email_otp(user_id: str, otp: str) -> bool:
+    """Verify OTP. Consumes it on success and marks the user as OTP-verified."""
+    import time as _time
+    uid = str(user_id)
+    entry = _email_otps.get(uid)
+    if not entry:
+        return False
+    if _time.time() > entry["expires_at"]:
+        _email_otps.pop(uid, None)
+        return False
+    if entry["otp"] != otp:
+        return False
+    _email_otps.pop(uid, None)
+    _email_otp_verified[uid] = _time.time() + EMAIL_OTP_VERIFIED_MAX_AGE_SECONDS
+    return True
+
+
+def is_email_otp_verified(user_id: str) -> bool:
+    """Check whether the user has a live OTP-verified state (passed OTP step)."""
+    import time as _time
+    uid = str(user_id)
+    expires_at = _email_otp_verified.get(uid)
+    if not expires_at:
+        return False
+    if _time.time() > expires_at:
+        _email_otp_verified.pop(uid, None)
+        return False
+    return True
+
+
+def consume_email_otp_verified(user_id: str) -> None:
+    """Consume the OTP-verified state after the new-email request is submitted."""
+    _email_otp_verified.pop(str(user_id), None)
