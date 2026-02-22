@@ -156,4 +156,37 @@ export const authService = {
     });
     return response.data;
   },
+
+  updateProfile: async (data: {
+    first_name?: string;
+    last_name?: string;
+    phone_number?: string;
+  }): Promise<void> => {
+    await apiClient.put(API_ENDPOINTS.AUTH.UPDATE_PROFILE, data);
+  },
+
+  requestEmailChange: async (newEmail: string, currentPassword: string): Promise<void> => {
+    await apiClient.post(API_ENDPOINTS.AUTH.REQUEST_EMAIL_CHANGE, {
+      new_email: newEmail,
+      current_password: currentPassword,
+    });
+  },
+
+  confirmEmailChange: async (token: string): Promise<{ new_email: string }> => {
+    const response = await apiClient.post(API_ENDPOINTS.AUTH.CONFIRM_EMAIL_CHANGE, { token });
+    return response.data;
+  },
+
+  changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
+    await apiClient.post(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+  },
+
+  setPassword: async (newPassword: string): Promise<void> => {
+    await apiClient.post(API_ENDPOINTS.AUTH.SET_PASSWORD, {
+      new_password: newPassword,
+    });
+  },
 };
