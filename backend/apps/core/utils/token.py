@@ -186,3 +186,43 @@ def is_recovery_token_used(token: str) -> bool:
         True if token has already been used, False otherwise
     """
     return token in _used_recovery_tokens
+
+
+# Email change token validity: 24 hours
+EMAIL_CHANGE_TOKEN_MAX_AGE_SECONDS = 24 * 60 * 60
+
+_used_email_change_tokens = set()
+
+
+def generate_email_change_token(user_id: UUID, new_email: str) -> str:
+    signer = TimestampSigner()
+    payload = {
+        "user_id": str(user_id),
+        "new_email": new_email,
+        "token_type": "email_change",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    token = signer.sign_object(payload)
+    logger.info(f"Generated email change token for user {user_id}")
+    return token
+
+
+def verify_email_change_token(token: str) -> dict:
+    signer = TimestampSigner()
+    try:
+        payload = signer.unsign_object(token, max_age=EMAIL_CHANGE_TOKEN_MAX_AGE_SECONDS)
+        if payload.get("token_type") != "email_change":
+            raise BadSignature("Invalid token type")
+        return payload
+    except BadSignature:
+        raise
+    except Exception as e:
+        raise BadSignature(f"Invalid or expired email change token: {e}")
+
+
+def is_email_change_token_used(token: str) -> bool:
+    return token in _used_email_change_tokens
+
+
+def mark_email_change_token_used(token: str) -> None:
+    _used_email_change_tokens.add(token)
