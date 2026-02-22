@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { authService } from "@/lib/api/services/auth";
-import { AlertCircle, CheckCircle2, Loader2, Lock } from "lucide-react";
+import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2, Lock } from "lucide-react";
 import { useEffect, useState } from "react";
 
 function validatePasswordStrength(password: string): string | null {
@@ -33,6 +33,10 @@ export function ChangePassword() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
   const providers: string[] = user?.app_metadata?.providers ?? [];
   const hasPassword = providers.includes("email");
 
@@ -50,6 +54,9 @@ export function ChangePassword() {
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
+    setShowCurrent(false);
+    setShowNew(false);
+    setShowConfirm(false);
     setError(null);
     setSuccess(false);
     setOpen(true);
@@ -159,40 +166,76 @@ export function ChangePassword() {
                 {hasPassword && (
                   <div className="space-y-1.5">
                     <Label htmlFor="current_password_pw">Current Password</Label>
-                    <Input
-                      id="current_password_pw"
-                      type="password"
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      placeholder="Your current password"
-                      autoComplete="current-password"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="current_password_pw"
+                        type={showCurrent ? "text" : "password"}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="Your current password"
+                        autoComplete="current-password"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrent((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        tabIndex={-1}
+                        aria-label={showCurrent ? "Hide password" : "Show password"}
+                      >
+                        {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
                 )}
 
                 <div className="space-y-1.5">
                   <Label htmlFor="new_password">New Password</Label>
-                  <Input
-                    id="new_password"
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Min 8 chars, 1 uppercase, 1 number"
-                    autoComplete="new-password"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="new_password"
+                      type={showNew ? "text" : "password"}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Min 8 chars, 1 uppercase, 1 number"
+                      autoComplete="new-password"
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNew((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      tabIndex={-1}
+                      aria-label={showNew ? "Hide password" : "Show password"}
+                    >
+                      {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
                   <Label htmlFor="confirm_password">Confirm New Password</Label>
-                  <Input
-                    id="confirm_password"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Repeat new password"
-                    autoComplete="new-password"
-                    onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="confirm_password"
+                      type={showConfirm ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Repeat new password"
+                      autoComplete="new-password"
+                      className="pr-10"
+                      onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirm((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      tabIndex={-1}
+                      aria-label={showConfirm ? "Hide password" : "Show password"}
+                    >
+                      {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
 
