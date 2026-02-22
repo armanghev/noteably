@@ -225,6 +225,40 @@ def complete_profile(request):
 
         is_first_completion = not user_metadata.get("profile_completed", False)
 
+        full_name = f"{first_name} {last_name}"
+
+        # Always restore sub to the user's UUID — OAuth providers overwrite this
+        # with their own ID (e.g. Google sets sub = "101605686807973513443")
+        user_id = request.user_id
+
+        # Check if the user has an uploaded avatar in Supabase storage.
+        # If so, restore picture/avatar_url to preserve it over any OAuth-injected photo.
+        storage_bucket = os.getenv("SUPABASE_STORAGE_BUCKET", "avatars")
+        avatar_storage_url = (
+            f"{supabase_url}/storage/v1/object/public/{storage_bucket}/{user_id}/avatar.jpg"
+        )
+        uploaded_picture = None
+        try:
+            head_resp = http_requests.head(avatar_storage_url, timeout=5)
+            if head_resp.status_code == 200:
+                import time
+                uploaded_picture = f"{avatar_storage_url}?t={int(time.time())}"
+        except Exception:
+            pass  # Can't reach storage; leave picture/avatar_url as-is
+
+        metadata_payload = {
+            "first_name": first_name,
+            "last_name": last_name,
+            "full_name": full_name,
+            "name": full_name,
+            "phone_number": phone_number,
+            "profile_completed": True,
+            "sub": user_id,
+        }
+        if uploaded_picture:
+            metadata_payload["picture"] = uploaded_picture
+            metadata_payload["avatar_url"] = uploaded_picture
+
         # Use the user endpoint with their JWT — avoids admin API restrictions
         resp = http_requests.put(
             f"{supabase_url}/auth/v1/user",
@@ -233,14 +267,7 @@ def complete_profile(request):
                 "apikey": service_key,
                 "Content-Type": "application/json",
             },
-            json={
-                "data": {
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "phone_number": phone_number,
-                    "profile_completed": True,
-                }
-            },
+            json={"data": metadata_payload},
             timeout=10,
         )
         resp.raise_for_status()
@@ -955,6 +982,15 @@ def update_profile(request):
     for field in ("first_name", "last_name", "phone_number"):
         if field in serializer.validated_data:
             metadata_update[field] = serializer.validated_data[field]
+
+    # If either name component changed, rebuild name/full_name from the merged result
+    if "first_name" in metadata_update or "last_name" in metadata_update:
+        existing_meta = request.user.data.get("user_metadata", {}) or {}
+        merged_first = metadata_update.get("first_name", existing_meta.get("first_name", ""))
+        merged_last = metadata_update.get("last_name", existing_meta.get("last_name", ""))
+        full_name = f"{merged_first} {merged_last}".strip()
+        metadata_update["full_name"] = full_name
+        metadata_update["name"] = full_name
 
     try:
         resp = http_requests.put(
