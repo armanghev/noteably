@@ -226,3 +226,34 @@ def is_email_change_token_used(token: str) -> bool:
 
 def mark_email_change_token_used(token: str) -> None:
     _used_email_change_tokens.add(token)
+
+
+# Security action token validity: 7 days
+SECURITY_ACTION_TOKEN_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
+
+
+def generate_security_action_token(user_id: UUID) -> str:
+    """Generate a signed token for 'wasn't me' security actions (7-day validity)."""
+    signer = TimestampSigner()
+    payload = {
+        "user_id": str(user_id),
+        "token_type": "security_action",
+        "issued_at": datetime.now(timezone.utc).isoformat(),
+    }
+    token = signer.sign_object(payload)
+    logger.info(f"Generated security action token for user {user_id}")
+    return token
+
+
+def verify_security_action_token(token: str) -> dict:
+    """Verify security action token. Stateless one-time-use checked by caller against last password change."""
+    signer = TimestampSigner()
+    try:
+        payload = signer.unsign_object(token, max_age=SECURITY_ACTION_TOKEN_MAX_AGE_SECONDS)
+        if payload.get("token_type") != "security_action":
+            raise BadSignature("Invalid token type")
+        return payload
+    except BadSignature:
+        raise
+    except Exception as e:
+        raise BadSignature(f"Invalid or expired security action token: {e}")
