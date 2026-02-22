@@ -1111,3 +1111,124 @@ def confirm_email_change(request):
         "message": "Email changed successfully.",
         "new_email": new_email,
     })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    """Change password for users who have an existing password."""
+    from .serializers import ChangePasswordSerializer
+
+    serializer = ChangePasswordSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    current_password = serializer.validated_data["current_password"]
+    new_password = serializer.validated_data["new_password"]
+    user_email = request.user.email
+    user_id = request.user_id
+
+    user_metadata = request.user.data.get("user_metadata", {}) or {}
+    first_name = user_metadata.get("first_name", "there")
+
+    # Verify current password
+    supabase_url = os.getenv("SUPABASE_URL")
+    service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    try:
+        resp = http_requests.post(
+            f"{supabase_url}/auth/v1/token?grant_type=password",
+            headers={"apikey": service_key, "Content-Type": "application/json"},
+            json={"email": user_email, "password": current_password},
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            return Response(
+                {"error": "Current password is incorrect."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+    except Exception as e:
+        logger.error(f"Password verification failed: {e}")
+        return Response(
+            {"error": "Current password is incorrect."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    # Check new password isn't same as current
+    try:
+        resp2 = http_requests.post(
+            f"{supabase_url}/auth/v1/token?grant_type=password",
+            headers={"apikey": service_key, "Content-Type": "application/json"},
+            json={"email": user_email, "password": new_password},
+            timeout=10,
+        )
+        if resp2.status_code == 200:
+            return Response(
+                {"error": "New password must be different from your current password."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+    except Exception:
+        pass  # Sign-in failed = passwords differ, which is what we want
+
+    # Update password via admin API
+    try:
+        from supabase import create_client as create_supabase_client
+        sb = create_supabase_client(supabase_url, service_key)
+        sb.auth.admin.update_user_by_id(str(user_id), {"password": new_password})
+    except Exception as e:
+        logger.error(f"Failed to update password for {user_id}: {e}")
+        return Response(
+            {"error": "Failed to change password. Please try again."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    # Send security notification
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    security_token = generate_security_action_token(user_id)
+    security_link = f"{frontend_url}/security-action?token={security_token}"
+    try:
+        send_password_changed_notification(user_email, first_name, security_link)
+    except Exception as e:
+        logger.error(f"Failed to send password change notification: {e}")
+
+    logger.info(f"Password changed for user {user_id}")
+    return Response({"message": "Password changed successfully."})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def set_password(request):
+    """Set password for OAuth-only users who don't have one yet."""
+    from .serializers import SetPasswordSerializer
+
+    serializer = SetPasswordSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    new_password = serializer.validated_data["new_password"]
+    user_id = request.user_id
+
+    # Check if user already has a password (email provider)
+    user_metadata = request.user.data.get("app_metadata", {}) or {}
+    providers = user_metadata.get("providers", [])
+    if "email" in providers:
+        return Response(
+            {"error": "You already have a password. Use the change password option instead."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Set password via admin API
+    try:
+        supabase_url = os.getenv("SUPABASE_URL")
+        service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        from supabase import create_client as create_supabase_client
+        sb = create_supabase_client(supabase_url, service_key)
+        sb.auth.admin.update_user_by_id(str(user_id), {"password": new_password})
+    except Exception as e:
+        logger.error(f"Failed to set password for {user_id}: {e}")
+        return Response(
+            {"error": "Failed to set password. Please try again."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    logger.info(f"Password set for OAuth user {user_id}")
+    return Response({"message": "Password set successfully."})
