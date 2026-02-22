@@ -75,7 +75,7 @@ export function AccountSettings() {
   }
 
   return (
-    <Card>
+    <Card className="border-border">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div className="flex items-center gap-2">
           <User className="h-4 w-4 text-muted-foreground" />

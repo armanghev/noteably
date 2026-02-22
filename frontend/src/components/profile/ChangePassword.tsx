@@ -104,7 +104,7 @@ export function ChangePassword() {
 
   return (
     <>
-      <Card>
+      <Card className="border-border">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <div className="flex items-center gap-2">
             <Lock className="h-4 w-4 text-muted-foreground" />
@@ -122,7 +122,7 @@ export function ChangePassword() {
       </Card>
 
       <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md border-border">
           {success ? (
             <>
               <DialogHeader>

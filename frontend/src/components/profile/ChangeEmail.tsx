@@ -64,7 +64,7 @@ export function ChangeEmail() {
 
   return (
     <>
-      <Card>
+      <Card className="border-border">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <div className="flex items-center gap-2">
             <Mail className="h-4 w-4 text-muted-foreground" />
@@ -93,7 +93,7 @@ export function ChangeEmail() {
       </Card>
 
       <Dialog open={dialogState !== "idle"} onOpenChange={(open) => !open && handleClose()}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md border-border">
           {dialogState === "form" && (
             <>
               <DialogHeader>
