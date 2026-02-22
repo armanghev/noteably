@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useErrorHandler } from "@/hooks/useErrorHandler";
+import { authService } from "@/lib/api/services/auth";
 import { supabase } from "@/lib/supabase";
 import { Loader2, Lock } from "lucide-react";
 import { useState } from "react";
@@ -33,6 +34,13 @@ export default function LinkAccount() {
       // If successful, mark as verified
       localStorage.setItem(`oauth_link_verified_${user.id}`, "true");
       localStorage.removeItem("oauth_login_flow");
+
+      // Restore metadata that OAuth overwrote (sub, name, full_name, picture, avatar_url)
+      try {
+        await authService.fixOAuthMetadata();
+      } catch (e) {
+        // Non-fatal — metadata fix failure shouldn't block the user
+      }
 
       toast.success("Account linked successfully");
       navigate("/dashboard");

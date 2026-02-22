@@ -17,4 +17,6 @@ export const ROUTES = {
   PROFILE: "/profile",
   ACCOUNT_DELETED: "/account-deleted",
   LINK_ACCOUNT: "/link-account",
+  CONFIRM_EMAIL_CHANGE: "/confirm-email-change",
+  SECURITY_ACTION: "/security-action",
 } as const;

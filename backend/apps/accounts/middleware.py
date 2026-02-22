@@ -53,6 +53,10 @@ def supabase_auth_middleware(get_response):
             "/api/auth/recover",
             "/api/auth/confirm-recovery",
             "/api/auth/confirm-recovery-oauth",
+            "/api/auth/confirm-email-change",
+            "/api/auth/security-action",
+            "/api/auth/security-set-password",
+            "/api/auth/forgot-password/",
         ]
 
         # Paths that still need token validation but must skip the deletion check

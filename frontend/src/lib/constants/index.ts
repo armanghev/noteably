@@ -9,6 +9,11 @@ export const API_ENDPOINTS = {
     DELETE_ACCOUNT: "/auth/me/delete",
     SUBSCRIPTION: "/auth/subscription",
     COMPLETE_PROFILE: "/auth/complete-profile",
+    UPDATE_PROFILE: "/auth/me/update",
+    REQUEST_EMAIL_CHANGE: "/auth/me/request-email-change",
+    CONFIRM_EMAIL_CHANGE: "/auth/confirm-email-change",
+    CHANGE_PASSWORD: "/auth/me/change-password",
+    SET_PASSWORD: "/auth/me/set-password",
   },
   JOBS: {
     PROCESS: "/process",

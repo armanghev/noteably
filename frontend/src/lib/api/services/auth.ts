@@ -156,4 +156,70 @@ export const authService = {
     });
     return response.data;
   },
+
+  updateProfile: async (data: {
+    first_name?: string;
+    last_name?: string;
+    phone_number?: string;
+  }): Promise<void> => {
+    await apiClient.put(API_ENDPOINTS.AUTH.UPDATE_PROFILE, data);
+  },
+
+  requestEmailOtp: async (): Promise<void> => {
+    await apiClient.post("/auth/me/request-email-otp");
+  },
+
+  verifyEmailOtp: async (otp: string): Promise<void> => {
+    await apiClient.post("/auth/me/verify-email-otp", { otp });
+  },
+
+  requestEmailChange: async (newEmail: string): Promise<void> => {
+    await apiClient.post(API_ENDPOINTS.AUTH.REQUEST_EMAIL_CHANGE, {
+      new_email: newEmail,
+    });
+  },
+
+  confirmEmailChange: async (token: string): Promise<{ new_email: string }> => {
+    const response = await apiClient.post(API_ENDPOINTS.AUTH.CONFIRM_EMAIL_CHANGE, { token });
+    return response.data;
+  },
+
+  changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
+    await apiClient.post(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+  },
+
+  setPassword: async (newPassword: string): Promise<void> => {
+    await apiClient.post(API_ENDPOINTS.AUTH.SET_PASSWORD, {
+      new_password: newPassword,
+    });
+  },
+
+  fixOAuthMetadata: async (): Promise<void> => {
+    await apiClient.post("/auth/me/fix-oauth-metadata");
+  },
+
+  forgotPasswordRequestOtp: async (email: string): Promise<void> => {
+    await apiClient.post("/auth/forgot-password/request-otp", { email });
+  },
+
+  forgotPasswordVerifyOtp: async (
+    email: string,
+    otp: string
+  ): Promise<{ reset_session_token: string }> => {
+    const response = await apiClient.post("/auth/forgot-password/verify-otp", { email, otp });
+    return response.data;
+  },
+
+  forgotPasswordReset: async (
+    resetSessionToken: string,
+    newPassword: string
+  ): Promise<void> => {
+    await apiClient.post("/auth/forgot-password/reset", {
+      reset_session_token: resetSessionToken,
+      new_password: newPassword,
+    });
+  },
 };

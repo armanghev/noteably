@@ -185,3 +185,50 @@ def send_account_deleted_email(to_email: str, first_name: str = "there"):
     )
 
     return send_email(to_email, subject, html_content)
+
+
+def send_email_change_otp_email(to_email: str, first_name: str, otp: str):
+    """Send 6-digit OTP to current email to verify identity before changing email."""
+    subject = "Your Noteably email change verification code"
+    html_content = render_to_string(
+        "emails/email_change_otp.html",
+        {"first_name": first_name, "otp": otp},
+    )
+    return send_email(to_email, subject, html_content)
+
+
+def send_email_change_notification(to_email: str, first_name: str, new_email: str, security_link: str):
+    """Send security notification to OLD email when email change is initiated."""
+    subject = "Your Noteably email was changed"
+    html_content = render_to_string(
+        "emails/email_change_notification.html",
+        {
+            "first_name": first_name,
+            "new_email": new_email,
+            "security_link": security_link,
+        },
+    )
+    return send_email(to_email, subject, html_content)
+
+
+def send_password_reset_otp_email(to_email: str, first_name: str, otp: str):
+    """Send 6-digit OTP to user's email for password reset."""
+    subject = "Your Noteably password reset code"
+    html_content = render_to_string(
+        "emails/password_reset_otp.html",
+        {"first_name": first_name, "otp": otp},
+    )
+    return send_email(to_email, subject, html_content)
+
+
+def send_password_changed_notification(to_email: str, first_name: str, security_link: str):
+    """Send security notification when password is changed."""
+    subject = "Your Noteably password was changed"
+    html_content = render_to_string(
+        "emails/password_changed_notification.html",
+        {
+            "first_name": first_name,
+            "security_link": security_link,
+        },
+    )
+    return send_email(to_email, subject, html_content)

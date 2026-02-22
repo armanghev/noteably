@@ -32,6 +32,9 @@ import { useCallback, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { APIKeys } from "@/components/profile/APIKeys";
+import { AccountSettings } from "@/components/profile/AccountSettings";
+import { ChangeEmail } from "@/components/profile/ChangeEmail";
+import { ChangePassword } from "@/components/profile/ChangePassword";
 import { ROUTES } from "@/router/routes";
 
 export default function Profile() {
@@ -162,6 +165,7 @@ export default function Profile() {
         <Tabs defaultValue="general" className="w-full">
           <TabsList className="mb-4 bg-background border border-border/50">
             <TabsTrigger value="general">General</TabsTrigger>
+            <TabsTrigger value="account">Account</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
             <TabsTrigger value="developers">Developers</TabsTrigger>
           </TabsList>
@@ -311,6 +315,12 @@ export default function Profile() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="account" className="space-y-6">
+            <AccountSettings />
+            <ChangeEmail />
+            <ChangePassword />
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">

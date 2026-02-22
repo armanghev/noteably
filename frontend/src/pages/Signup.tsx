@@ -6,9 +6,12 @@ import { useErrorHandler } from "@/hooks/useErrorHandler";
 import { authService } from "@/lib/api/services/auth";
 import { supabase } from "@/lib/supabase";
 import type { ApiError } from "@/types";
+import { PhoneInput, isValidPhone } from "@/components/ui/phone-input";
 import {
   Camera,
   Check,
+  Eye,
+  EyeOff,
   FileText,
   FlaskConical,
   Layers,
@@ -49,6 +52,8 @@ export default function Signup() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isEmailForm, setIsEmailForm] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Profile step
   const [firstName, setFirstName] = useState("");
@@ -148,6 +153,10 @@ export default function Signup() {
     e.preventDefault();
     if (!firstName.trim() || !lastName.trim()) {
       handleError({ message: "First name and last name are required" });
+      return;
+    }
+    if (phoneNumber && !isValidPhone(phoneNumber)) {
+      handleError({ message: "Please enter a valid phone number." });
       return;
     }
     try {
@@ -470,17 +479,28 @@ export default function Signup() {
                     >
                       Password
                     </label>
-                    <input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-muted/50 border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                      placeholder="••••••••"
-                      required
-                      disabled={loading}
-                      minLength={6}
-                    />
+                    <div className="relative">
+                      <input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full px-4 py-3 pr-12 rounded-xl bg-muted/50 border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        placeholder="••••••••"
+                        required
+                        disabled={loading}
+                        minLength={6}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        tabIndex={-1}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div
                     className="animate-slideDown"
@@ -492,17 +512,28 @@ export default function Signup() {
                     >
                       Confirm Password
                     </label>
-                    <input
-                      id="confirmPassword"
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl bg-muted/50 border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                      placeholder="••••••••"
-                      required
-                      disabled={loading}
-                      minLength={6}
-                    />
+                    <div className="relative">
+                      <input
+                        id="confirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full px-4 py-3 pr-12 rounded-xl bg-muted/50 border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        placeholder="••••••••"
+                        required
+                        disabled={loading}
+                        minLength={6}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        tabIndex={-1}
+                        aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div
                     className="animate-slideDown"
@@ -660,14 +691,12 @@ export default function Signup() {
                       (optional)
                     </span>
                   </label>
-                  <input
-                    id="phone"
-                    type="tel"
+                  <PhoneInput
                     value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-input border border-border focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary transition-all"
-                    placeholder="+1 (555) 123-4567"
+                    onChange={setPhoneNumber}
                     disabled={profileLoading}
+                    placeholder="Phone number"
+                    className="rounded-xl bg-input border-border focus-within:ring-ring/20"
                   />
                 </div>
 

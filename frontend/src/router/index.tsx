@@ -4,6 +4,8 @@ import { ROUTES } from "./routes";
 
 // Import pages
 import AccountDeleted from "@/pages/AccountDeleted";
+import ConfirmEmailChange from "@/pages/ConfirmEmailChange";
+import SecurityAction from "@/pages/SecurityAction";
 import Dashboard from "@/pages/Dashboard";
 import FlashcardDeck from "@/pages/FlashcardDeck";
 import Flashcards from "@/pages/Flashcards";
@@ -49,6 +51,14 @@ export const router = createBrowserRouter([
   {
     path: ROUTES.LINK_ACCOUNT,
     element: <LinkAccount />,
+  },
+  {
+    path: ROUTES.CONFIRM_EMAIL_CHANGE,
+    element: <ConfirmEmailChange />,
+  },
+  {
+    path: ROUTES.SECURITY_ACTION,
+    element: <SecurityAction />,
   },
   // Protected routes
   {

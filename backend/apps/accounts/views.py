@@ -16,6 +16,10 @@ from apps.core.supabase_client import supabase_client
 from apps.core.utils.email import (
     send_deletion_confirmation_email,
     send_welcome_email,
+    send_email_change_notification,
+    send_email_change_otp_email,
+    send_password_changed_notification,
+    send_password_reset_otp_email,
 )
 from apps.core.utils.token import (
     generate_recovery_token,
@@ -24,6 +28,26 @@ from apps.core.utils.token import (
     verify_recovery_session_token,
     mark_recovery_token_used,
     is_recovery_token_used,
+    generate_email_change_token,
+    verify_email_change_token,
+    is_email_change_token_used,
+    mark_email_change_token_used,
+    generate_security_action_token,
+    verify_security_action_token,
+    generate_security_reset_token,
+    verify_security_reset_token,
+    is_security_reset_token_used,
+    mark_security_reset_token_used,
+    generate_email_otp,
+    verify_email_otp,
+    is_email_otp_verified,
+    consume_email_otp_verified,
+    generate_password_reset_otp,
+    verify_password_reset_otp,
+    generate_password_reset_session_token,
+    verify_password_reset_session_token,
+    is_password_reset_session_token_used,
+    mark_password_reset_session_token_used,
 )
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -188,6 +212,7 @@ def complete_profile(request):
 
     import requests as http_requests
 
+    import re
     first_name = request.data.get("first_name", "").strip()
     last_name = request.data.get("last_name", "").strip()
     phone_number = request.data.get("phone_number", "").strip() or None
@@ -195,6 +220,11 @@ def complete_profile(request):
     if not first_name or not last_name:
         return Response(
             {"error": "First name and last name are required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if phone_number and not re.match(r'^\+1\d{10}$', phone_number):
+        return Response(
+            {"error": "Phone number must be a valid US number (e.g. +18188188181)."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -217,6 +247,40 @@ def complete_profile(request):
 
         is_first_completion = not user_metadata.get("profile_completed", False)
 
+        full_name = f"{first_name} {last_name}"
+
+        # Always restore sub to the user's UUID — OAuth providers overwrite this
+        # with their own ID (e.g. Google sets sub = "101605686807973513443")
+        user_id = request.user_id
+
+        # Check if the user has an uploaded avatar in Supabase storage.
+        # If so, restore picture/avatar_url to preserve it over any OAuth-injected photo.
+        storage_bucket = os.getenv("SUPABASE_STORAGE_BUCKET", "avatars")
+        avatar_storage_url = (
+            f"{supabase_url}/storage/v1/object/public/{storage_bucket}/{user_id}/avatar.jpg"
+        )
+        uploaded_picture = None
+        try:
+            head_resp = http_requests.head(avatar_storage_url, timeout=5)
+            if head_resp.status_code == 200:
+                import time
+                uploaded_picture = f"{avatar_storage_url}?t={int(time.time())}"
+        except Exception:
+            pass  # Can't reach storage; leave picture/avatar_url as-is
+
+        metadata_payload = {
+            "first_name": first_name,
+            "last_name": last_name,
+            "full_name": full_name,
+            "name": full_name,
+            "phone_number": phone_number,
+            "profile_completed": True,
+            "sub": user_id,
+        }
+        if uploaded_picture:
+            metadata_payload["picture"] = uploaded_picture
+            metadata_payload["avatar_url"] = uploaded_picture
+
         # Use the user endpoint with their JWT — avoids admin API restrictions
         resp = http_requests.put(
             f"{supabase_url}/auth/v1/user",
@@ -225,14 +289,7 @@ def complete_profile(request):
                 "apikey": service_key,
                 "Content-Type": "application/json",
             },
-            json={
-                "data": {
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "phone_number": phone_number,
-                    "profile_completed": True,
-                }
-            },
+            json={"data": metadata_payload},
             timeout=10,
         )
         resp.raise_for_status()
@@ -921,5 +978,742 @@ def restore_account(request):
         logger.error(f"Failed to restore account: {e}")
         return Response(
             {"error": "Failed to restore account"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["PUT"])
+@permission_classes([IsAuthenticated])
+def update_profile(request):
+    """Update name and/or phone number."""
+    from .serializers import UpdateProfileSerializer
+
+    serializer = UpdateProfileSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+    user_token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
+    if not user_token:
+        return Response({"error": "Missing token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    supabase_url = os.getenv("SUPABASE_URL")
+    service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+    metadata_update = {}
+    for field in ("first_name", "last_name", "phone_number"):
+        if field in serializer.validated_data:
+            metadata_update[field] = serializer.validated_data[field]
+
+    # If either name component changed, rebuild name/full_name from the merged result
+    if "first_name" in metadata_update or "last_name" in metadata_update:
+        existing_meta = request.user.data.get("user_metadata", {}) or {}
+        merged_first = metadata_update.get("first_name", existing_meta.get("first_name", ""))
+        merged_last = metadata_update.get("last_name", existing_meta.get("last_name", ""))
+        full_name = f"{merged_first} {merged_last}".strip()
+        metadata_update["full_name"] = full_name
+        metadata_update["name"] = full_name
+
+    try:
+        resp = http_requests.put(
+            f"{supabase_url}/auth/v1/user",
+            headers={
+                "Authorization": f"Bearer {user_token}",
+                "apikey": service_key,
+                "Content-Type": "application/json",
+            },
+            json={"data": metadata_update},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        logger.info(f"Profile updated for user {request.user_id}")
+        return Response({
+            "message": "Profile updated successfully",
+            "phone_verified": False,
+            **metadata_update,
+        })
+    except http_requests.HTTPError as e:
+        error_body = e.response.json() if e.response is not None else {}
+        error_msg = error_body.get("msg") or error_body.get("message") or str(e)
+        logger.error(f"Profile update failed for {request.user_id}: {error_msg}")
+        return Response({"error": error_msg}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        logger.error(f"Profile update failed for {request.user_id}: {e}")
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def request_email_otp(request):
+    """Step 1: Send a 6-digit OTP to the user's current email to verify identity."""
+    user_id = request.user_id
+    user_email = request.user.email
+    user_metadata = request.user.data.get("user_metadata", {}) or {}
+    first_name = user_metadata.get("first_name", "there")
+
+    otp = generate_email_otp(user_id)
+    try:
+        send_email_change_otp_email(user_email, first_name, otp)
+    except Exception as e:
+        logger.error(f"Failed to send email change OTP to {user_email}: {e}")
+        return Response(
+            {"error": "Failed to send verification code. Please try again."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    logger.info(f"Email change OTP sent to {user_email} for user {user_id}")
+    return Response({"message": "Verification code sent to your current email."})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def verify_email_change_otp(request):
+    """Step 2: Verify the 6-digit OTP. On success, allows the user to submit a new email."""
+    from .serializers import VerifyEmailOTPSerializer
+
+    serializer = VerifyEmailOTPSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    otp = serializer.validated_data["otp"]
+    user_id = request.user_id
+
+    if not verify_email_otp(user_id, otp):
+        return Response(
+            {"error": "Invalid or expired verification code."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    logger.info(f"Email change OTP verified for user {user_id}")
+    return Response({"message": "Code verified. You may now enter your new email."})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def request_email_change(request):
+    """Step 3: Submit new email. Requires OTP to have been verified first (step 2)."""
+    from .serializers import ChangeEmailSerializer
+
+    if not is_email_otp_verified(request.user_id):
+        return Response(
+            {"error": "Please verify your identity with the code sent to your current email first."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    serializer = ChangeEmailSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    new_email = serializer.validated_data["new_email"]
+    user_email = request.user.email
+    user_id = request.user_id
+
+    user_metadata = request.user.data.get("user_metadata", {}) or {}
+    first_name = user_metadata.get("first_name", "there")
+
+    if new_email == user_email:
+        return Response(
+            {"error": "New email must be different from your current email."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Consume the verified state so it can't be reused
+    consume_email_otp_verified(user_id)
+
+    # Generate confirmation token and send to new email
+    token = generate_email_change_token(user_id, new_email)
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    confirmation_link = f"{frontend_url}/confirm-email-change?token={token}"
+
+    from apps.core.utils.email import send_email
+    html = f"""
+    <div style="font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 40px; background: #fff; border-radius: 24px;">
+        <h1 style="color: #4a6b50; text-align: center;">Noteably</h1>
+        <h2 style="text-align: center;">Confirm Your New Email</h2>
+        <p>Hello {first_name},</p>
+        <p>You requested to change your Noteably email address to <strong>{new_email}</strong>. Click the button below to confirm.</p>
+        <div style="text-align: center; margin: 32px 0;">
+            <a href="{confirmation_link}" style="background: #4a6b50; color: #fff; padding: 14px 32px; border-radius: 99px; text-decoration: none; font-weight: 600;">Confirm New Email</a>
+        </div>
+        <p style="font-size: 14px; color: #6b7280;">This link expires in 24 hours. If you didn't request this, ignore this email.</p>
+    </div>
+    """
+    send_email(new_email, "Confirm Your New Email - Noteably", html)
+
+    # Security notification to old email
+    security_token = generate_security_action_token(user_id, action_type="email_change", old_email=user_email)
+    security_link = f"{frontend_url}/security-action?token={security_token}"
+    try:
+        send_email_change_notification(user_email, first_name, new_email, security_link)
+    except Exception as e:
+        logger.error(f"Failed to send email change notification: {e}")
+
+    logger.info(f"Email change requested for user {user_id}: {user_email} -> {new_email}")
+    return Response({
+        "message": f"Confirmation email sent to {new_email}.",
+        "confirmation_sent_to": new_email,
+    })
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def confirm_email_change(request):
+    """Confirm email change using verification token from email link."""
+    token = request.data.get("token")
+    if not token:
+        return Response({"error": "Token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if is_email_change_token_used(token):
+        return Response(
+            {"error": "This verification link has already been used."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        payload = verify_email_change_token(token)
+    except Exception:
+        return Response(
+            {"error": "Invalid or expired verification link."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    user_id = payload["user_id"]
+    new_email = payload["new_email"]
+
+    # Update email via Supabase admin API (also sync the email field in user_metadata)
+    try:
+        supabase_url = os.getenv("SUPABASE_URL")
+        service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        from supabase import create_client as create_supabase_client
+        sb = create_supabase_client(supabase_url, service_key)
+        sb.auth.admin.update_user_by_id(user_id, {
+            "email": new_email,
+            "user_metadata": {"email": new_email},
+        })
+    except Exception as e:
+        logger.error(f"Failed to update email for user {user_id}: {e}")
+        return Response(
+            {"error": "Failed to update email. Please try again."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    mark_email_change_token_used(token)
+    logger.info(f"Email changed for user {user_id} to {new_email}")
+    return Response({
+        "message": "Email changed successfully.",
+        "new_email": new_email,
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    """Change password for users who have an existing password."""
+    from .serializers import ChangePasswordSerializer
+
+    serializer = ChangePasswordSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    current_password = serializer.validated_data["current_password"]
+    new_password = serializer.validated_data["new_password"]
+    user_email = request.user.email
+    user_id = request.user_id
+
+    user_metadata = request.user.data.get("user_metadata", {}) or {}
+    first_name = user_metadata.get("first_name", "there")
+
+    # Verify current password
+    supabase_url = os.getenv("SUPABASE_URL")
+    service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    try:
+        resp = http_requests.post(
+            f"{supabase_url}/auth/v1/token?grant_type=password",
+            headers={"apikey": service_key, "Content-Type": "application/json"},
+            json={"email": user_email, "password": current_password},
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            return Response(
+                {"error": "Current password is incorrect."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+    except Exception as e:
+        logger.error(f"Password verification failed: {e}")
+        return Response(
+            {"error": "Current password is incorrect."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    # Check new password isn't same as current
+    try:
+        resp2 = http_requests.post(
+            f"{supabase_url}/auth/v1/token?grant_type=password",
+            headers={"apikey": service_key, "Content-Type": "application/json"},
+            json={"email": user_email, "password": new_password},
+            timeout=10,
+        )
+        if resp2.status_code == 200:
+            return Response(
+                {"error": "New password must be different from your current password."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+    except Exception:
+        pass  # Sign-in failed = passwords differ, which is what we want
+
+    # Update password using the user's own JWT so only other sessions are invalidated,
+    # not the current one. (Admin API would wipe all sessions including this one.)
+    auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+    user_token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
+    try:
+        pw_resp = http_requests.put(
+            f"{supabase_url}/auth/v1/user",
+            headers={
+                "Authorization": f"Bearer {user_token}",
+                "apikey": service_key,
+                "Content-Type": "application/json",
+            },
+            json={"password": new_password},
+            timeout=10,
+        )
+        pw_resp.raise_for_status()
+    except http_requests.HTTPError as e:
+        error_body = e.response.json() if e.response is not None else {}
+        error_msg = error_body.get("msg") or error_body.get("message") or str(e)
+        logger.error(f"Failed to update password for {user_id}: {error_msg}")
+        return Response(
+            {"error": "Failed to change password. Please try again."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    except Exception as e:
+        logger.error(f"Failed to update password for {user_id}: {e}")
+        return Response(
+            {"error": "Failed to change password. Please try again."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    # Send security notification
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    security_token = generate_security_action_token(user_id, action_type="password_change")
+    security_link = f"{frontend_url}/security-action?token={security_token}"
+    try:
+        send_password_changed_notification(user_email, first_name, security_link)
+    except Exception as e:
+        logger.error(f"Failed to send password change notification: {e}")
+
+    logger.info(f"Password changed for user {user_id}")
+    return Response({"message": "Password changed successfully."})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def set_password(request):
+    """Set password for OAuth-only users who don't have one yet."""
+    from .serializers import SetPasswordSerializer
+
+    serializer = SetPasswordSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    new_password = serializer.validated_data["new_password"]
+    user_id = request.user_id
+
+    # Check if user already has a password (email provider)
+    user_metadata = request.user.data.get("app_metadata", {}) or {}
+    providers = user_metadata.get("providers", [])
+    if "email" in providers:
+        return Response(
+            {"error": "You already have a password. Use the change password option instead."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Set password via admin API
+    try:
+        supabase_url = os.getenv("SUPABASE_URL")
+        service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        from supabase import create_client as create_supabase_client
+        sb = create_supabase_client(supabase_url, service_key)
+        sb.auth.admin.update_user_by_id(str(user_id), {"password": new_password})
+    except Exception as e:
+        logger.error(f"Failed to set password for {user_id}: {e}")
+        return Response(
+            {"error": "Failed to set password. Please try again."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    logger.info(f"Password set for OAuth user {user_id}")
+    return Response({"message": "Password set successfully."})
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def security_action(request):
+    """Handle 'wasn't me' link: secure the account based on what action triggered the alert.
+
+    - email_change: revert the email to old_email, invalidate all sessions.
+      The user still knows their password so they can log straight back in.
+    - password_change / generic: reset password to random, invalidate sessions,
+      then trigger a Supabase password-reset email so the user can regain access.
+    """
+    token = request.data.get("token")
+    if not token:
+        return Response({"error": "Token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        payload = verify_security_action_token(token)
+    except Exception:
+        return Response(
+            {"error": "Invalid or expired security link. Your account may have already been secured."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    user_id = payload["user_id"]
+    action_type = payload.get("action_type", "generic")
+    old_email = payload.get("old_email")
+
+    supabase_url = os.getenv("SUPABASE_URL")
+    service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+    try:
+        from supabase import create_client as create_supabase_client
+        sb = create_supabase_client(supabase_url, service_key)
+
+        if action_type == "email_change" and old_email:
+            # Revert auth email and metadata email back to the original address.
+            # No password reset — the user still knows their password.
+            sb.auth.admin.update_user_by_id(str(user_id), {
+                "email": old_email,
+                "user_metadata": {"email": old_email},
+            })
+
+            # Invalidate all active sessions via admin API.
+            sessions_resp = http_requests.delete(
+                f"{supabase_url}/auth/v1/admin/users/{user_id}/sessions",
+                headers={
+                    "Authorization": f"Bearer {service_key}",
+                    "apikey": service_key,
+                },
+                timeout=10,
+            )
+            if sessions_resp.status_code not in (200, 204):
+                logger.warning(
+                    f"Session deletion may have failed for user {user_id}: "
+                    f"status={sessions_resp.status_code} body={sessions_resp.text}"
+                )
+
+            logger.info(f"Security action (email_change): email reverted to {old_email} for user {user_id}")
+            return Response({
+                "message": (
+                    f"Your email has been reverted to {old_email} and all sessions have been signed out. "
+                    "You can log back in with your original email and password."
+                ),
+            })
+
+        else:
+            # password_change or generic: reset to random password, invalidate all sessions,
+            # then return a short-lived reset_session_token so the user can set a new password
+            # directly on this page — no Supabase recovery email needed.
+            import secrets
+            random_password = secrets.token_urlsafe(32)
+
+            sb.auth.admin.update_user_by_id(str(user_id), {"password": random_password})
+
+            # Invalidate all active sessions
+            http_requests.delete(
+                f"{supabase_url}/auth/v1/admin/users/{user_id}/sessions",
+                headers={
+                    "Authorization": f"Bearer {service_key}",
+                    "apikey": service_key,
+                },
+                timeout=10,
+            )
+
+            # Issue a short-lived (30-min) reset token so the frontend can let the user
+            # set a new password without receiving a separate Supabase recovery email.
+            reset_token = generate_security_reset_token(UUID(user_id))
+
+            logger.info(f"Security action (password_change): password reset + sessions invalidated for user {user_id}")
+            return Response({
+                "action_type": "password_change",
+                "reset_session_token": reset_token,
+                "message": (
+                    "Your account has been secured and all sessions have been signed out. "
+                    "Please set a new password below."
+                ),
+            })
+
+    except Exception as e:
+        logger.error(f"Security action failed for user {user_id}: {e}")
+        return Response(
+            {"error": "Failed to secure account. Please contact support."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def security_set_password(request):
+    """Set a new password after a 'wasn't me' security action.
+
+    Called by the SecurityAction page when action_type == 'password_change'.
+    Accepts the reset_session_token returned by security_action and the new password.
+    """
+    reset_session_token = request.data.get("reset_session_token")
+    new_password = request.data.get("new_password")
+
+    if not reset_session_token or not new_password:
+        return Response(
+            {"error": "reset_session_token and new_password are required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if is_security_reset_token_used(reset_session_token):
+        return Response(
+            {"error": "This reset link has already been used."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    try:
+        payload = verify_security_reset_token(reset_session_token)
+        user_id = payload.get("user_id")
+        if not user_id:
+            raise signing.BadSignature("Missing user_id")
+    except signing.BadSignature:
+        return Response(
+            {"error": "Invalid or expired reset link."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    is_valid_password, error_msg = validate_password_strength(new_password)
+    if not is_valid_password:
+        return Response({"error": error_msg}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+    try:
+        from supabase import create_client as create_supabase_client
+        sb = create_supabase_client(
+            os.getenv("SUPABASE_URL"),
+            os.getenv("SUPABASE_SERVICE_ROLE_KEY"),
+        )
+        sb.auth.admin.update_user_by_id(str(user_id), {"password": new_password})
+        logger.info(f"Password set via security reset token for user {user_id}")
+    except Exception as e:
+        logger.error(f"Failed to set password via security reset for {user_id}: {e}")
+        return Response(
+            {"error": "Failed to set new password. Please try again."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    mark_security_reset_token_used(reset_session_token)
+    return Response({"message": "Password updated successfully. You can now log in."})
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def forgot_password_request_otp(request):
+    """Step 1: Send a 6-digit OTP to the email address for password reset.
+
+    Always returns the same generic message regardless of whether the account exists
+    to avoid leaking user existence information.
+    """
+    email = request.data.get("email", "").strip().lower()
+    if not email:
+        return Response({"error": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    otp = generate_password_reset_otp(email)
+
+    supabase_url = os.getenv("SUPABASE_URL")
+    service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+    # Look up user to personalise email; silently skip sending if user doesn't exist
+    try:
+        resp = http_requests.get(
+            f"{supabase_url}/auth/v1/admin/users",
+            params={"filter": email, "page": 1, "per_page": 1},
+            headers={"Authorization": f"Bearer {service_key}", "apikey": service_key},
+            timeout=10,
+        )
+        users = resp.json().get("users", [])
+        if users:
+            user_meta = users[0].get("user_metadata", {}) or {}
+            first_name = user_meta.get("first_name", "there")
+            send_password_reset_otp_email(email, first_name, otp)
+            logger.info(f"Password reset OTP sent to {email}")
+        else:
+            logger.info(f"Password reset OTP requested for unknown email: {email}")
+    except Exception as e:
+        logger.error(f"Failed to process password reset OTP request for {email}: {e}")
+
+    return Response({
+        "message": "If an account exists for that email, you'll receive a code shortly."
+    })
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def forgot_password_verify_otp(request):
+    """Step 2: Verify the 6-digit OTP and return a short-lived reset session token."""
+    email = request.data.get("email", "").strip().lower()
+    otp = request.data.get("otp", "").strip()
+
+    if not email or not otp:
+        return Response(
+            {"error": "Email and OTP are required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not verify_password_reset_otp(email, otp):
+        return Response(
+            {"error": "Invalid or expired code. Please try again."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Look up user_id by email to embed in the reset token
+    supabase_url = os.getenv("SUPABASE_URL")
+    service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    try:
+        resp = http_requests.get(
+            f"{supabase_url}/auth/v1/admin/users",
+            params={"filter": email, "page": 1, "per_page": 1},
+            headers={"Authorization": f"Bearer {service_key}", "apikey": service_key},
+            timeout=10,
+        )
+        users = resp.json().get("users", [])
+        if not users:
+            logger.warning(f"OTP verified for non-existent email: {email}")
+            return Response(
+                {"error": "Invalid or expired code. Please try again."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user_id = users[0]["id"]
+    except Exception as e:
+        logger.error(f"Failed to look up user for password reset: {e}")
+        return Response(
+            {"error": "Something went wrong. Please try again."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    reset_token = generate_password_reset_session_token(UUID(user_id))
+    logger.info(f"Password reset session token issued for user {user_id}")
+    return Response({"reset_session_token": reset_token})
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def forgot_password_reset(request):
+    """Step 3: Set a new password using the reset session token from step 2."""
+    reset_session_token = request.data.get("reset_session_token")
+    new_password = request.data.get("new_password")
+
+    if not reset_session_token or not new_password:
+        return Response(
+            {"error": "reset_session_token and new_password are required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if is_password_reset_session_token_used(reset_session_token):
+        return Response(
+            {"error": "This reset link has already been used."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    try:
+        payload = verify_password_reset_session_token(reset_session_token)
+        user_id = payload.get("user_id")
+        if not user_id:
+            raise signing.BadSignature("Missing user_id")
+    except signing.BadSignature:
+        return Response(
+            {"error": "Invalid or expired reset token."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    is_valid, error_msg = validate_password_strength(new_password)
+    if not is_valid:
+        return Response({"error": error_msg}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+    try:
+        from supabase import create_client as create_supabase_client
+        sb = create_supabase_client(
+            os.getenv("SUPABASE_URL"),
+            os.getenv("SUPABASE_SERVICE_ROLE_KEY"),
+        )
+        sb.auth.admin.update_user_by_id(str(user_id), {"password": new_password})
+        logger.info(f"Password reset via forgot-password flow for user {user_id}")
+    except Exception as e:
+        logger.error(f"Failed to reset password for {user_id}: {e}")
+        return Response(
+            {"error": "Failed to reset password. Please try again."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    mark_password_reset_session_token_used(reset_session_token)
+    return Response({"message": "Password reset successfully. You can now log in."})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def fix_oauth_metadata(request):
+    """
+    Restore correct metadata after OAuth sign-in overwrites it.
+
+    Called from the frontend after an existing email user links/signs in via OAuth.
+    Supabase OAuth merges metadata and overwrites sub, name, full_name, picture,
+    and avatar_url with provider values. This endpoint corrects them back.
+    """
+    auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+    user_token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
+    if not user_token:
+        return Response({"error": "Missing token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    supabase_url = os.getenv("SUPABASE_URL")
+    service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    user_id = request.user_id
+
+    user_metadata = request.user.data.get("user_metadata", {}) or {}
+    first_name = user_metadata.get("first_name", "")
+    last_name = user_metadata.get("last_name", "")
+    full_name = f"{first_name} {last_name}".strip()
+
+    # Check for user-uploaded avatar in Supabase storage
+    storage_bucket = os.getenv("SUPABASE_STORAGE_BUCKET", "avatars")
+    avatar_storage_url = (
+        f"{supabase_url}/storage/v1/object/public/{storage_bucket}/{user_id}/avatar.jpg"
+    )
+    uploaded_picture = None
+    try:
+        import time
+        head_resp = http_requests.head(avatar_storage_url, timeout=5)
+        if head_resp.status_code == 200:
+            uploaded_picture = f"{avatar_storage_url}?t={int(time.time())}"
+    except Exception:
+        pass
+
+    metadata_payload = {
+        "sub": user_id,
+        "name": full_name,
+        "full_name": full_name,
+    }
+    if uploaded_picture:
+        metadata_payload["picture"] = uploaded_picture
+        metadata_payload["avatar_url"] = uploaded_picture
+
+    try:
+        resp = http_requests.put(
+            f"{supabase_url}/auth/v1/user",
+            headers={
+                "Authorization": f"Bearer {user_token}",
+                "apikey": service_key,
+                "Content-Type": "application/json",
+            },
+            json={"data": metadata_payload},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        logger.info(f"OAuth metadata restored for user {user_id}")
+        return Response({"message": "Metadata restored."})
+    except Exception as e:
+        logger.error(f"Failed to fix OAuth metadata for {user_id}: {e}")
+        return Response(
+            {"error": "Failed to restore metadata."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )

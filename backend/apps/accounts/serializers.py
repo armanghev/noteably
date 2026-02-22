@@ -28,3 +28,63 @@ class CreateAPIKeySerializer(serializers.Serializer):
     """
 
     name = serializers.CharField(max_length=100)
+
+
+class UpdateProfileSerializer(serializers.Serializer):
+    first_name = serializers.CharField(max_length=50, required=False)
+    last_name = serializers.CharField(max_length=50, required=False)
+    phone_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
+
+    def validate_phone_number(self, value):
+        if not value:
+            return value
+        import re
+        if not re.match(r'^\+1\d{10}$', value):
+            raise serializers.ValidationError(
+                "Phone number must be a valid US number (e.g. +18188188181)."
+            )
+        return value
+
+    def validate(self, data):
+        if not data:
+            raise serializers.ValidationError("At least one field must be provided.")
+        return data
+
+
+class VerifyEmailOTPSerializer(serializers.Serializer):
+    otp = serializers.CharField(min_length=6, max_length=6, required=True)
+
+    def validate_otp(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("OTP must be a 6-digit number.")
+        return value
+
+
+class ChangeEmailSerializer(serializers.Serializer):
+    new_email = serializers.EmailField(required=True)
+
+    def validate_new_email(self, value):
+        return value.lower().strip()
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(required=True, write_only=True)
+    new_password = serializers.CharField(required=True, write_only=True)
+
+    def validate_new_password(self, value):
+        from apps.accounts.views import validate_password_strength
+        is_valid, error_msg = validate_password_strength(value)
+        if not is_valid:
+            raise serializers.ValidationError(error_msg)
+        return value
+
+
+class SetPasswordSerializer(serializers.Serializer):
+    new_password = serializers.CharField(required=True, write_only=True)
+
+    def validate_new_password(self, value):
+        from apps.accounts.views import validate_password_strength
+        is_valid, error_msg = validate_password_strength(value)
+        if not is_valid:
+            raise serializers.ValidationError(error_msg)
+        return value
