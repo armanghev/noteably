@@ -306,3 +306,5 @@ artifacts/
 docs/
 .DS_Store
 .vercel
+taskman/
+TASKS.md
