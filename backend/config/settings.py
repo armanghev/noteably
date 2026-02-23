@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.accounts",
     "apps.ingestion",
+    "apps.cloud",
     "apps.transcription",
     "apps.generation",
     "apps.export",
@@ -234,15 +235,14 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 
-# Cloudflare R2 Settings (DEPRECATED - Migrated to Supabase Storage)
-# Kept for migration purposes only
+# Cloudflare R2 Storage (primary storage for job uploads and exports)
 R2_ENDPOINT = os.getenv("R2_ENDPOINT")
 R2_BUCKET = os.getenv("R2_BUCKET", "noteably-files")
 R2_ACCESS_KEY = os.getenv("R2_ACCESS_KEY")
 R2_SECRET_KEY = os.getenv("R2_SECRET_KEY")
-R2_PUBLIC_URL = os.getenv("R2_PUBLIC_URL")
+R2_PUBLIC_URL = os.getenv("R2_PUBLIC_URL")  # Public base URL for objects (e.g. custom domain or r2.dev)
 
-# Supabase Storage Bucket
+# Supabase Storage (avatars only; job files use R2)
 SUPABASE_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "noteably")
 
 # AssemblyAI Settings
