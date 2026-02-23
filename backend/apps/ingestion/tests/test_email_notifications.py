@@ -104,7 +104,7 @@ class EmailNotificationTests(SimpleTestCase):
                 patch("apps.ingestion.views.get_file_duration"),
                 patch("apps.ingestion.views.check_user_quota"),
                 patch(
-                    "apps.ingestion.views.upload_to_supabase",
+                    "apps.ingestion.views.upload_to_r2",
                     return_value="http://storage.url",
                 ),
             ):

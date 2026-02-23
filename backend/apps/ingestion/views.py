@@ -10,10 +10,10 @@ from rest_framework.response import Response
 from .models import Job
 from .quota import check_user_quota
 from .serializers import ProcessUploadSerializer, ProcessYoutubeSerializer
-from .supabase_storage import (
+from .r2_storage import (
     delete_job_folder,
     get_signed_url_from_storage_url,
-    upload_to_supabase,
+    upload_to_r2,
 )
 from .tasks import orchestrate_job_task, download_youtube_video_task
 from .validators import get_file_duration, validate_file_size, validate_file_type
@@ -53,10 +53,10 @@ def process_upload(request):
         status="uploading",  # Start with uploading status
     )
 
-    # Upload file to Supabase Storage synchronously (works in Docker with separate containers)
+    # Upload file to R2 storage synchronously (works in Docker with separate containers)
     # This ensures the file is available to Celery workers without shared filesystem
     try:
-        storage_url = upload_to_supabase(
+        storage_url = upload_to_r2(
             file,
             file.name,
             job_id=str(job.id),
@@ -313,7 +313,7 @@ def job_detail(request, job_id):
         return Response(serializer.data)
 
     elif request.method == "DELETE":
-        # 1. Delete files from Supabase Storage
+        # 1. Delete files from R2 storage
         try:
             storage_deleted = delete_job_folder(str(job.id))
             if not storage_deleted:
