@@ -4,6 +4,7 @@ import { ROUTES } from "./routes";
 
 // Import pages
 import AccountDeleted from "@/pages/AccountDeleted";
+import CloudOAuthCallback from "@/pages/CloudOAuthCallback";
 import ConfirmEmailChange from "@/pages/ConfirmEmailChange";
 import SecurityAction from "@/pages/SecurityAction";
 import Dashboard from "@/pages/Dashboard";
@@ -43,6 +44,10 @@ export const router = createBrowserRouter([
   {
     path: ROUTES.RECOVER_ACCOUNT,
     element: <RecoverAccount />, // New recover account page (TODO: check if same component intended or name clash)
+  },
+  {
+    path: ROUTES.AUTH_CLOUD_CALLBACK,
+    element: <CloudOAuthCallback />,
   },
   {
     path: ROUTES.ACCOUNT_DELETED,

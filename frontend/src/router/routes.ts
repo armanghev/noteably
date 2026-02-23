@@ -15,6 +15,7 @@ export const ROUTES = {
   QUIZZES_DETAIL: "/quizzes/:id",
   UPLOAD: "/upload",
   PROFILE: "/profile",
+  AUTH_CLOUD_CALLBACK: "/auth/cloud-callback",
   ACCOUNT_DELETED: "/account-deleted",
   LINK_ACCOUNT: "/link-account",
   CONFIRM_EMAIL_CHANGE: "/confirm-email-change",
