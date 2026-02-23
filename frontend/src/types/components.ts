@@ -17,6 +17,8 @@ export interface FileUploadProps {
   getFileIcon: (fileType: string) => React.ReactNode;
   options: JobOptions;
   onOptionsChange: (options: JobOptions) => void;
+  onImportFromCloud?: (provider: "google_drive" | "dropbox") => void;
+  isImporting?: boolean;
 }
 
 export interface ProcessingProps {
