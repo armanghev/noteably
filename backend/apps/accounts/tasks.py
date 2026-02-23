@@ -9,7 +9,7 @@ from django.conf import settings
 
 from apps.core.supabase_client import supabase_client
 from apps.ingestion.models import Job
-from apps.ingestion.supabase_storage import delete_job_folder
+from apps.ingestion.r2_storage import delete_job_folder
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +128,7 @@ def _hard_delete_user(user_id: str) -> None:
 
     Order of deletion:
     1. Django models (APIKeys, Jobs cascade → GeneratedContent, QuizAttempts, ChatMessages)
-    2. Supabase Storage files (job uploads, avatar)
+    2. R2 storage files (job uploads), Supabase Storage (avatar)
     3. Supabase DB rows (user_subscriptions)
     4. Supabase Auth user (last step)
 

@@ -33,6 +33,7 @@ import { useNavigate } from "react-router-dom";
 
 import { APIKeys } from "@/components/profile/APIKeys";
 import { AccountSettings } from "@/components/profile/AccountSettings";
+import { CloudStorageSettings } from "@/components/profile/CloudStorageSettings";
 import { ChangeEmail } from "@/components/profile/ChangeEmail";
 import { ChangePassword } from "@/components/profile/ChangePassword";
 import { ROUTES } from "@/router/routes";
@@ -324,6 +325,8 @@ export default function Profile() {
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">
+            <CloudStorageSettings />
+
             <Card className="bg-card border-border shadow-sm">
               <CardHeader>
                 <h2 className="text-xl font-semibold flex items-center gap-2">

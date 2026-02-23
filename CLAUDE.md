@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Noteably is an AI-powered study material generator that transforms audio/video/PDF content into structured study materials (summaries, notes, flashcards, quizzes). Full-stack application with Django backend and React/Vite frontend, using Supabase for auth/database/storage, AssemblyAI for transcription, and Google Gemini for content generation.
+Noteably is an AI-powered study material generator that transforms audio/video/PDF content into structured study materials (summaries, notes, flashcards, quizzes). Full-stack application with Django backend and React/Vite frontend, using Supabase for auth/database (and avatars), Cloudflare R2 for file storage (job uploads, exports), AssemblyAI for transcription, and Google Gemini for content generation.
 
 ## Development Commands
 
@@ -40,7 +40,7 @@ npm run lint     # ESLint
 
 - **core/** - Shared utilities: custom exceptions (`NoteablyException` hierarchy), Supabase client singleton, `@retry_with_backoff` decorator, WebSocket consumers/routing, Django signals for real-time updates
 - **accounts/** - Supabase JWT auth middleware, permission classes (`IsAuthenticated`, `IsPaidUser`, `IsOwner`)
-- **ingestion/** - File upload endpoint, Job model with status tracking, quota management, Supabase Storage integration
+- **ingestion/** - File upload endpoint, Job model with status tracking, quota management, R2 storage integration
 - **transcription/** - AssemblyAI integration for audio/video
 - **generation/** - Gemini 2.0 Flash integration, prompt templates, JSON parsing with markdown fallback
 - **export/** - Markdown, JSON, PDF formatters with ReportLab
@@ -57,7 +57,7 @@ npm run lint     # ESLint
 ### Data Flow
 
 1. User uploads file via `POST /api/process`
-2. Backend stores file in Supabase Storage, creates Job record
+2. Backend stores file in Cloudflare R2, creates Job record
 3. Celery task: transcribes via AssemblyAI (audio/video) OR extracts text via pypdf (PDF)
 4. Celery task: generates materials via Gemini (updates job.status for each material type)
 5. Django signals broadcast job updates via WebSocket to `user_{user_id}` channel group
@@ -118,6 +118,6 @@ GET    /health/                      Health check (no auth)
 
 ## Environment Variables
 
-Backend requires: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET`, `ASSEMBLYAI_API_KEY`, `GEMINI_API_KEY`, `REDIS_URL`
+Backend requires: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET` (avatars), `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY`, `R2_SECRET_KEY`, `R2_PUBLIC_URL`, `ASSEMBLYAI_API_KEY`, `GEMINI_API_KEY`, `REDIS_URL`
 
 Frontend requires: `VITE_API_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`

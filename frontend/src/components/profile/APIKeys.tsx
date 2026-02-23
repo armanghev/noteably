@@ -51,7 +51,7 @@ export function APIKeys() {
   const fetchKeys = async () => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/auth/api-keys`,
+        `${import.meta.env.VITE_API_URL || "http://localhost:8000/api"}/auth/api-keys`,
         {
           headers: {
             Authorization: `Bearer ${session?.access_token}`,
@@ -80,7 +80,7 @@ export function APIKeys() {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/auth/api-keys/create`,
+        `${import.meta.env.VITE_API_URL || "http://localhost:8000/api"}/auth/api-keys/create`,
         {
           method: "POST",
           headers: {
@@ -112,7 +112,7 @@ export function APIKeys() {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/auth/api-keys/${id}`,
+        `${import.meta.env.VITE_API_URL || "http://localhost:8000/api"}/auth/api-keys/${id}`,
         {
           method: "DELETE",
           headers: {

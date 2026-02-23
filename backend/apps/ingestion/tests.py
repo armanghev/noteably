@@ -20,7 +20,7 @@ class TranscriptionTriggerTest(TestCase):
     @patch("apps.ingestion.views.validate_file_type")
     @patch("apps.ingestion.views.validate_file_size")
     @patch("apps.ingestion.views.check_user_quota")
-    @patch("apps.ingestion.views.upload_to_supabase")
+    @patch("apps.ingestion.views.upload_to_r2")
     def test_upload_triggers_task(
         self, mock_upload, mock_quota, mock_size, mock_type, mock_task
     ):

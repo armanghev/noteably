@@ -1,6 +1,5 @@
 import DropboxIcon from "@/assets/DropboxIcon";
 import GoogleDriveIcon from "@/assets/GoogleDriveIcon";
-import OneDriveIcon from "@/assets/OneDriveIcon";
 import YoutubeIcon from "@/assets/YoutubeIcon";
 import Layout from "@/components/layout/Layout";
 import { AdvancedSettings } from "@/components/shared/AdvancedSettings";
@@ -8,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { useAuth } from "@/hooks/useAuth";
+import { useCloudImport } from "@/hooks/useCloudImport";
 import {
   jobKeys,
   useCancelJob,
@@ -401,6 +401,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
   onTypeToggle,
   options,
   onOptionsChange,
+  onImportFromCloud,
+  isImporting,
 }) => {
   return (
     <div className="flex-1 flex flex-col">
@@ -552,6 +554,35 @@ const FileUpload: React.FC<FileUploadProps> = ({
                 </div>
               )}
             </div>
+
+            {/* Import from cloud */}
+            {(onImportFromCloud || isImporting) && (
+              <div className="mt-6 pt-6 border-t border-border">
+                <p className="text-sm text-muted-foreground mb-3">
+                  Or import from
+                </p>
+                <div className="flex justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => onImportFromCloud?.("google_drive")}
+                    disabled={isImporting}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border hover:border-primary/50 hover:bg-card transition-all disabled:opacity-50"
+                  >
+                    <GoogleDriveIcon className="w-5 h-5" />
+                    <span className="text-sm font-medium">Google Drive</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onImportFromCloud?.("dropbox")}
+                    disabled={isImporting}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border hover:border-primary/50 hover:bg-card transition-all disabled:opacity-50"
+                  >
+                    <DropboxIcon className="w-5 h-5" />
+                    <span className="text-sm font-medium">Dropbox</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </label>
         </form>
       )}
@@ -712,8 +743,6 @@ export default function Upload() {
   const cancelJobMutation = useCancelJob();
   const retryJobMutation = useRetryJob();
   const queryClient = useQueryClient();
-  const { lastMessage } = useWebSocket();
-
   const [inputMode, setInputMode] = useState<"file" | "youtube">("file");
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [file, setFile] = useState<File | null>(null);
@@ -735,6 +764,18 @@ export default function Upload() {
   // Processing State
   const [jobId, setJobId] = useState<string | undefined>(undefined);
   const [currentStep, setCurrentStep] = useState<number>(0);
+
+  const handleCloudImportSuccess = (response: ProcessUploadResponse) => {
+    setJobId(response.job_id);
+    setJob({ id: response.job_id, status: response.status, progress: 0 });
+  };
+  const { openPicker, isImporting } = useCloudImport(
+    handleCloudImportSuccess,
+    selectedTypes,
+    jobOptions,
+  );
+
+  const { lastMessage } = useWebSocket();
 
   // Listen for WebSocket updates
   useEffect(() => {
@@ -1032,7 +1073,11 @@ export default function Upload() {
 
   // We show the processing screen even if it failed, so the user can retry
   const showProcessingScreen =
-    !!jobId || processUploadMutation.isPending || retryJobMutation.isPending;
+    !!jobId ||
+    processUploadMutation.isPending ||
+    processYoutubeMutation.isPending ||
+    retryJobMutation.isPending ||
+    isImporting;
   const progress = job?.progress || 0;
 
   return (
@@ -1107,6 +1152,8 @@ export default function Upload() {
                 onTypeToggle={handleTypeToggle}
                 options={jobOptions}
                 onOptionsChange={setJobOptions}
+                onImportFromCloud={openPicker}
+                isImporting={isImporting}
               />
             )
           ) : (
@@ -1135,14 +1182,6 @@ export default function Upload() {
                 <GoogleDriveIcon className="w-5 h-5 filter grayscale group-hover:grayscale-0 transition-all" />
                 <span className="font-semibold text-muted-foreground group-hover:text-muted-foreground transition-colors">
                   Google Drive
-                </span>
-              </div>
-
-              {/* OneDrive */}
-              <div className="flex items-center gap-2 group cursor-default">
-                <OneDriveIcon className="w-5 h-5 filter grayscale group-hover:grayscale-0 transition-all" />
-                <span className="font-semibold text-muted-foreground group-hover:text-muted-foreground transition-colors">
-                  OneDrive
                 </span>
               </div>
 

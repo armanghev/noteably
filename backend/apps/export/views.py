@@ -10,7 +10,7 @@ from rest_framework.response import Response
 
 from apps.accounts.permissions import IsAuthenticated
 from apps.ingestion.models import Job
-from apps.ingestion.supabase_storage import upload_bytes_to_supabase, get_signed_url
+from apps.ingestion.r2_storage import upload_bytes_to_r2, get_signed_url
 from .formatters import export_markdown, export_json, export_pdf
 from .serializers import ExportRequestSerializer, ExportResponseSerializer
 
@@ -90,22 +90,20 @@ def export_job(request):
         safe_filename = "".join(c for c in job.filename if c.isalnum() or c in (' ', '-', '_')).rstrip()
         file_name = f"{safe_filename}_{timestamp}.{file_ext}"
         
-        # Upload to Supabase Storage in job's exports directory
+        # Upload to R2 in job's exports directory
         # Structure: {job_id}/exports/{format_type}/{filename}
         subfolder = f"exports/{format_type}"
-        storage_url = upload_bytes_to_supabase(
+        storage_url = upload_bytes_to_r2(
             content=file_content,
             filename=file_name,
             job_id=str(job_id),
             content_type=content_type,
             subfolder=subfolder,
         )
-        
-        # Extract key from URL to generate signed URL
-        # URL format: https://<project>.supabase.co/storage/v1/object/public/noteably/<job_id>/exports/<format_type>/<filename>
+
         # Key format: {job_id}/exports/{format_type}/{filename}
         key = f"{job_id}/{subfolder}/{file_name}"
-        
+
         # Generate signed URL (expires in 1 hour)
         download_url = get_signed_url(key, expires_in=3600)
         expires_at = datetime.now() + timedelta(hours=1)

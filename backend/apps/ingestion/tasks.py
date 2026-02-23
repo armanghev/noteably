@@ -8,7 +8,7 @@ import requests
 from apps.generation.models import GeneratedContent
 from apps.generation.service import GeminiService
 from apps.ingestion.models import Job
-from apps.ingestion.supabase_storage import get_signed_url_from_storage_url
+from apps.ingestion.r2_storage import get_signed_url_from_storage_url
 from apps.transcription.models import Transcription
 from apps.transcription.service import TranscriptionService
 from celery import chain, shared_task
@@ -285,15 +285,15 @@ def download_youtube_video_task(self, job_id, url, user_email=None):
             if not os.path.exists(downloaded_file):
                  raise Exception("Downloaded file not found")
 
-            # Upload to Supabase
-            from apps.ingestion.supabase_storage import upload_to_supabase
-            
+            # Upload to R2
+            from apps.ingestion.r2_storage import upload_to_r2
+
             # Ensure final progress is set before upload
             job.progress = 40
             job.save(update_fields=["progress"])
 
             with open(downloaded_file, 'rb') as f:
-                storage_url = upload_to_supabase(
+                storage_url = upload_to_r2(
                     f,
                     f"{job.id}.mp4", # Use job ID as filename to avoid special char issues
                     job_id=str(job.id),
