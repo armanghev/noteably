@@ -353,6 +353,11 @@ html[data-sidebar-open="true"] [data-sidebar]:not([style*="width"]) {
   width: 250px;
 }
 
+/* Prose: style inline code with theme foreground (override default blue) */
+.prose code {
+  color: hsl(var(--foreground));
+}
+
 /* Custom Utilities */
 @layer utilities {
   .animate-fadeIn {
