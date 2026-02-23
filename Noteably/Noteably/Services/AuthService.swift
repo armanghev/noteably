@@ -116,7 +116,7 @@ final class AuthService {
     // MARK: - Restore Account
 
     func restoreAccount() async throws {
-        try await api.post(path: "/api/auth/me/restore")
+        try await api.postVoid(path: "/api/auth/me/restore")
         // Refresh session to clear deleted_at in metadata
         try await supabase.auth.refreshSession()
         if let session = try? await supabase.auth.session {

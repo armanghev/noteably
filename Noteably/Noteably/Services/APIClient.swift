@@ -265,6 +265,10 @@ extension APIClient {
         try await request(method: "POST", path: path, body: body)
     }
 
+    func postVoid(path: String, body: (any Encodable)? = nil) async throws {
+        try await requestVoid(method: "POST", path: path, body: body)
+    }
+
     func delete<T: Decodable>(path: String) async throws -> T {
         try await request(method: "DELETE", path: path)
     }
