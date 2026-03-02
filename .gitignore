@@ -303,7 +303,6 @@ iOSInjectionProject/
 
 .agent/
 artifacts/
-docs/
 .DS_Store
 .vercel
 taskman/

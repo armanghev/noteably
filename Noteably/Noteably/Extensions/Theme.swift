@@ -89,9 +89,9 @@ extension Color {
 // MARK: - Typography
 
 extension Font {
-    /// Playfair Display equivalent — uses the iOS serif system font with design adjustments
+    /// Shrikhand display font — matches the web app's --font-serif
     static func noteablySerif(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        .system(size: size, weight: weight, design: .serif)
+        .custom("Shrikhand-Regular", size: size)
     }
 
     /// Body text font
