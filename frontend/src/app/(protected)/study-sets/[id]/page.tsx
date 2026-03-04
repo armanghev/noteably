@@ -10,7 +10,6 @@ import { CornellNotes } from "@/components/shared/CornellNotes";
 import { DeleteConfirmationDialog } from "@/components/shared/DeleteConfirmationDialog";
 import { OutlineNotes } from "@/components/shared/OutlineNotes";
 import { QANotes } from "@/components/shared/QANotes";
-import { AudioPlayer } from "@/components/ui/audio-player";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -21,7 +20,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { JsonDisplay } from "@/components/ui/json-display";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { VideoPlayer } from "@/components/ui/video-player";
 import { useBackNavigation } from "@/hooks/useBackNavigation";
 import { jobKeys, useJob, useSignedFileUrl } from "@/hooks/useJobs";
 import { useCreateQuizAttempt, useQuizAttempts } from "@/hooks/useQuizAttempts";
@@ -38,22 +36,6 @@ import type {
   SummaryContent,
 } from "@/types";
 import { useQueryClient } from "@tanstack/react-query";
-import dynamic from "next/dynamic";
-
-// Dynamically import PDFViewer with SSR disabled to prevent pdfjs worker fetch errors during module evaluation
-const PDFViewer = dynamic(
-  () => import("@/components/ui/pdf-viewer").then((mod) => mod.PDFViewer),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex flex-col items-center justify-center p-12 min-h-[400px] w-full bg-muted/30 rounded-lg border border-border">
-        <span className="text-sm text-muted-foreground animate-pulse">
-          Loading PDF Viewer...
-        </span>
-      </div>
-    ),
-  },
-);
 
 import {
   ArrowLeft,
@@ -66,7 +48,6 @@ import {
   History,
   Loader2,
   MoreVertical,
-  Music,
   ArrowLeft as PrevIcon,
   RotateCw,
   ScrollText,
@@ -74,7 +55,6 @@ import {
   Trash2,
   Trophy,
   Upload,
-  Video,
   XCircle,
   Zap,
 } from "lucide-react";
@@ -155,14 +135,20 @@ export default function StudySetDetail() {
     const currentTabIsValid =
       (activeTab === "summary-notes" && hasSummaryOrNotes) ||
       (activeTab === "flashcards" && hasFlashcards) ||
-      (activeTab === "quiz" && hasQuiz)
+      (activeTab === "quiz" && hasQuiz);
 
     if (!currentTabIsValid) {
       if (hasSummaryOrNotes) setActiveTab("summary-notes");
       else if (hasFlashcards) setActiveTab("flashcards");
       else if (hasQuiz) setActiveTab("quiz");
     }
-  }, [job, activeTab, hasSummaryOrNotes, hasFlashcards, hasQuiz]);
+  }, [
+    job,
+    activeTab,
+    hasSummaryOrNotes,
+    hasFlashcards,
+    hasQuiz,
+  ]);
 
   // Video player is now handled by VideoPlayer component
 
@@ -421,9 +407,11 @@ export default function StudySetDetail() {
   };
 
   // Count available tabs
-  const tabCount = [hasSummaryOrNotes, hasFlashcards, hasQuiz].filter(
-    Boolean,
-  ).length;
+  const tabCount = [
+    hasSummaryOrNotes,
+    hasFlashcards,
+    hasQuiz,
+  ].filter(Boolean).length;
 
   // Flashcard handlers
   const flashcardVariants = {
@@ -585,7 +573,7 @@ export default function StudySetDetail() {
 
               {tabCount > 1 && (
                 <TabsList
-                  className={`grid ${tabCount === 2 ? "grid-cols-2" : "grid-cols-3"}`}
+                  className={`grid ${tabCount === 2 ? "grid-cols-2" : tabCount === 3 ? "grid-cols-3" : "grid-cols-4"}`}
                 >
                   {hasSummaryOrNotes && (
                     <TabsTrigger
@@ -767,7 +755,7 @@ export default function StudySetDetail() {
                         <Copy className="w-4 h-4" />
                       </Button>
                     </div>
-                    <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary break-words">
+                    <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary wrap-break-word">
                       {notesContent?.cornell ? (
                         <CornellNotes
                           data={notesContent.cornell}
@@ -889,7 +877,7 @@ export default function StudySetDetail() {
                         </div>
 
                         {/* Flip Card Area */}
-                        <div className="w-full max-w-3xl aspect-[3/2] perspective-1000 relative mb-8">
+                        <div className="w-full max-w-3xl aspect-3/2 perspective-1000 relative mb-8">
                           <AnimatePresence initial={false} custom={direction}>
                             <motion.div
                               key={currentCard}
@@ -1273,8 +1261,6 @@ export default function StudySetDetail() {
                 )}
               </TabsContent>
             )}
-
-            {/* Source File Tab */}
           </Tabs>
         </div>
       </div>
