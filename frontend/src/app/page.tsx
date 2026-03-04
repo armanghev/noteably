@@ -1,65 +1,1064 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { ModeToggle } from "@/components/theme/mode-toggle";
+import { Button } from "@/components/ui/button";
+import {
+  AnimatePresence,
+  motion,
+  useScroll,
+  useTransform,
+} from "framer-motion";
+import {
+  ArrowRight,
+  Brain,
+  Check,
+  File,
+  FileText,
+  GraduationCap,
+  Menu,
+  Mic,
+  Play,
+  Search,
+  Sparkles,
+  Video,
+  X,
+  Youtube,
+  Zap,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+
+// FadeIn Component for scroll animations (uses whileInView)
+const FadeIn = ({
+  children,
+  delay = 0,
+  className = "",
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+}) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ once: true, margin: "-50px" }}
+    transition={{ duration: 0.6, delay, ease: "easeOut" }}
+    className={`will-change-[opacity,transform] ${className}`}
+  >
+    {children}
+  </motion.div>
+);
+
+// FadeIn on mount only – use for above-the-fold hero content so it always shows
+// on iOS Safari (where IntersectionObserver can fail to fire on initial load)
+const FadeInOnMount = ({
+  children,
+  delay = 0,
+  className = "",
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+}) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.6, delay, ease: "easeOut" }}
+    className={className}
+  >
+    {children}
+  </motion.div>
+);
+
+const scrollToSection = (id: string) => {
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+};
+
+const Navbar = () => {
+  const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
+  const closeMenu = () => setIsOpen(false);
+
+  const handleNavClick = (id: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    closeMenu();
+    scrollToSection(id);
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-card/80 backdrop-blur-md border-b border-border/20">
+      <div className="container mx-auto px-6 h-20 flex items-center justify-between relative z-50">
+        <div
+          className="flex items-center gap-2 cursor-pointer"
+          onClick={() => {
+            router.push("/");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            closeMenu();
+          }}
+        >
+          <span className="text-2xl font-serif font-semibold tracking-tight text-primary">
+            Noteably
+          </span>
+        </div>
+        <div className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
+          <a
+            href="#features"
+            onClick={handleNavClick("features")}
+            className="hover:text-foreground transition-colors"
+          >
+            Features
+          </a>
+          <a
+            href="#how-it-works"
+            onClick={handleNavClick("how-it-works")}
+            className="hover:text-foreground transition-colors"
+          >
+            How it works
+          </a>
+          <a
+            href="#pricing"
+            onClick={handleNavClick("pricing")}
+            className="hover:text-foreground transition-colors"
+          >
+            Pricing
+          </a>
+          <div className="flex items-center gap-2">
+            <ModeToggle />
+            <Button
+              onClick={() => router.push("/login")}
+              className="px-6 rounded-full"
+            >
+              Get Started
+            </Button>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 md:hidden">
+          <ModeToggle />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-foreground"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </Button>
+        </div>
+      </div>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+            className="absolute top-full left-0 right-0 bg-card border-b border-border/20 shadow-xl py-4 px-6 flex flex-col gap-4 md:hidden"
+          >
+            <a
+              href="#features"
+              onClick={handleNavClick("features")}
+              className="text-lg font-medium text-muted-foreground hover:text-foreground transition-colors py-2 border-b border-border/10"
+            >
+              Features
+            </a>
+            <a
+              href="#how-it-works"
+              onClick={handleNavClick("how-it-works")}
+              className="text-lg font-medium text-muted-foreground hover:text-foreground transition-colors py-2 border-b border-border/10"
+            >
+              How it works
+            </a>
+            <a
+              href="#pricing"
+              onClick={handleNavClick("pricing")}
+              className="text-lg font-medium text-muted-foreground hover:text-foreground transition-colors py-2 border-b border-border/10"
+            >
+              Pricing
+            </a>
+            <Button
+              onClick={() => {
+                closeMenu();
+                router.push("/login");
+              }}
+              className="mt-2 rounded-full w-full py-6 text-lg"
+            >
+              Get Started
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </nav>
+  );
+};
+
+const Hero = () => {
+  const { scrollY } = useScroll();
+  const y = useTransform(scrollY, [0, 500], [0, -30]);
+  const router = useRouter();
+
+  const scrollToHowItWorks = () => {
+    document
+      .getElementById("how-it-works")
+      ?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  return (
+    <section className="relative pt-24 pb-12 md:pt-32 md:pb-20 overflow-hidden bg-background">
+      <div className="container mx-auto px-6 text-center z-10 relative">
+        <FadeInOnMount>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card border border-border mb-8 shadow-sm">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span className="text-xs uppercase tracking-wider font-semibold text-primary">
+              AI-Powered Study Assistant
+            </span>
+          </div>
+        </FadeInOnMount>
+
+        <FadeInOnMount delay={0.1}>
+          <h1 className="text-6xl md:text-8xl font-serif mb-6 text-foreground">
+            Turn content into <br />{" "}
+            <span className="italic text-primary">knowledge.</span>
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+        </FadeInOnMount>
+
+        <FadeInOnMount delay={0.2}>
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
+            Upload any video, audio, or PDF. Noteably automatically generates
+            structured notes, flashcards, and quizzes so you can focus on
+            mastering the material.
+          </p>
+        </FadeInOnMount>
+
+        <FadeInOnMount delay={0.3}>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto">
+            <Button
+              onClick={() => router.push("/dashboard")}
+              className="h-14 px-8 rounded-full text-base shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all w-full sm:w-auto"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              Generate Study Set
+              <ArrowRight className="ml-2 w-5 h-5" />
+            </Button>
+            <Button
+              variant="outline"
+              onClick={scrollToHowItWorks}
+              className="h-14 px-8 py-6 rounded-full text-base bg-card hover:bg-muted font-medium w-full sm:w-auto"
             >
-              Learning
-            </a>{" "}
-            center.
+              <Play className="mr-2 w-4 h-4 fill-current" />
+              See How It Works
+            </Button>
+          </div>
+        </FadeInOnMount>
+      </div>
+
+      <motion.div
+        className="container mx-auto px-4 mt-20 md:mt-24 relative"
+        style={{ y }}
+      >
+        <div className="relative w-full max-w-5xl mx-auto rounded-3xl overflow-hidden shadow-2xl bg-background/40 backdrop-blur-xl border border-primary/10 p-8 md:p-16 flex flex-col md:flex-row items-center justify-between gap-12">
+          {/* Left Side: Inputs */}
+          <div className="flex flex-row md:flex-col gap-6 md:gap-8 justify-center relative z-10 w-full md:w-1/4">
+            <motion.div
+              animate={{ y: [0, -8, 0], x: [0, 4, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="w-16 h-16 rounded-2xl bg-card border border-border shadow-lg flex items-center justify-center shrink-0"
+            >
+              <Youtube className="w-8 h-8 text-red-500 opacity-80" />
+            </motion.div>
+
+            <motion.div
+              animate={{ y: [0, 10, 0], x: [0, -5, 0] }}
+              transition={{
+                duration: 5,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 1,
+              }}
+              className="w-16 h-16 rounded-2xl bg-card border border-border shadow-lg flex items-center justify-center -ml-4 md:ml-8 shrink-0"
+            >
+              <Mic className="w-8 h-8 text-blue-500 opacity-80" />
+            </motion.div>
+
+            <motion.div
+              animate={{ y: [0, -5, 0], x: [0, 5, 0] }}
+              transition={{
+                duration: 3.5,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 2,
+              }}
+              className="w-16 h-16 rounded-2xl bg-card border border-border shadow-lg flex items-center justify-center shrink-0"
+            >
+              <File className="w-8 h-8 text-emerald-500 opacity-80" />
+            </motion.div>
+          </div>
+
+          {/* Center: AI Engine */}
+          <div className="relative flex items-center justify-center z-10 w-full md:w-2/4 aspect-square md:aspect-auto md:h-64 scale-90 md:scale-100">
+            <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full scale-110 md:scale-150 animate-pulse pointer-events-none" />
+
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-[-20px] md:inset-[-60px] rounded-full border border-dashed border-primary/20 pointer-events-none"
+            />
+            <motion.div
+              animate={{ rotate: -360 }}
+              transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-[-10px] md:inset-[-30px] rounded-full border border-dashed border-primary/30 pointer-events-none"
+            />
+
+            <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-linear-to-br from-primary to-primary/80 shadow-xl shadow-primary/30 flex items-center justify-center relative z-20 border-4 border-background">
+              <Brain className="w-12 h-12 md:w-16 md:h-16 text-primary-foreground" />
+              <div className="absolute top-0 right-0 -mt-2 -mr-2 w-8 h-8 rounded-full bg-background flex items-center justify-center shadow-lg border border-border">
+                <Sparkles className="w-4 h-4 text-primary" />
+              </div>
+            </div>
+          </div>
+
+          {/* Right Side: Outputs */}
+          <div className="flex flex-col gap-4 relative z-10 w-full md:w-1/4">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="w-full bg-card border border-border rounded-xl p-4 shadow-lg flex items-start gap-3 transform md:translate-x-4"
+            >
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <FileText className="w-4 h-4 text-primary" />
+              </div>
+              <div className="space-y-2 w-full pt-1">
+                <div className="h-2 w-16 bg-muted-foreground/30 rounded" />
+                <div className="h-2 w-full bg-muted rounded" />
+                <div className="h-2 w-4/5 bg-muted rounded" />
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 }}
+              className="w-full bg-card border border-border rounded-xl p-4 shadow-lg flex items-start gap-3"
+            >
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <Brain className="w-4 h-4 text-primary" />
+              </div>
+              <div className="w-full pt-1 pb-1">
+                <div className="h-3 w-24 bg-foreground/80 rounded mb-2" />
+                <div className="h-2 w-20 bg-muted-foreground/50 rounded" />
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.6 }}
+              className="w-full bg-card border border-border rounded-xl p-4 shadow-lg flex items-start gap-3 transform md:-translate-x-4"
+            >
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <Zap className="w-4 h-4 text-primary" />
+              </div>
+              <div className="space-y-2 w-full pt-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full border border-border" />
+                  <div className="h-2 w-full bg-muted rounded" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-primary" />
+                  <div className="h-2 w-4/5 bg-primary/20 rounded" />
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </motion.div>
+    </section>
+  );
+};
+
+const Features = () => {
+  const features = [
+    {
+      icon: <FileText className="w-6 h-6" />,
+      title: "Auto-Transcription",
+      desc: "Instant, accurate transcripts from lectures, meetings, or YouTube videos. Never miss a word again.",
+    },
+    {
+      icon: <Brain className="w-6 h-6" />,
+      title: "Smart Flashcards",
+      desc: "AI identifies key concepts and definitions to create spaced-repetition decks automatically.",
+    },
+    {
+      icon: <Zap className="w-6 h-6" />,
+      title: "Practice Quizzes",
+      desc: "Test yourself with generated multiple-choice and short-answer questions before the real exam.",
+    },
+    {
+      icon: <Search className="w-6 h-6" />,
+      title: "Semantic Search",
+      desc: "Ask questions like 'What did the professor say about mitocondria?' and get the exact timestamp.",
+    },
+  ];
+
+  return (
+    <section className="py-12 md:py-24 bg-background relative" id="features">
+      {/* Mobile / Tablet Layout */}
+      <div className="block lg:hidden">
+        <div className="hidden md:block absolute top-1/2 right-0 -translate-y-1/2 w-96 h-96 bg-primary/5 rounded-full blur-[128px] pointer-events-none" />
+        <div className="container mx-auto px-6 relative z-10 max-w-6xl">
+          <div className="flex flex-col lg:flex-row gap-8 lg:gap-16 items-start">
+            <div className="w-full lg:w-5/12 lg:sticky lg:top-32">
+              <FadeIn>
+                <div className="flex lg:hidden sm:flex-row flex-col items-center sm:items-end justify-between gap-8 mb-12 sm:px-0">
+                  <h2 className="text-4xl md:text-5xl font-serif text-foreground sm:text-left text-center">
+                    Your personal <br />
+                    <span className="text-primary italic">AI tutor.</span>
+                  </h2>
+                  <div className="w-40 h-40 sm:w-48 sm:h-48 rounded-full overflow-hidden border-[6px] border-background shadow-2xl shrink-0 -mt-8 sm:mt-0">
+                    <img
+                      src="/nota.png"
+                      alt="Nota AI Agent"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </div>
+              </FadeIn>
+            </div>
+            <div className="w-full lg:w-7/12 lg:pt-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:hidden">
+                {features.map((f, i) => (
+                  <FadeIn key={i} delay={i * 0.1}>
+                    <div className="group h-full p-6 sm:p-8 rounded-3xl border border-border hover:border-primary/40 bg-card/40 hover:bg-card transition-all duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1">
+                      <div className="flex flex-col h-full">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 mb-4 sm:mb-6 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300 shadow-inner">
+                          {f.icon}
+                        </div>
+                        <h3 className="text-xl sm:text-2xl font-serif font-medium mb-2 sm:mb-3 text-foreground">
+                          {f.title}
+                        </h3>
+                        <p className="text-muted-foreground text-sm sm:text-base grow">
+                          {f.desc}
+                        </p>
+                      </div>
+                    </div>
+                  </FadeIn>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop Layout */}
+      <div className="hidden lg:block">
+        <div className="absolute top-1/2 right-0 -translate-y-1/2 w-96 h-96 bg-primary/5 rounded-full blur-[128px] pointer-events-none" />
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="flex flex-col lg:flex-row gap-16 items-start">
+            <div className="w-full lg:w-5/12 sticky top-32">
+              <FadeIn>
+                <h2 className="text-4xl md:text-5xl font-serif mb-12 text-foreground">
+                  Your personal <br />
+                  <span className="text-primary italic">AI tutor.</span>
+                </h2>
+                <div className="relative w-full aspect-square max-w-md mx-auto lg:mx-0">
+                  <div className="absolute inset-0 bg-primary/20 blur-[80px] rounded-full scale-90" />
+                  <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl bg-linear-to-b from-primary/5 to-transparent flex items-center justify-center p-8 border border-primary/10">
+                    <div className="relative w-64 h-64 rounded-full overflow-hidden border-4 border-background shadow-lg">
+                      <img
+                        src="/nota.png"
+                        alt="Nota AI Agent"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ delay: 0.5, duration: 0.5 }}
+                      className="absolute bottom-8 right-8 bg-background/90 backdrop-blur-md p-4 rounded-xl shadow-lg border border-primary/20 max-w-[220px]"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <Sparkles className="w-3 h-3 text-primary" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                          Nota
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground font-medium">
+                        "I've analyzed your lecture. Ready to quiz you on the
+                        key concepts?"
+                      </p>
+                    </motion.div>
+                  </div>
+                </div>
+              </FadeIn>
+            </div>
+            <div className="w-full lg:w-7/12 pt-8">
+              <div className="grid grid-cols-1 gap-8">
+                {features.map((f, i) => (
+                  <FadeIn key={i} delay={i * 0.1}>
+                    <div className="group p-4 rounded-2xl border border-border hover:border-primary/50 bg-card/30 hover:bg-card transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-1">
+                      <div className="flex items-start gap-4">
+                        <div className="mb-4 inline-flex p-3 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300 shrink-0">
+                          {f.icon}
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-serif font-medium mb-2 text-foreground">
+                            {f.title}
+                          </h3>
+                          <p className="text-muted-foreground text-sm md:text-base">
+                            {f.desc}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </FadeIn>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const KnowledgePipeline = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [angle, setAngle] = useState(0);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const updateAngle = () => {
+      if (!containerRef.current) return;
+      const { width, height } = containerRef.current.getBoundingClientRect();
+      // Calculate angle for the diagonal lines (Top/Bottom)
+      // dx = 50% width, dy = 30% height (50% -> 20%)
+      const dx = width * 0.5;
+      const dy = height * 0.3;
+      const rad = Math.atan2(dy, dx);
+      const deg = rad * (180 / Math.PI);
+      setAngle(deg);
+    };
+
+    updateAngle(); // Initial calc
+    const observer = new ResizeObserver(updateAngle);
+    observer.observe(containerRef.current);
+
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative w-full h-full min-h-[400px] flex items-center justify-center overflow-hidden"
+    >
+      {/* Background Connection Lines */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-20">
+        {[
+          { x1: "0%", y1: "20%", x2: "50%", y2: "50%" },
+          { x1: "0%", y1: "50%", x2: "50%", y2: "50%" },
+          { x1: "0%", y1: "80%", x2: "50%", y2: "50%" },
+          { x1: "50%", y1: "50%", x2: "100%", y2: "20%" },
+          { x1: "50%", y1: "50%", x2: "100%", y2: "50%" },
+          { x1: "50%", y1: "50%", x2: "100%", y2: "80%" },
+        ].map((line, i) => (
+          <motion.line
+            key={i}
+            x1={line.x1}
+            y1={line.y1}
+            x2={line.x2}
+            y2={line.y2}
+            stroke="currentColor"
+            strokeWidth="1"
+            className="text-primary"
+            strokeDasharray="4 4"
+            initial={{ strokeDashoffset: 0 }}
+            animate={{ strokeDashoffset: -20 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          />
+        ))}
+      </svg>
+
+      {/* Central Processor */}
+      <div className="relative z-20">
+        {/* Outer Rotating Ring */}
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+          className="w-40 h-40 rounded-full border border-dashed border-primary/20 flex items-center justify-center relative"
+        >
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-primary rounded-full shadow-[0_0_12px_rgba(59,130,246,0.5)]" />
+        </motion.div>
+
+        {/* Middle Rotating Ring */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <motion.div
+            animate={{ rotate: -360 }}
+            transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+            className="w-32 h-32 rounded-full border border-primary/10 flex items-center justify-center relative bg-background/40 backdrop-blur-md shadow-2xl"
+          >
+            <div className="absolute inset-2 rounded-full border-2 border-primary/5" />
+          </motion.div>
+        </div>
+
+        {/* Core Agent Image */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <motion.div
+            animate={{
+              scale: [1, 1.05, 1],
+            }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            className="w-20 h-20 rounded-full bg-background border-4 border-background overflow-hidden relative z-10 shadow-2xl"
+          >
+            <img
+              src="/nota.png"
+              alt="Nota AI Core"
+              className="w-full h-full object-cover"
+            />
+            {/* Inner glow mask */}
+            <div className="absolute inset-0 bg-linear-to-t from-primary/10 to-transparent pointer-events-none" />
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Input Streams (Moving towards center) */}
+      <div className="absolute inset-0 pointer-events-none">
+        {[
+          {
+            icon: FileText,
+            color: "text-blue-500",
+            // 14 -> 50 (Diff 36). 10% = 3.6
+            vals: {
+              x: ["-10%", "-4%", "44%", "50%"],
+              y: ["18%", "17.6%", "46.4%", "50%"],
+            },
+            delay: 0,
+            rotate: angle, // Down-right slope
+          },
+          {
+            icon: Mic,
+            color: "text-purple-500",
+            // 50 -> 50
+            vals: {
+              x: ["-10%", "-4%", "44%", "50%"],
+              y: ["50%", "50%", "50%", "50%"],
+            },
+            delay: 1,
+            rotate: 0,
+          },
+          {
+            icon: Video,
+            color: "text-red-500",
+            // 86 -> 50 (Diff -36). 10% = -3.6
+            vals: {
+              x: ["-10%", "-4%", "44%", "50%"],
+              y: ["86%", "82.4%", "53.6%", "50%"],
+            },
+            delay: 2,
+            rotate: -angle, // Up-right slope
+          },
+        ].map((item, i) => (
+          <motion.div
+            key={i}
+            className={`absolute p-3 rounded-xl bg-background shadow-lg border border-border ${item.color} z-30`}
+            style={{
+              left: 0,
+              top: 0,
+              x: "-50%",
+              y: "-50%",
+              rotate: item.rotate,
+            }}
+            initial={{
+              left: item.vals.x[0],
+              top: item.vals.y[0],
+              opacity: 0,
+              scale: 0.5,
+            }}
+            animate={{
+              left: item.vals.x,
+              top: item.vals.y,
+              opacity: [0, 1, 1, 0], // Fade in (0-10%), Stay (10-90%), Fade out (90-100%)
+              scale: [0.5, 1, 1, 0], // Scale up (0-10%), Stay (10-90%), Scale down (90-100%)
+            }}
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              delay: item.delay,
+              ease: "linear",
+              times: [0, 0.1, 0.9, 1], // Precise control of phases
+            }}
+          >
+            <item.icon className="w-5 h-5" />
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Output Streams (Moving away from center) */}
+      <div className="absolute inset-0 pointer-events-none">
+        {[
+          {
+            icon: FileText,
+            // 50 -> 14. Diff -36.
+            vals: {
+              x: ["50%", "56%", "104%", "110%"],
+              y: ["50%", "46.4%", "17.6%", "14%"],
+            },
+            delay: 0, // Sync with Input 1 (arrives at 3s, output starts at 0s/3s loop)
+            rotate: -angle, // Dynamic angle
+          },
+          {
+            icon: Zap,
+            vals: {
+              x: ["50%", "56%", "104%", "110%"],
+              y: ["50%", "50%", "50%", "50%"],
+            },
+            delay: 1, // Sync with Input 2
+            rotate: 0,
+          },
+          {
+            icon: GraduationCap,
+            // 50 -> 86. Diff 36.
+            vals: {
+              x: ["50%", "56%", "104%", "110%"],
+              y: ["50%", "53.6%", "82.4%", "86%"],
+            },
+            delay: 2, // Sync with Input 3
+            rotate: angle, // Dynamic angle
+          },
+        ].map((item, i) => (
+          <motion.div
+            key={i + 3}
+            className="absolute flex items-center gap-3 p-2 pl-3 pr-4 rounded-xl bg-background shadow-lg border border-border z-10"
+            style={{
+              left: "50%",
+              top: "50%",
+              x: -24, // Matches -translate-x-6 (approx icon center)
+              y: "-50%", // Centers vertically
+              rotate: item.rotate, // Static rotation (no animation glitches)
+              transformOrigin: "24px 50%", // Pivot around the icon
+            }}
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{
+              left: item.vals.x,
+              top: item.vals.y,
+              opacity: [0, 1, 1, 0], // Fade in (0-10%), Stay (10-90%), Fade out (90-100%)
+              scale: [0, 1, 1, 0.8], // Scale up (0-10%), Stay (10-90%), Scale down (90-100%)
+            }}
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              delay: item.delay,
+              ease: "linear",
+              times: [0, 0.1, 0.9, 1], // Precise control
+            }}
+          >
+            <div className="w-6 h-6 rounded-full flex items-center justify-center bg-primary/10 text-primary">
+              <item.icon className="w-3 h-3" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <div className="h-1.5 w-12 bg-foreground/10 rounded-full" />
+              <div className="h-1.5 w-8 bg-foreground/5 rounded-full" />
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const BigPicture = () => {
+  const router = useRouter();
+  return (
+    <section
+      className="py-12 md:py-24 bg-background overflow-hidden relative"
+      id="how-it-works"
+    >
+      <div className="container mx-auto px-6 relative z-10">
+        <div className="flex flex-col md:flex-row items-center gap-16">
+          <div className="w-full md:w-1/2">
+            <FadeIn>
+              <h2 className="text-4xl md:text-5xl font-serif mb-8 text-foreground">
+                From Chaos to Clarity
+              </h2>
+              <div className="space-y-6">
+                {[
+                  "Upload messy lecture recordings or 50-page PDFs.",
+                  "Let AI extract the structure, definitions, and key dates.",
+                  "Review clear, formatted notes and summaries.",
+                  "Export to Notion, PDF, or Markdown in one click.",
+                ].map((item, i) => (
+                  <div key={i} className="flex items-start gap-4">
+                    <div className="mt-1 w-6 h-6 shrink-0 rounded-full border border-primary flex items-center justify-center text-primary text-xs font-medium">
+                      {i + 1}
+                    </div>
+                    <p className="text-muted-foreground font-medium">{item}</p>
+                  </div>
+                ))}
+
+                <div className="pt-8">
+                  <Button
+                    onClick={() => router.push("/dashboard")}
+                    className="px-8 py-6 rounded-full hover:bg-foreground text-primary-foreground shadow-lg shadow-primary/20"
+                  >
+                    Start Organizing
+                  </Button>
+                </div>
+              </div>
+            </FadeIn>
+          </div>
+
+          <div className="w-full md:w-1/2 relative">
+            <FadeIn
+              delay={0.2}
+              className="relative rounded-3xl overflow-hidden shadow-2xl bg-accent/50 border border-border"
+            >
+              <KnowledgePipeline />
+            </FadeIn>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const Comparison = () => (
+  <section
+    className="py-16 md:py-32 bg-background relative overflow-hidden"
+    id="comparison"
+  >
+    {/* Background Gradients */}
+    <div className="hidden md:block absolute top-1/2 left-0 -translate-y-1/2 w-96 h-96 bg-primary/5 rounded-full blur-[128px] pointer-events-none" />
+    <div className="hidden md:block absolute bottom-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-[128px] pointer-events-none" />
+
+    <div className="container mx-auto px-6 relative z-10">
+      <div className="text-center mb-20">
+        <FadeIn>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium mb-4 border border-primary/20 shadow-inner">
+            <Sparkles className="w-3 h-3" />
+            <span>THE UPGRADE</span>
+          </div>
+          <h2 className="text-4xl md:text-6xl font-serif text-foreground mb-6">
+            Don't study{" "}
+            <span className="italic text-muted-foreground line-through decoration-destructive/50 decoration-2">
+              harder.
+            </span>
+            <br />
+            Study <span className="text-primary italic">smarter.</span>
+          </h2>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto font-medium">
+            Traditional studying burns you out. Noteably supercharges your
+            learning.
+          </p>
+        </FadeIn>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+        {/* The Old Way */}
+        <FadeIn delay={0.1}>
+          <div className="h-full p-8 rounded-3xl bg-muted/30 border border-border/50 relative overflow-hidden group">
+            <div className="absolute inset-x-0 top-0 h-1 bg-linear-to-r from-transparent via-destructive/20 to-transparent opacity-50" />
+
+            <div className="flex items-center gap-4 mb-8">
+              <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center shadow-sm">
+                <X className="w-6 h-6 text-muted-foreground" />
+              </div>
+              <h3 className="text-2xl font-serif text-muted-foreground">
+                Manual Study
+              </h3>
+            </div>
+
+            <ul className="space-y-6">
+              {[
+                "Rewinding the video every 10 seconds",
+                "Messy, unorganized scribbles",
+                "Spending hours verifying facts",
+                "Losing track of important sources",
+              ].map((item, i) => (
+                <li
+                  key={i}
+                  className="flex items-center gap-4 text-muted-foreground/60 group-hover:text-muted-foreground transition-colors font-medium"
+                >
+                  <X className="w-5 h-5 text-destructive/50 shrink-0" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </FadeIn>
+
+        {/* Noteably Way */}
+        <FadeIn delay={0.2}>
+          <div className="h-full p-8 rounded-3xl bg-card border-2 border-primary/20 relative overflow-hidden shadow-2xl shadow-primary/5 group hover:border-primary/40 transition-colors">
+            {/* Glowing background */}
+            <div className="absolute inset-0 bg-linear-to-b from-primary/5 to-transparent pointer-events-none" />
+            <div className="hidden md:block absolute -top-24 -right-24 w-48 h-48 bg-primary/20 blur-3xl rounded-full pointer-events-none" />
+
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+                    <Zap className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-2xl font-serif text-foreground">
+                    With Noteably
+                  </h3>
+                </div>
+                <div className="bg-primary/10 text-primary text-sm font-bold px-3 py-1 rounded-full border border-primary/20 shadow-sm text-nowrap">
+                  10x FASTER
+                </div>
+              </div>
+
+              <ul className="space-y-6">
+                {[
+                  "Instant, accurate video transcripts",
+                  "Perfectly structured AI summaries",
+                  "One-click flashcards & quizzes",
+                  "Source-backed citations",
+                  "On demand AI Assistant",
+                ].map((item, i) => (
+                  <motion.li
+                    key={i}
+                    initial={{ opacity: 0, x: -10 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.3 + i * 0.1 }}
+                    className="flex items-center gap-4 text-foreground font-medium"
+                  >
+                    <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-lg shadow-primary/30">
+                      <Check className="w-3.5 h-3.5 text-primary-foreground stroke-3" />
+                    </div>
+                    <span>{item}</span>
+                  </motion.li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </FadeIn>
+      </div>
+
+      {/* CTA */}
+      <FadeIn delay={0.4}>
+        <div className="mt-16 text-center" id="pricing">
+          <Button
+            className="px-8 py-6 rounded-full text-lg shadow-xl shadow-primary/20 hover:scale-105 transition-transform"
+            onClick={() => (window.location.href = "/signup")}
+          >
+            Experience the Difference
+            <ArrowRight className="ml-2 w-5 h-5" />
+          </Button>
+          <p className="mt-4 text-sm text-muted-foreground">
+            No credit card required • Free plan available
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </FadeIn>
+    </div>
+  </section>
+);
+
+const Footer = () => {
+  const router = useRouter();
+  return (
+    <footer className="bg-primary/90 text-primary-foreground/90 py-12 md:py-20 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none" />
+      <div className="container mx-auto px-6 relative z-10">
+        <div className="flex flex-col md:flex-row justify-between items-start gap-12 border-b border-primary-foreground/10 pb-12">
+          <div className="max-w-md">
+            <h2 className="text-3xl font-serif mb-6 text-primary-foreground">
+              Connect with intelligence.
+            </h2>
+            <p className="text-primary-foreground/80 mb-8 leading-relaxed font-medium">
+              Stop wasting time on prep work. Let AI handle the structure so you
+              can focus on learning. Join thousands of students and
+              professionals today.
+            </p>
+            <Button
+              onClick={() => router.push("/signup")}
+              className="px-8 py-6 rounded-full bg-secondary text-primary hover:bg-card"
+            >
+              Start Free Trial
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-12 sm:gap-24 text-sm">
+            <div>
+              <h4 className="font-semibold text-primary-foreground mb-6 uppercase tracking-wider text-sm">
+                Product
+              </h4>
+              <ul className="space-y-4">
+                {["Features", "Pricing", "FAQ"].map((item) => (
+                  <li key={item}>
+                    <a
+                      href={`#${item.toLowerCase()}`}
+                      className="text-primary-foreground/70 hover:text-primary-foreground transition-colors font-medium"
+                    >
+                      {item}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold text-primary-foreground mb-6 uppercase tracking-wider text-sm">
+                Company
+              </h4>
+              <ul className="space-y-4">
+                <li>
+                  <a
+                    href="#"
+                    className="text-primary-foreground/70 hover:text-primary-foreground transition-colors font-medium"
+                  >
+                    About
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="text-primary-foreground/70 hover:text-primary-foreground transition-colors font-medium"
+                  >
+                    Blog
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="text-primary-foreground/70 hover:text-primary-foreground transition-colors font-medium"
+                  >
+                    Contact Us
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
-      </main>
+
+        <div className="mt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-primary-foreground/60 font-medium">
+          <p>© 2026 Noteably Inc. All rights reserved.</p>
+          <div className="flex gap-6">
+            <a
+              href="#"
+              className="hover:text-primary-foreground transition-colors"
+            >
+              Privacy Policy
+            </a>
+            <a
+              href="#"
+              className="hover:text-primary-foreground transition-colors"
+            >
+              Terms of Service
+            </a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+};
+
+export default function LandingPage() {
+  return (
+    <div className="min-h-screen font-sans bg-background text-foreground antialiased selection:bg-primary/30 scroll-smooth">
+      <Navbar />
+      <Hero />
+      <Features />
+      <BigPicture />
+      <Comparison />
+      <Footer />
     </div>
   );
 }
