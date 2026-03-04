@@ -16,10 +16,10 @@ import { useBackNavigation } from "@/hooks/useBackNavigation";
 import { useJob } from "@/hooks/useJobs";
 import { formatFileType } from "@/lib/utils";
 import type { Job, NotesContent, SummaryContent } from "@/types";
-import { ArrowLeft, BookOpen, FileText, Loader2, Share2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Loader2, Share2 } from "lucide-react";
+import { useParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { useParams } from "next/navigation";
 
 // Helper functions to extract and type content
 function getSummaryContent(job: Job): SummaryContent | null {
@@ -141,7 +141,6 @@ export default function NoteDetail() {
     // Use MutationObserver to watch for when ReactMarkdown renders
     const observer = new MutationObserver(() => {
       replaceJsonCodeBlocks("study-notes-content");
-      replaceJsonCodeBlocks("transcript-content");
     });
 
     // Start observing after a short delay
@@ -154,7 +153,6 @@ export default function NoteDetail() {
 
       // Also try immediately
       replaceJsonCodeBlocks("study-notes-content");
-      replaceJsonCodeBlocks("transcript-content");
 
       // Stop observing after 5 seconds
       setTimeout(() => {
@@ -170,26 +168,17 @@ export default function NoteDetail() {
 
   useEffect(() => {
     const handleScroll = () => {
-      const sections = ["summary", "notes", "transcript"];
+      const sections = ["summary", "notes"];
       const viewportHeight = window.innerHeight;
       const scrollTop =
         window.pageYOffset || document.documentElement.scrollTop;
       const documentHeight = document.documentElement.scrollHeight;
 
       // Check if user is at or near the bottom of the page
-      // Use a more generous threshold to catch when user is viewing transcript
-      // But only if user has scrolled down (not at the top)
       const distanceFromBottom = documentHeight - (scrollTop + viewportHeight);
       const isAtBottom = distanceFromBottom <= 250 && scrollTop > 100;
 
-      // If at the bottom, always highlight transcript
-      if (isAtBottom) {
-        setActiveSection("transcript");
-        return;
-      }
-
       // Otherwise, find which section's top is closest to the top of viewport
-      // Check sections from bottom to top (transcript -> notes -> summary)
       let activeSection = "summary";
       let closestDistance = Infinity;
 
@@ -230,18 +219,18 @@ export default function NoteDetail() {
 
   if (loading) {
     return (
-<>
+      <>
         <div className="flex items-center justify-center min-h-[50vh]">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
-</>
-);
+      </>
+    );
   }
 
   const error = jobError ? "Failed to load note." : null;
   if (error || !job) {
     return (
-<>
+      <>
         <div className="text-center py-20">
           <h2 className="text-2xl font-serif text-foreground">
             Note not found
@@ -254,8 +243,8 @@ export default function NoteDetail() {
             {backLabel}
           </Button>
         </div>
-</>
-);
+      </>
+    );
   }
 
   // Extract and type content properly
@@ -272,11 +261,8 @@ export default function NoteDetail() {
   // Study Notes from markdown content
   const studyNotesMarkdown = notesContent?.content || "";
 
-  // Transcript
-  const transcriptText = job.transcription_text || "No transcript available.";
-
   return (
-<>
+    <>
       <div
         className={`transition-all duration-300 ease-in-out ${isAssistantOpen ? "layout-squeeze" : ""}`}
       >
@@ -387,33 +373,6 @@ export default function NoteDetail() {
                   </div>
                 </Card>
               )}
-
-              {/* Transcript Display */}
-              <Card
-                id="transcript"
-                className="p-8 shadow-sm bg-background border border-border scroll-mt-24"
-              >
-                <div className="flex items-center gap-2 mb-6">
-                  <FileText className="w-5 h-5 text-primary" />
-                  <h2 className="text-xl font-medium text-foreground">
-                    Transcript
-                  </h2>
-                </div>
-                <div className="max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                  {transcriptText ? (
-                    <div
-                      id="transcript-content"
-                      className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary leading-relaxed"
-                    >
-                      <ReactMarkdown>{transcriptText}</ReactMarkdown>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic">
-                      No transcript available.
-                    </p>
-                  )}
-                </div>
-              </Card>
             </div>
 
             {/* Sidebar Navigation */}
@@ -423,7 +382,7 @@ export default function NoteDetail() {
                   On this page
                 </p>
                 <nav className="flex flex-col space-y-1">
-                  {["Summary", "Notes", "Transcript"].map((item) => (
+                  {["Summary", "Notes"].map((item) => (
                     <a
                       key={item}
                       href={`#${item.toLowerCase()}`}
@@ -462,6 +421,6 @@ export default function NoteDetail() {
           />
         </>
       )}
-</>
-);
+    </>
+  );
 }
