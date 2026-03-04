@@ -54,7 +54,6 @@ import {
   StickyNote,
   Trash2,
   Trophy,
-  Upload,
   XCircle,
   Zap,
 } from "lucide-react";
@@ -142,13 +141,7 @@ export default function StudySetDetail() {
       else if (hasFlashcards) setActiveTab("flashcards");
       else if (hasQuiz) setActiveTab("quiz");
     }
-  }, [
-    job,
-    activeTab,
-    hasSummaryOrNotes,
-    hasFlashcards,
-    hasQuiz,
-  ]);
+  }, [job, activeTab, hasSummaryOrNotes, hasFlashcards, hasQuiz]);
 
   // Video player is now handled by VideoPlayer component
 
@@ -407,11 +400,9 @@ export default function StudySetDetail() {
   };
 
   // Count available tabs
-  const tabCount = [
-    hasSummaryOrNotes,
-    hasFlashcards,
-    hasQuiz,
-  ].filter(Boolean).length;
+  const tabCount = [hasSummaryOrNotes, hasFlashcards, hasQuiz].filter(
+    Boolean,
+  ).length;
 
   // Flashcard handlers
   const flashcardVariants = {
@@ -847,7 +838,7 @@ export default function StudySetDetail() {
                     ) : transcriptText ? (
                       <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary leading-relaxed">
                         <ReactMarkdown components={markdownComponents}>
-                          {transcriptText}
+                          {transcriptText.replace(/^[ \t]+/gm, "")}
                         </ReactMarkdown>
                       </div>
                     ) : (

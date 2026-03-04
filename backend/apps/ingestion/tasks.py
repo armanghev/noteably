@@ -3,7 +3,6 @@ import logging
 import textwrap
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-import langextract as lx
 import requests
 from apps.generation.models import GeneratedContent
 from apps.generation.service import GeminiService
@@ -17,34 +16,9 @@ from django.utils.timezone import now as from_datetime
 from pypdf import PdfReader
 import yt_dlp
 import os
+import re
 
 logger = logging.getLogger(__name__)
-
-_PDF_EXTRACTION_PROMPT = textwrap.dedent("""\
-    Extract all key entities from this educational document: topics, definitions,
-    key terms, concepts, people, dates, examples, and important statements.
-    Use exact text from the document. Do not paraphrase or overlap entities.""")
-
-_PDF_EXTRACTION_EXAMPLES = [
-    lx.data.ExampleData(
-        text=(
-            "Photosynthesis is the process by which plants convert sunlight into glucose."
-        ),
-        extractions=[
-            lx.data.Extraction(
-                extraction_class="definition",
-                extraction_text=(
-                    "Photosynthesis is the process by which plants convert sunlight into glucose"
-                ),
-            ),
-            lx.data.Extraction(
-                extraction_class="key_term",
-                extraction_text="Photosynthesis",
-            ),
-        ],
-    )
-]
-
 
 def extract_pdf_text_from_url(url: str) -> str:
     """Download PDF from URL, extract raw text via pypdf, then annotate with langextract."""
@@ -63,32 +37,23 @@ def extract_pdf_text_from_url(url: str) -> str:
             reader = PdfReader(f)
             raw_text = ""
             for page in reader.pages:
-                raw_text += page.extract_text() + "\n"
+                page_text = page.extract_text()
+                if not page_text:
+                    continue
+                lines = page_text.split('\n')
+                
+                # Filter out pure numbers or "Page X" at the very top
+                while lines and re.match(r'^\s*(?:Page\s*)?\d+\s*$', lines[0], re.IGNORECASE):
+                    lines.pop(0)
+                
+                # Filter out pure numbers or "Page X" at the very bottom
+                while lines and re.match(r'^\s*(?:Page\s*)?\d+\s*$', lines[-1], re.IGNORECASE):
+                    lines.pop()
+                    
+                if lines:
+                    raw_text += '\n'.join(lines) + "\n"
 
-        # Structured extraction with langextract (Gemini backend)
-        result = lx.extract(
-            text_or_documents=raw_text,
-            prompt_description=_PDF_EXTRACTION_PROMPT,
-            examples=_PDF_EXTRACTION_EXAMPLES,
-            model_id="gemini-2.5-flash",
-            api_key=settings.GEMINI_API_KEY,
-        )
-
-        # lx.extract() returns AnnotatedDocument or list[AnnotatedDocument]
-        docs = result if isinstance(result, list) else [result]
-
-        parts = []
-        for doc in docs:
-            doc_text = doc.text or ""
-            parts.append(doc_text)
-            if doc.extractions:
-                entity_lines = [
-                    f"[{e.extraction_class.upper()}] {e.extraction_text}"
-                    for e in doc.extractions
-                ]
-                parts.append("\n--- KEY ENTITIES ---\n" + "\n".join(entity_lines))
-
-        return "\n".join(parts)
+        return raw_text.strip()
 
     except Exception as e:
         logger.error(f"Error extracting PDF text: {e}")
@@ -172,7 +137,7 @@ def transcribe_media_task(self, job_id):
                     "external_id": "pdf",
                     "text": extracted_text,
                     "raw_response": {
-                        "type": "pdf_extraction_langextract",
+                        "type": "pdf_extraction",
                         "extracted_text_length": len(extracted_text),
                     },
                 },
