@@ -954,6 +954,8 @@ export default function Upload() {
       "video/mp4",
       "video/quicktime",
       "video/x-msvideo",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ];
     if (!validTypes.includes(file.type)) {
       setError(
