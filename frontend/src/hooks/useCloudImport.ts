@@ -111,7 +111,17 @@ export function useCloudImport(onFileSelected: (file: CloudFile) => void) {
         },
         linkType: "direct",
         multiselect: false,
-        extensions: [".pdf", ".mp3", ".wav", ".txt", ".mp4", ".mov"],
+        extensions: [
+          ".pdf",
+          ".mp3",
+          ".wav",
+          ".txt",
+          ".md",
+          ".mp4",
+          ".mov",
+          ".doc",
+          ".docx",
+        ],
       });
       return;
     }

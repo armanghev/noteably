@@ -530,7 +530,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
             multiple={false}
             onChange={handleChange}
             className="hidden"
-            accept=".mp3,.wav,.pdf,.txt,.mp4,.mov"
+            accept=".mp3,.wav,.pdf,.txt,.md,.mp4,.mov,.doc,.docx"
           />
           <label
             htmlFor="file-upload"
@@ -558,7 +558,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
                   : "Click to upload or drag and drop"}
               </h3>
               <p className="text-muted-foreground text-sm mb-6">
-                MP3, WAV, PDF, TXT, MP4, MOV
+                MP3, WAV, PDF, TXT, MD, MP4, MOV, DOC, DOCX
               </p>
               {error && (
                 <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 px-4 py-2 rounded-full mx-auto w-fit">

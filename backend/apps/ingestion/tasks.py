@@ -17,6 +17,7 @@ from pypdf import PdfReader
 import yt_dlp
 import os
 import re
+import docx
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +56,55 @@ def extract_pdf_text_from_url(url: str) -> str:
 
         return raw_text.strip()
 
+        return raw_text.strip()
+
     except Exception as e:
         logger.error(f"Error extracting PDF text: {e}")
+        raise
+
+
+def extract_docx_text_from_url(url: str) -> str:
+    """Download DOCX from URL, extract raw text."""
+    try:
+        try:
+            signed_url = get_signed_url_from_storage_url(url, expires_in=3600)
+            url_to_use = signed_url
+        except Exception:
+            url_to_use = url
+
+        response = requests.get(url_to_use)
+        response.raise_for_status()
+
+        with io.BytesIO(response.content) as f:
+            doc = docx.Document(f)
+            full_text = []
+            for para in doc.paragraphs:
+                full_text.append(para.text)
+            return '\n'.join(full_text).strip()
+
+    except Exception as e:
+        logger.error(f"Error extracting DOCX text: {e}")
+        raise
+
+
+def extract_text_from_url(url: str) -> str:
+    """Download plain text from URL."""
+    try:
+        try:
+            signed_url = get_signed_url_from_storage_url(url, expires_in=3600)
+            url_to_use = signed_url
+        except Exception:
+            url_to_use = url
+
+        response = requests.get(url_to_use)
+        response.raise_for_status()
+        
+        # Determine encoding or fallback to utf-8
+        response.encoding = response.apparent_encoding if response.apparent_encoding else 'utf-8'
+        return response.text.strip()
+
+    except Exception as e:
+        logger.error(f"Error extracting plain text: {e}")
         raise
 
 
@@ -143,6 +191,52 @@ def transcribe_media_task(self, job_id):
                 },
             )
             job.transcription_id = "pdf"
+            job.save(update_fields=["transcription_id"])
+            
+        # DOCX Handling
+        elif job.file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or job.filename.lower().endswith((".docx", ".doc")):
+            logger.info(f"Processing DOCX for job {job_id}")
+            job.status = "extracting_text"
+            job.current_step = "Extracting text..."
+            job.save(update_fields=["status", "current_step"])
+
+            extracted_text = extract_docx_text_from_url(job.storage_url)
+
+            Transcription.objects.update_or_create(
+                job=job,
+                defaults={
+                    "external_id": "docx",
+                    "text": extracted_text,
+                    "raw_response": {
+                        "type": "docx_extraction",
+                        "extracted_text_length": len(extracted_text),
+                    },
+                },
+            )
+            job.transcription_id = "docx"
+            job.save(update_fields=["transcription_id"])
+            
+        # Text Handling
+        elif job.file_type in ["text/plain", "text/markdown"] or job.filename.lower().endswith((".txt", ".md")):
+            logger.info(f"Processing Text file for job {job_id}")
+            job.status = "extracting_text"
+            job.current_step = "Extracting text..."
+            job.save(update_fields=["status", "current_step"])
+
+            extracted_text = extract_text_from_url(job.storage_url)
+
+            Transcription.objects.update_or_create(
+                job=job,
+                defaults={
+                    "external_id": "text",
+                    "text": extracted_text,
+                    "raw_response": {
+                        "type": "text_extraction",
+                        "extracted_text_length": len(extracted_text),
+                    },
+                },
+            )
+            job.transcription_id = "text"
             job.save(update_fields=["transcription_id"])
 
         else:

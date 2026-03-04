@@ -27,6 +27,9 @@ export function formatFileType(fileType: string | null | undefined): string {
       json: "JSON",
       html: "HTML",
       xml: "XML",
+      msword: "DOC",
+      "vnd.openxmlformats-officedocument.wordprocessingml.document": "DOCX",
+      "vnd.google-apps.document": "Google Doc",
     };
 
     return typeMap[subtype] || subtype.toUpperCase();
