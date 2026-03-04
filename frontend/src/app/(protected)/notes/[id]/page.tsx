@@ -47,7 +47,6 @@ export default function NoteDetail() {
     defaultPath: "/notes",
     defaultLabel: "Back to Notes",
   });
-  const [activeSection, setActiveSection] = useState("summary");
 
   // Helper function to check if a string is valid JSON (defined before hooks)
   const isValidJson = (str: string): boolean => {
@@ -166,57 +165,6 @@ export default function NoteDetail() {
     };
   }, [job]);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      const sections = ["summary", "notes"];
-      const viewportHeight = window.innerHeight;
-      const scrollTop =
-        window.pageYOffset || document.documentElement.scrollTop;
-      const documentHeight = document.documentElement.scrollHeight;
-
-      // Check if user is at or near the bottom of the page
-      const distanceFromBottom = documentHeight - (scrollTop + viewportHeight);
-      const isAtBottom = distanceFromBottom <= 250 && scrollTop > 100;
-
-      // Otherwise, find which section's top is closest to the top of viewport
-      let activeSection = "summary";
-      let closestDistance = Infinity;
-
-      for (let i = sections.length - 1; i >= 0; i--) {
-        const section = sections[i];
-        const element = document.getElementById(section);
-        if (element) {
-          const rect = element.getBoundingClientRect();
-
-          // Check if section is visible in viewport
-          if (rect.bottom > 0 && rect.top < viewportHeight) {
-            // Calculate distance from top of viewport
-            const distanceFromTop = Math.abs(rect.top);
-
-            // If this section is closer to the top, make it active
-            if (distanceFromTop < closestDistance) {
-              closestDistance = distanceFromTop;
-              activeSection = section;
-            }
-
-            // If section top is near the top of viewport (within 300px), prioritize it
-            if (rect.top >= 0 && rect.top <= 300) {
-              activeSection = section;
-              break;
-            }
-          }
-        }
-      }
-
-      setActiveSection(activeSection);
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    // Call once on mount to set initial state
-    handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
   if (loading) {
     return (
       <>
@@ -318,93 +266,59 @@ export default function NoteDetail() {
             {/* <div className="p-4 rounded-xl border border-border flex items-end gap-4 bg-background"> ... </div> */}
           </header>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* Main Content (Left 3 cols) */}
-            <div className="lg:col-span-3 space-y-8">
-              {!notesContent?.cornell && (
-                <Card
-                  id="summary"
-                  className="p-8 shadow-sm bg-background border border-border scroll-mt-24"
-                >
-                  <div className="flex items-center gap-2 mb-6">
-                    <BookOpen className="w-5 h-5 text-primary" />
-                    <h2 className="text-xl font-medium text-foreground">
-                      Summary
-                    </h2>
-                  </div>
-                  <div className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                    {summaryText}
-                  </div>
-                </Card>
-              )}
+          <div className="space-y-8">
+            {!notesContent?.cornell && (
+              <Card
+                id="summary"
+                className="p-8 shadow-sm bg-background border border-border scroll-mt-24"
+              >
+                <div className="flex items-center gap-2 mb-6">
+                  <BookOpen className="w-5 h-5 text-primary" />
+                  <h2 className="text-xl font-medium text-foreground">
+                    Summary
+                  </h2>
+                </div>
+                <div className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                  {summaryText}
+                </div>
+              </Card>
+            )}
 
-              {/* Study Notes Markdown Display */}
-              {/* Study Notes Display */}
-              {(studyNotesMarkdown ||
-                notesContent?.cornell ||
-                notesContent?.qa ||
-                notesContent?.outline) && (
-                <Card
-                  id="notes"
-                  className="p-8 shadow-sm bg-background border border-border scroll-mt-24"
+            {/* Study Notes Markdown Display */}
+            {/* Study Notes Display */}
+            {(studyNotesMarkdown ||
+              notesContent?.cornell ||
+              notesContent?.qa ||
+              notesContent?.outline) && (
+              <Card
+                id="notes"
+                className="p-8 shadow-sm bg-background border border-border scroll-mt-24"
+              >
+                <div className="flex items-center gap-2 mb-6">
+                  <BookOpen className="w-5 h-5 text-primary" />
+                  <h2 className="text-xl font-medium text-foreground">
+                    Study Notes
+                  </h2>
+                </div>
+                <div
+                  id="study-notes-content"
+                  className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary"
                 >
-                  <div className="flex items-center gap-2 mb-6">
-                    <BookOpen className="w-5 h-5 text-primary" />
-                    <h2 className="text-xl font-medium text-foreground">
-                      Study Notes
-                    </h2>
-                  </div>
-                  <div
-                    id="study-notes-content"
-                    className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-strong:text-foreground prose-li:text-muted-foreground prose-ul:text-muted-foreground prose-ol:text-muted-foreground marker:text-primary"
-                  >
-                    {notesContent?.cornell ? (
-                      <CornellNotes
-                        data={notesContent.cornell}
-                        summary={summaryText}
-                      />
-                    ) : notesContent?.qa ? (
-                      <QANotes data={notesContent.qa} />
-                    ) : notesContent?.outline ? (
-                      <OutlineNotes data={notesContent.outline} />
-                    ) : (
-                      <ReactMarkdown>{studyNotesMarkdown}</ReactMarkdown>
-                    )}
-                  </div>
-                </Card>
-              )}
-            </div>
-
-            {/* Sidebar Navigation */}
-            <div className="space-y-6">
-              <div className="sticky top-24">
-                <p className="font-medium text-foreground mb-4 pl-4">
-                  On this page
-                </p>
-                <nav className="flex flex-col space-y-1">
-                  {["Summary", "Notes"].map((item) => (
-                    <a
-                      key={item}
-                      href={`#${item.toLowerCase()}`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        document
-                          .getElementById(item.toLowerCase())
-                          ?.scrollIntoView({ behavior: "smooth" });
-                        setActiveSection(item.toLowerCase());
-                      }}
-                      className={`px-4 py-2 text-sm rounded-md transition-colors text-left block ${
-                        activeSection === item.toLowerCase()
-                          ? "bg-primary/10 text-primary font-medium"
-                          : "text-muted-foreground hover:text-primary hover:bg-muted/50"
-                      }`}
-                    >
-                      {item}
-                    </a>
-                  ))}
-                </nav>
-              </div>
-            </div>
+                  {notesContent?.cornell ? (
+                    <CornellNotes
+                      data={notesContent.cornell}
+                      summary={summaryText}
+                    />
+                  ) : notesContent?.qa ? (
+                    <QANotes data={notesContent.qa} />
+                  ) : notesContent?.outline ? (
+                    <OutlineNotes data={notesContent.outline} />
+                  ) : (
+                    <ReactMarkdown>{studyNotesMarkdown}</ReactMarkdown>
+                  )}
+                </div>
+              </Card>
+            )}
           </div>
         </div>
       </div>
