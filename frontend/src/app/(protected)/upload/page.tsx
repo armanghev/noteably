@@ -1007,7 +1007,7 @@ export default function Upload() {
   };
 
   const handleUpload = async () => {
-    if (inputMode === "file" && !file) return;
+    if (inputMode === "file" && !file && !cloudFile) return;
     if (inputMode === "youtube" && !youtubeUrl) return;
 
     if (!session?.access_token) {
