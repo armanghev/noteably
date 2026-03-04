@@ -24,9 +24,11 @@ MIME_TO_EXT = {
     "text/markdown": "md",
     "video/mp4": "mp4",
     "video/quicktime": "mov",
+    "application/msword": "doc",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
 }
 
-ALLOWED_EXTENSIONS = {"mp3", "wav", "pdf", "txt", "md", "mp4", "mov"}
+ALLOWED_EXTENSIONS = {"mp3", "wav", "pdf", "txt", "md", "mp4", "mov", "doc", "docx"}
 
 
 def _ensure_token_valid(conn: CloudConnection) -> None:
@@ -77,30 +79,44 @@ def download_from_google_drive(conn: CloudConnection, file_id: str) -> Tuple[byt
     name = meta.get("name", "file")
     mime = meta.get("mimeType", "application/octet-stream")
 
-    # Google Workspace types we don't support
-    if mime and "vnd.google-apps" in mime:
-        raise ValueError(f"Google Docs/Sheets/Slides are not supported. Please upload a file (PDF, MP3, etc.).")
+    # Google Workspace types we don't support (except Docs)
+    if mime and "vnd.google-apps" in mime and mime != "application/vnd.google-apps.document":
+        raise ValueError(f"Google Sheets/Slides are not supported. Please upload a file (PDF, MP3, Doc, etc.).")
 
-    ext = _ext_from_mime(mime)
+    # If it's a Google Doc, we'll export it as docx
+    is_google_doc = mime == "application/vnd.google-apps.document"
+    export_mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document" if is_google_doc else mime
+    
+    ext = _ext_from_mime(export_mime)
     if ext not in ALLOWED_EXTENSIONS:
         raise ValueError(
             f"File type not supported. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
         )
 
-    filename = _ensure_filename_extension(name, mime)
+    filename = _ensure_filename_extension(name, export_mime)
 
     # Download content
-    dl_resp = requests.get(
-        f"https://www.googleapis.com/drive/v3/files/{file_id}",
-        params={"alt": "media"},
-        headers={"Authorization": f"Bearer {conn.access_token}"},
-        timeout=120,
-        stream=True,
-    )
+    if is_google_doc:
+        dl_resp = requests.get(
+            f"https://www.googleapis.com/drive/v3/files/{file_id}/export",
+            params={"mimeType": export_mime},
+            headers={"Authorization": f"Bearer {conn.access_token}"},
+            timeout=120,
+            stream=True,
+        )
+    else:
+        dl_resp = requests.get(
+            f"https://www.googleapis.com/drive/v3/files/{file_id}",
+            params={"alt": "media"},
+            headers={"Authorization": f"Bearer {conn.access_token}"},
+            timeout=120,
+            stream=True,
+        )
+    
     dl_resp.raise_for_status()
     content = dl_resp.content
 
-    return (content, filename, mime or "application/octet-stream")
+    return (content, filename, export_mime or "application/octet-stream")
 
 
 @retry_with_backoff(max_attempts=3)
@@ -145,7 +161,17 @@ def download_from_dropbox(conn: CloudConnection, file_id_or_path: str) -> Tuple[
             f"File type not supported. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
         )
 
-    mime_map = {"pdf": "application/pdf", "mp3": "audio/mpeg", "wav": "audio/wav", "txt": "text/plain", "mp4": "video/mp4", "mov": "video/quicktime"}
+    mime_map = {
+        "pdf": "application/pdf", 
+        "mp3": "audio/mpeg", 
+        "wav": "audio/wav", 
+        "txt": "text/plain", 
+        "md": "text/markdown",
+        "mp4": "video/mp4", 
+        "mov": "video/quicktime",
+        "doc": "application/msword",
+        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    }
     content_type = mime_map.get(ext, "application/octet-stream")
 
     return (resp.content, name, content_type)
@@ -180,8 +206,11 @@ def download_from_dropbox_link(link: str) -> Tuple[bytes, str, str]:
         "mp3": "audio/mpeg",
         "wav": "audio/wav",
         "txt": "text/plain",
+        "md": "text/markdown",
         "mp4": "video/mp4",
         "mov": "video/quicktime",
+        "doc": "application/msword",
+        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     }
     content_type = mime_map.get(ext, "application/octet-stream")
     return (content, name, content_type)

@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Check for OAuth merge conflict (blocking OAuth if email exists)
-    const isOAuthFlow = localStorage.getItem("oauth_login_flow") === "true";
+    const isOAuthFlow = typeof localStorage !== "undefined" && localStorage.getItem("oauth_login_flow") === "true";
     if (isOAuthFlow && session?.user) {
       const identities = session.user.identities || [];
       const hasEmailIdentity = identities.some((id) => id.provider === "email");

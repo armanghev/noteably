@@ -1,14 +1,16 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { cloudService, type CloudProvider } from "@/lib/api/services/cloud";
-import type { MaterialType } from "@/types";
-import type { ProcessUploadResponse } from "@/types";
+import type { CloudFile } from "@/types";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 declare global {
   interface Window {
     gapi?: {
       load: (name: string, callback: () => void) => void;
       client: {
-        init: (args: { apiKey: string; discoveryDocs: string[] }) => Promise<void>;
+        init: (args: {
+          apiKey: string;
+          discoveryDocs: string[];
+        }) => Promise<void>;
         setToken: (token: { access_token: string }) => void;
       };
     };
@@ -18,7 +20,12 @@ declare global {
           setOAuthToken: (token: string) => unknown;
           setAppId: (id: string) => unknown;
           addView: (view: unknown) => unknown;
-          setCallback: (cb: (data: { action: string; docs?: Array<{ id: string; name: string }> }) => void) => unknown;
+          setCallback: (
+            cb: (data: {
+              action: string;
+              docs?: Array<{ id: string; name: string }>;
+            }) => void,
+          ) => unknown;
           build: () => { setVisible: (visible: boolean) => void };
         };
         DocsView: new (viewId?: unknown) => {
@@ -39,8 +46,8 @@ declare global {
   }
 }
 
-const GOOGLE_APP_ID = import.meta.env.VITE_GOOGLE_APP_ID || "";
-const DROPBOX_APP_KEY = import.meta.env.VITE_DROPBOX_APP_KEY || "";
+const GOOGLE_APP_ID = process.env.NEXT_PUBLIC_GOOGLE_APP_ID || "";
+const DROPBOX_APP_KEY = process.env.NEXT_PUBLIC_DROPBOX_APP_KEY || "";
 
 function loadScript(src: string, id: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -57,33 +64,11 @@ function loadScript(src: string, id: string): Promise<void> {
   });
 }
 
-export function useCloudImport(
-  onSuccess: (response: ProcessUploadResponse) => void,
-  materialTypes: MaterialType[],
-  options?: Record<string, unknown>,
-) {
+export function useCloudImport(onFileSelected: (file: CloudFile) => void) {
   const queryClient = useQueryClient();
   const { data: connections = [] } = useQuery({
     queryKey: ["cloud-connections"],
     queryFn: () => cloudService.getConnections(),
-  });
-
-  const importMutation = useMutation({
-    mutationFn: (params: {
-      provider: CloudProvider;
-      fileId?: string;
-      fileLink?: string;
-    }) =>
-      cloudService.importFromCloud({
-        provider: params.provider,
-        fileId: params.fileId,
-        fileLink: params.fileLink,
-        materialTypes,
-        options,
-      }),
-    onSuccess: (data) => {
-      onSuccess(data);
-    },
   });
 
   const connectedSet = new Set(
@@ -107,7 +92,8 @@ export function useCloudImport(
           script.onerror = reject;
         });
       }
-      const Dropbox = (window as unknown as { Dropbox?: typeof window.Dropbox }).Dropbox;
+      const Dropbox = (window as unknown as { Dropbox?: typeof window.Dropbox })
+        .Dropbox;
       if (!Dropbox) {
         console.error("Dropbox SDK not loaded");
         return;
@@ -116,37 +102,46 @@ export function useCloudImport(
         success: (files) => {
           const file = files[0];
           if (file?.link) {
-            importMutation.mutate({
+            onFileSelected({
               provider: "dropbox",
               fileLink: file.link,
+              name: file.name,
             });
           }
         },
         linkType: "direct",
         multiselect: false,
-        extensions: [".pdf", ".mp3", ".wav", ".txt", ".mp4", ".mov"],
+        extensions: [
+          ".pdf",
+          ".mp3",
+          ".wav",
+          ".txt",
+          ".md",
+          ".mp4",
+          ".mov",
+          ".doc",
+          ".docx",
+        ],
       });
       return;
     }
 
     if (!connectedSet.has(provider)) {
       try {
-        if (provider === "dropbox") {
-          const redirectUrl = await cloudService.fetchConnectUrl(provider, "/upload");
-          window.location.href = redirectUrl;
-        } else {
-          const win = await cloudService.openConnectPopup(provider, "/auth/cloud-callback");
-          if (win) {
-            const bc = new BroadcastChannel("cloud-oauth");
-            let timeoutId: ReturnType<typeof setTimeout>;
-            const cleanup = () => {
-              clearTimeout(timeoutId);
-              queryClient.invalidateQueries({ queryKey: ["cloud-connections"] });
-              bc.close();
-            };
-            bc.onmessage = cleanup;
-            timeoutId = setTimeout(cleanup, 5 * 60 * 1000); // Fallback if user closes popup during OAuth
-          }
+        const win = await cloudService.openConnectPopup(
+          provider,
+          "/auth/cloud-callback",
+        );
+        if (win) {
+          const bc = new BroadcastChannel("cloud-oauth");
+          let timeoutId: ReturnType<typeof setTimeout>;
+          const cleanup = () => {
+            clearTimeout(timeoutId);
+            queryClient.invalidateQueries({ queryKey: ["cloud-connections"] });
+            bc.close();
+          };
+          bc.onmessage = cleanup;
+          timeoutId = setTimeout(cleanup, 5 * 60 * 1000); // Fallback if user closes popup during OAuth
         }
       } catch (err) {
         console.error("Failed to get connect URL:", err);
@@ -168,22 +163,26 @@ export function useCloudImport(
         gapi.load("client:picker", resolve);
       });
       await gapi.client.init({
-        apiKey: import.meta.env.VITE_GOOGLE_API_KEY || "",
-        discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
+        apiKey: process.env.NEXT_PUBLIC_GOOGLE_API_KEY || "",
+        discoveryDocs: [
+          "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest",
+        ],
       });
       gapi.client.setToken({ access_token: token });
-      const docsView = new window.google!.picker.DocsView(
-        window.google!.picker.ViewId.DOCS,
+      const googleObj = window.google as any;
+      const docsView = new googleObj.picker.DocsView(
+        googleObj.picker.ViewId.DOCS,
       ).setIncludeFolders(true);
-      const picker = new window.google!.picker.PickerBuilder()
+      const picker = new googleObj.picker.PickerBuilder()
         .setOAuthToken(token)
         .setAppId(GOOGLE_APP_ID)
         .addView(docsView)
-        .setCallback((data) => {
+        .setCallback((data: any) => {
           if (data.action === "picked" && data.docs?.[0]) {
-            importMutation.mutate({
+            onFileSelected({
               provider: "google_drive",
               fileId: data.docs[0].id,
+              name: data.docs[0].name,
             });
           }
         })
@@ -197,7 +196,5 @@ export function useCloudImport(
     openPicker,
     connections,
     connectedSet,
-    isImporting: importMutation.isPending,
-    importError: importMutation.error,
   };
 }

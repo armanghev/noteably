@@ -34,7 +34,7 @@ export function ThemeProvider({
   ...props
 }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
+    () => (typeof localStorage !== 'undefined' ? (localStorage.getItem(storageKey) as Theme) : null) || defaultTheme
   )
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("light")
   const transitionOriginRef = useRef({ x: 0, y: 0 })

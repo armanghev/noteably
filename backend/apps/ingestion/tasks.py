@@ -3,7 +3,6 @@ import logging
 import textwrap
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-import langextract as lx
 import requests
 from apps.generation.models import GeneratedContent
 from apps.generation.service import GeminiService
@@ -17,34 +16,10 @@ from django.utils.timezone import now as from_datetime
 from pypdf import PdfReader
 import yt_dlp
 import os
+import re
+import docx
 
 logger = logging.getLogger(__name__)
-
-_PDF_EXTRACTION_PROMPT = textwrap.dedent("""\
-    Extract all key entities from this educational document: topics, definitions,
-    key terms, concepts, people, dates, examples, and important statements.
-    Use exact text from the document. Do not paraphrase or overlap entities.""")
-
-_PDF_EXTRACTION_EXAMPLES = [
-    lx.data.ExampleData(
-        text=(
-            "Photosynthesis is the process by which plants convert sunlight into glucose."
-        ),
-        extractions=[
-            lx.data.Extraction(
-                extraction_class="definition",
-                extraction_text=(
-                    "Photosynthesis is the process by which plants convert sunlight into glucose"
-                ),
-            ),
-            lx.data.Extraction(
-                extraction_class="key_term",
-                extraction_text="Photosynthesis",
-            ),
-        ],
-    )
-]
-
 
 def extract_pdf_text_from_url(url: str) -> str:
     """Download PDF from URL, extract raw text via pypdf, then annotate with langextract."""
@@ -63,35 +38,73 @@ def extract_pdf_text_from_url(url: str) -> str:
             reader = PdfReader(f)
             raw_text = ""
             for page in reader.pages:
-                raw_text += page.extract_text() + "\n"
+                page_text = page.extract_text()
+                if not page_text:
+                    continue
+                lines = page_text.split('\n')
+                
+                # Filter out pure numbers or "Page X" at the very top
+                while lines and re.match(r'^\s*(?:Page\s*)?\d+\s*$', lines[0], re.IGNORECASE):
+                    lines.pop(0)
+                
+                # Filter out pure numbers or "Page X" at the very bottom
+                while lines and re.match(r'^\s*(?:Page\s*)?\d+\s*$', lines[-1], re.IGNORECASE):
+                    lines.pop()
+                    
+                if lines:
+                    raw_text += '\n'.join(lines) + "\n"
 
-        # Structured extraction with langextract (Gemini backend)
-        result = lx.extract(
-            text_or_documents=raw_text,
-            prompt_description=_PDF_EXTRACTION_PROMPT,
-            examples=_PDF_EXTRACTION_EXAMPLES,
-            model_id="gemini-2.5-flash",
-            api_key=settings.GEMINI_API_KEY,
-        )
+        return raw_text.strip()
 
-        # lx.extract() returns AnnotatedDocument or list[AnnotatedDocument]
-        docs = result if isinstance(result, list) else [result]
-
-        parts = []
-        for doc in docs:
-            doc_text = doc.text or ""
-            parts.append(doc_text)
-            if doc.extractions:
-                entity_lines = [
-                    f"[{e.extraction_class.upper()}] {e.extraction_text}"
-                    for e in doc.extractions
-                ]
-                parts.append("\n--- KEY ENTITIES ---\n" + "\n".join(entity_lines))
-
-        return "\n".join(parts)
+        return raw_text.strip()
 
     except Exception as e:
         logger.error(f"Error extracting PDF text: {e}")
+        raise
+
+
+def extract_docx_text_from_url(url: str) -> str:
+    """Download DOCX from URL, extract raw text."""
+    try:
+        try:
+            signed_url = get_signed_url_from_storage_url(url, expires_in=3600)
+            url_to_use = signed_url
+        except Exception:
+            url_to_use = url
+
+        response = requests.get(url_to_use)
+        response.raise_for_status()
+
+        with io.BytesIO(response.content) as f:
+            doc = docx.Document(f)
+            full_text = []
+            for para in doc.paragraphs:
+                full_text.append(para.text)
+            return '\n'.join(full_text).strip()
+
+    except Exception as e:
+        logger.error(f"Error extracting DOCX text: {e}")
+        raise
+
+
+def extract_text_from_url(url: str) -> str:
+    """Download plain text from URL."""
+    try:
+        try:
+            signed_url = get_signed_url_from_storage_url(url, expires_in=3600)
+            url_to_use = signed_url
+        except Exception:
+            url_to_use = url
+
+        response = requests.get(url_to_use)
+        response.raise_for_status()
+        
+        # Determine encoding or fallback to utf-8
+        response.encoding = response.apparent_encoding if response.apparent_encoding else 'utf-8'
+        return response.text.strip()
+
+    except Exception as e:
+        logger.error(f"Error extracting plain text: {e}")
         raise
 
 
@@ -172,12 +185,58 @@ def transcribe_media_task(self, job_id):
                     "external_id": "pdf",
                     "text": extracted_text,
                     "raw_response": {
-                        "type": "pdf_extraction_langextract",
+                        "type": "pdf_extraction",
                         "extracted_text_length": len(extracted_text),
                     },
                 },
             )
             job.transcription_id = "pdf"
+            job.save(update_fields=["transcription_id"])
+            
+        # DOCX Handling
+        elif job.file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or job.filename.lower().endswith((".docx", ".doc")):
+            logger.info(f"Processing DOCX for job {job_id}")
+            job.status = "extracting_text"
+            job.current_step = "Extracting text..."
+            job.save(update_fields=["status", "current_step"])
+
+            extracted_text = extract_docx_text_from_url(job.storage_url)
+
+            Transcription.objects.update_or_create(
+                job=job,
+                defaults={
+                    "external_id": "docx",
+                    "text": extracted_text,
+                    "raw_response": {
+                        "type": "docx_extraction",
+                        "extracted_text_length": len(extracted_text),
+                    },
+                },
+            )
+            job.transcription_id = "docx"
+            job.save(update_fields=["transcription_id"])
+            
+        # Text Handling
+        elif job.file_type in ["text/plain", "text/markdown"] or job.filename.lower().endswith((".txt", ".md")):
+            logger.info(f"Processing Text file for job {job_id}")
+            job.status = "extracting_text"
+            job.current_step = "Extracting text..."
+            job.save(update_fields=["status", "current_step"])
+
+            extracted_text = extract_text_from_url(job.storage_url)
+
+            Transcription.objects.update_or_create(
+                job=job,
+                defaults={
+                    "external_id": "text",
+                    "text": extracted_text,
+                    "raw_response": {
+                        "type": "text_extraction",
+                        "extracted_text_length": len(extracted_text),
+                    },
+                },
+            )
+            job.transcription_id = "text"
             job.save(update_fields=["transcription_id"])
 
         else:

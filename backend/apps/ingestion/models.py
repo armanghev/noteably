@@ -33,7 +33,7 @@ class Job(models.Model):
     # File information
     filename = models.CharField(max_length=255)
     file_size_bytes = models.BigIntegerField()
-    file_type = models.CharField(max_length=50)
+    file_type = models.CharField(max_length=255)
     storage_url = models.TextField()  # Cloudflare R2 URL
 
     # Material selection (what user requested)

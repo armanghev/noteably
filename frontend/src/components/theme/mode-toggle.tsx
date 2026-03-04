@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Moon, Sun } from "lucide-react";
 
 export function ModeToggle() {
-  const { theme, resolvedTheme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
 
   const handleToggle = (e: React.MouseEvent) => {
     const next = resolvedTheme === "dark" ? "light" : "dark";

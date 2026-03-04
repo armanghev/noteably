@@ -1,0 +1,396 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@variant dark (&:is(.dark *));
+
+:root {
+  --background: 0.9557 0.008 114.222;
+  --foreground: 0.1221 0 0;
+  --card: 0.9843 0.004 106.4719;
+  --card-foreground: 0.1221 0 0;
+  --popover: 0.9843 0.004 106.4719;
+  --popover-foreground: 0.1221 0 0;
+  --primary: 0.4561 0.0462 144.7706;
+  --primary-foreground: 0.9843 0.004 106.4719;
+  --secondary: 0.9557 0.008 114.222;
+  --secondary-foreground: 0.4561 0.0462 144.7706;
+  --muted: 0.9351 0.0093 106.5786;
+  --muted-foreground: 0.4843 0.02 145.2575;
+  --accent: 0.5148 0.0545 144.7324;
+  --accent-foreground: 0.9843 0.004 106.4719;
+  --destructive: 0.583 0.2387 28.4765;
+  --destructive-foreground: 0.9843 0.004 106.4719;
+  --border: 0.8851 0.0122 111.7823;
+  --input: 0.9159 0.0108 112.3819;
+  --ring: 0.4561 0.0462 144.7706;
+  --chart-1: 0.554 0.0648 144.639;
+  --chart-2: 0.6143 0.0744 155.1978;
+  --chart-3: 0.4945 0.0554 135.1187;
+  --chart-4: 0.6543 0.0841 165.3348;
+  --chart-5: 0.4354 0.0461 125.6727;
+  --sidebar: 0.9557 0.008 114.222;
+  --sidebar-foreground: 0.1221 0 0;
+  --sidebar-primary: 0.4561 0.0462 144.7706;
+  --sidebar-primary-foreground: 0.9843 0.004 106.4719;
+  --sidebar-accent: 0.9351 0.0093 106.5786;
+  --sidebar-accent-foreground: 0.4561 0.0462 144.7706;
+  --sidebar-border: 0.8851 0.0122 111.7823;
+  --sidebar-ring: 0.4561 0.0462 144.7706;
+  --font-sans: Inter, ui-sans-serif, sans-serif, system-ui;
+  --font-serif: Shrikhand, cursive;
+  --font-mono: Courier Prime, ui-monospace, monospace;
+  --radius: 1rem;
+  /* Design-system shadow tokens (not used by Tailwind utilities) */
+  --ds-shadow-x: 0px;
+  --ds-shadow-y: 1px;
+  --ds-shadow-blur: 4.5px;
+  --ds-shadow-spread: -0.5px;
+  --ds-shadow-opacity: 1;
+  --ds-shadow-color: #5f6f52;
+  --ds-shadow-2xs: 0px 1px 4.5px -0.5px hsl(93.1034 15.0259% 37.8431% / 0.5);
+  --ds-shadow-xs: 0px 1px 4.5px -0.5px hsl(93.1034 15.0259% 37.8431% / 0.5);
+  --ds-shadow-sm:
+    0px 1px 4.5px -0.5px hsl(93.1034 15.0259% 37.8431% / 1),
+    0px 1px 2px -1.5px hsl(93.1034 15.0259% 37.8431% / 1);
+  --ds-shadow:
+    0px 1px 4.5px -0.5px hsl(93.1034 15.0259% 37.8431% / 1),
+    0px 1px 2px -1.5px hsl(93.1034 15.0259% 37.8431% / 1);
+  --ds-shadow-md:
+    0px 1px 4.5px -0.5px hsl(93.1034 15.0259% 37.8431% / 1),
+    0px 2px 4px -1.5px hsl(93.1034 15.0259% 37.8431% / 1);
+  --ds-shadow-lg:
+    0px 1px 4.5px -0.5px hsl(93.1034 15.0259% 37.8431% / 1),
+    0px 4px 6px -1.5px hsl(93.1034 15.0259% 37.8431% / 1);
+  --ds-shadow-xl:
+    0px 1px 4.5px -0.5px hsl(93.1034 15.0259% 37.8431% / 1),
+    0px 8px 10px -1.5px hsl(93.1034 15.0259% 37.8431% / 1);
+  --ds-shadow-2xl: 0px 1px 4.5px -0.5px hsl(93.1034 15.0259% 37.8431% / 2.5);
+  --tracking-normal: 0em;
+  /* Keep as design-system token; do NOT name --spacing to avoid overriding TW4's base */
+  --ds-spacing: 0.26rem;
+}
+
+.dark {
+  --background: 0.205 0 0;
+  --foreground: 0.88 0.008 114.222;
+  --card: 0.205 0 0;
+  --card-foreground: 0.88 0.008 114.222;
+  --popover: 0.205 0 0;
+  --popover-foreground: 0.88 0.008 114.222;
+  --primary: 0.5872 0.0647 145.4012;
+  --primary-foreground: 0.1 0 0;
+  --secondary: 0.2038 0.0039 106.7397;
+  --secondary-foreground: 0.88 0.008 114.222;
+  --muted: 0.2335 0.0075 106.9652;
+  --muted-foreground: 0.6839 0.0147 145.4118;
+  --accent: 0.4299 0.0553 145.3928;
+  --accent-foreground: 0.88 0.008 114.222;
+  --destructive: 0.583 0.2387 28.4765;
+  --destructive-foreground: 0.88 0 0;
+  --border: 0.2547 0.0073 106.909;
+  --input: 0.2253 0.0057 106.8467;
+  --ring: 0.5337 0.0641 145.3245;
+  --chart-1: 0.554 0.0648 144.639;
+  --chart-2: 0.6143 0.0744 155.1978;
+  --chart-3: 0.4945 0.0554 135.1187;
+  --chart-4: 0.6543 0.0841 165.3348;
+  --chart-5: 0.4354 0.0461 125.6727;
+  --sidebar: 0.145 0 0;
+  --sidebar-foreground: 0.88 0.008 114.222;
+  --sidebar-primary: 0.5872 0.0647 145.4012;
+  --sidebar-primary-foreground: 0.205 0 0;
+  --sidebar-accent: 0.2038 0.0039 106.7397;
+  --sidebar-accent-foreground: 0.88 0.008 114.222;
+  --sidebar-border: 0.2547 0.0073 106.909;
+  --sidebar-ring: 0.5872 0.0647 145.4012;
+  --font-sans: Inter, ui-sans-serif, sans-serif, system-ui;
+  --font-serif: Shrikhand, cursive;
+  --font-mono: Courier Prime, ui-monospace, monospace;
+  --radius: 1rem;
+  --ds-shadow-x: 0px;
+  --ds-shadow-y: 1px;
+  --ds-shadow-blur: 4.5px;
+  --ds-shadow-spread: -0.5px;
+  --ds-shadow-opacity: 1;
+  --ds-shadow-color: #5f6f52;
+  --ds-shadow-2xs: 0px 1px 4.5px -0.5px hsl(93.1034 15.0259% 37.8431% / 0.5);
+  --ds-shadow-xs: 0px 1px 4.5px -0.5px hsl(93.1034 15.0259% 37.8431% / 0.5);
+  --ds-shadow-sm:
+    0px 1px 4.5px -0.5px hsl(93.1034 15.0259% 37.8431% / 1),
+    0px 1px 2px -1.5px hsl(93.1034 15.0259% 37.8431% / 1);
+  --ds-shadow:
+    0px 1px 4.5px -0.5px hsl(93.1034 15.0259% 37.8431% / 1),
+    0px 1px 2px -1.5px hsl(93.1034 15.0259% 37.8431% / 1);
+  --ds-shadow-md:
+    0px 1px 4.5px -0.5px hsl(93.1034 15.0259% 37.8431% / 1),
+    0px 2px 4px -1.5px hsl(93.1034 15.0259% 37.8431% / 1);
+  --ds-shadow-lg:
+    0px 1px 4.5px -0.5px hsl(93.1034 15.0259% 37.8431% / 1),
+    0px 4px 6px -1.5px hsl(93.1034 15.0259% 37.8431% / 1);
+  --ds-shadow-xl:
+    0px 1px 4.5px -0.5px hsl(93.1034 15.0259% 37.8431% / 1),
+    0px 8px 10px -1.5px hsl(93.1034 15.0259% 37.8431% / 1);
+  --ds-shadow-2xl: 0px 1px 4.5px -0.5px hsl(93.1034 15.0259% 37.8431% / 2.5);
+}
+
+/*
+ * Tailwind v4 theme: only register colors, fonts, and radii.
+ * Shadows and spacing are intentionally NOT overridden so TW4 keeps
+ * the same defaults that TW3 used (matching the React.js version).
+ */
+@theme inline {
+  --color-background: oklch(var(--background));
+  --color-foreground: oklch(var(--foreground));
+  --color-card: oklch(var(--card));
+  --color-card-foreground: oklch(var(--card-foreground));
+  --color-popover: oklch(var(--popover));
+  --color-popover-foreground: oklch(var(--popover-foreground));
+  --color-primary: oklch(var(--primary));
+  --color-primary-foreground: oklch(var(--primary-foreground));
+  --color-secondary: oklch(var(--secondary));
+  --color-secondary-foreground: oklch(var(--secondary-foreground));
+  --color-muted: oklch(var(--muted));
+  --color-muted-foreground: oklch(var(--muted-foreground));
+  --color-accent: oklch(var(--accent));
+  --color-accent-foreground: oklch(var(--accent-foreground));
+  --color-destructive: oklch(var(--destructive));
+  --color-destructive-foreground: oklch(var(--destructive-foreground));
+  --color-border: oklch(var(--border));
+  --color-input: oklch(var(--input));
+  --color-ring: oklch(var(--ring));
+  --color-chart-1: oklch(var(--chart-1));
+  --color-chart-2: oklch(var(--chart-2));
+  --color-chart-3: oklch(var(--chart-3));
+  --color-chart-4: oklch(var(--chart-4));
+  --color-chart-5: oklch(var(--chart-5));
+  --color-sidebar: oklch(var(--sidebar));
+  --color-sidebar-foreground: oklch(var(--sidebar-foreground));
+  --color-sidebar-primary: oklch(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: oklch(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: oklch(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: oklch(var(--sidebar-accent-foreground));
+  --color-sidebar-border: oklch(var(--sidebar-border));
+  --color-sidebar-ring: oklch(var(--sidebar-ring));
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* NO --shadow-* overrides — keep TW4 defaults (same as TW3 defaults) */
+  /* NO --spacing override — keep TW4 default 0.25rem (same as TW3 default 4px) */
+}
+
+/*
+ * Container: replicate TW3 config { center: true, padding: "2rem", screens: { "2xl": "1400px" } }
+ * TW4 default container constrains at every breakpoint, but TW3 shadcn only constrains at 1400px.
+ */
+@utility container {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: 2rem;
+}
+
+@media (min-width: 1400px) {
+  .container {
+    max-width: 1400px;
+  }
+}
+
+@layer base {
+  * {
+    border-color: oklch(var(--border));
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family:
+      "Inter",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      "Roboto",
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: var(--tracking-normal);
+  }
+
+  .theme {
+    --font-sans: Inter, ui-sans-serif, sans-serif, system-ui;
+    --font-mono: Courier Prime, ui-monospace, monospace;
+    --font-serif: Shrikhand, cursive;
+    --radius: 1rem;
+    --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
+    --tracking-tight: calc(var(--tracking-normal) - 0.025em);
+    --tracking-wide: calc(var(--tracking-normal) + 0.025em);
+    --tracking-wider: calc(var(--tracking-normal) + 0.05em);
+    --tracking-widest: calc(var(--tracking-normal) + 0.1em);
+  }
+}
+
+/* Prevent sidebar flash on page load - only applies before React hydrates */
+html[data-sidebar-open="false"] [data-sidebar]:not([style*="width"]) {
+  width: 60px;
+}
+
+html[data-sidebar-open="true"] [data-sidebar]:not([style*="width"]) {
+  width: 250px;
+}
+
+/* Prose: style inline code with theme foreground (override default blue) */
+.prose code {
+  color: oklch(var(--foreground));
+}
+
+/* Custom Utilities */
+@layer utilities {
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease-in;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Preserve existing custom rounded utilities */
+  .rounded-3xl {
+    border-radius: 1.5rem;
+  }
+
+  .backface-visible {
+    backface-visibility: visible;
+  }
+
+  .backface-hidden {
+    backface-visibility: hidden;
+  }
+
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+}
+
+/* PDF Viewer Styles */
+.pdf-document {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* PDF canvas - don't force background, let PDF's natural background show through */
+.pdf-document canvas {
+  max-width: 100%;
+  height: auto;
+  /* Don't set background - let PDF.js render the PDF's actual background */
+}
+
+/* Ensure PDF pages have proper spacing */
+.react-pdf__Page {
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: center;
+  /* Background will be the PDF's natural background */
+}
+
+.react-pdf__Page__canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  /* Don't force background - PDF.js handles this via canvasBackground prop */
+}
+
+/* Ensure the page wrapper has white background */
+.react-pdf__Page__textContent {
+  background: transparent;
+}
+
+.react-pdf__Page__annotations {
+  background: transparent;
+}
+
+/* Annotation and text layer styles */
+.react-pdf__Page__annotations {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.react-pdf__Page__textContent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.2;
+  line-height: 1;
+}
+
+.react-pdf__Page__textContent span {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+
+/* Custom scrollbar for PDF container */
+.pdf-viewer-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.pdf-viewer-container::-webkit-scrollbar-track {
+  background: oklch(var(--muted));
+  border-radius: 4px;
+}
+
+.pdf-viewer-container::-webkit-scrollbar-thumb {
+  background: oklch(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+.pdf-viewer-container::-webkit-scrollbar-thumb:hover {
+  background: oklch(var(--muted-foreground) / 0.5);
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Theme switch view transition (circle animation) */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 9999;
+}

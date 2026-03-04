@@ -1,5 +1,5 @@
-import GoogleDriveIcon from "@/assets/GoogleDriveIcon";
-import DropboxIcon from "@/assets/DropboxIcon";
+import GoogleDriveIcon from "@/components/assets/GoogleDriveIcon";
+import DropboxIcon from "@/components/assets/DropboxIcon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useState } from "react";

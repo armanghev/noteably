@@ -24,7 +24,7 @@ export const cloudService = {
   },
 
   getConnectUrl: (provider: CloudProvider, next?: string): string => {
-    const base = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+    const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
     const url = `${base.replace(/\/$/, "")}/cloud/connect/${provider}/`;
     return next ? `${url}?next=${encodeURIComponent(next)}` : url;
   },

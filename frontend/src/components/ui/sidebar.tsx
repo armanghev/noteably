@@ -9,7 +9,7 @@ import { ThemeToggle } from "../theme/theme-toggle";
 import { UserAvatar } from "@/components/profile/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 // import { ROUTES } from "@/router/routes"; // Commented out until needed
 
 interface Links {
@@ -103,7 +103,7 @@ export const DesktopSidebar = ({
   // Get initial width from data attribute for first render
   const initialWidth = useMemo(() => {
     if (typeof document === "undefined") return targetWidth;
-    const dataAttr = document.documentElement.getAttribute("data-sidebar-open");
+    const dataAttr = typeof document !== "undefined" ? document.documentElement.getAttribute("data-sidebar-open") : null;
     const isOpen = dataAttr === null ? true : dataAttr === "true";
     return isOpen ? "250px" : "60px";
   }, []);
@@ -150,7 +150,7 @@ export const SidebarLink = ({
   const { open, animate } = useSidebar();
   return (
     <Link
-      to={link.href}
+      href={link.href}
       className={cn(
         "flex items-center justify-start gap-2  group/sidebar py-2",
         className,
@@ -219,16 +219,17 @@ export const ProfileLink = () => {
   if (!user) return null;
 
   // properties from supabase user metadata or fallback
-  const fullName = 
-  (user.user_metadata?.first_name + " " + user.user_metadata?.last_name) 
-  || user.user_metadata?.full_name 
-  || user.user_metadata?.name 
-  || user.user_metadata?.email.trim("@")[0];
-  const avatarUrl = user.user_metadata?.picture ?? user.user_metadata?.avatar_url;
+  const fullName =
+    user.user_metadata?.first_name + " " + user.user_metadata?.last_name ||
+    user.user_metadata?.full_name ||
+    user.user_metadata?.name ||
+    user.user_metadata?.email.trim("@")[0];
+  const avatarUrl =
+    user.user_metadata?.picture ?? user.user_metadata?.avatar_url;
 
   return (
     <Link
-      to="/profile"
+      href="/profile"
       className={cn("flex items-center justify-start gap-2 group/sidebar py-2")}
     >
       <UserAvatar

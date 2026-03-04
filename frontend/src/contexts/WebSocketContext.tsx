@@ -37,7 +37,9 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     if (socketRef.current?.readyState === WebSocket.CONNECTING) return;
 
     // Get a fresh session to avoid using stale tokens
-    const { data: { session: freshSession } } = await supabase.auth.getSession();
+    const {
+      data: { session: freshSession },
+    } = await supabase.auth.getSession();
     if (!freshSession?.access_token) {
       console.log("WS: No valid session, skipping connection");
       return;
@@ -101,7 +103,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       };
 
       ws.onerror = (e) => {
-        console.error("WS Error", e);
+        console.warn("WS Error (expected during reconnects):", e);
         ws.close();
       };
 

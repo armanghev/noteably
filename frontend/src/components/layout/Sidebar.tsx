@@ -48,7 +48,7 @@ const items = [
 export function AppSidebar() {
     const { open, animate } = useSidebar();
     return (
-        <SidebarBody className="justify-between gap-10 bg-sidebar sticky top-0 h-screen z-50">
+        <SidebarBody className="justify-between gap-10 bg-background sticky top-0 h-screen z-50">
             <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
                 <div className={cn("flex items-end justify-start py-4 overflow-hidden pr-2")}>
                     {/* Logo Icon (N) */}

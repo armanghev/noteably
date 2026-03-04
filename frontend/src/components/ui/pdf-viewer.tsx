@@ -1,35 +1,28 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { Document, Page, pdfjs } from 'react-pdf';
-import { Button } from './button';
-import { Card } from './card';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  ZoomIn, 
-  ZoomOut, 
-  RotateCw, 
+"use client";
+
+import { cn } from "@/lib/utils";
+import {
+  ChevronLeft,
+  ChevronRight,
   Download,
+  Loader2,
   Maximize2,
   Minimize2,
-  Loader2
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+  RotateCw,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Document, Page, pdfjs } from "react-pdf";
+import { Button } from "./button";
+import { Card } from "./card";
 // Import required CSS for react-pdf
-import 'react-pdf/dist/Page/AnnotationLayer.css';
-import 'react-pdf/dist/Page/TextLayer.css';
+import "react-pdf/dist/Page/AnnotationLayer.css";
+import "react-pdf/dist/Page/TextLayer.css";
 
 // Set up PDF.js worker - use local worker file from public folder
-// The worker file must match the pdfjs-dist version used by react-pdf
-if (typeof window !== 'undefined') {
-  // Use local worker file (copied to public folder) - most reliable
-  // This matches the version bundled with react-pdf (5.4.296)
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    '/pdf.worker.min.mjs',
-    window.location.origin
-  ).toString();
-  console.log('PDF.js worker configured:', pdfjs.GlobalWorkerOptions.workerSrc);
-  console.log('PDF.js version:', pdfjs.version);
-}
+// The worker file must match the pdfjs-dist version (copied from node_modules/pdfjs-dist/build/)
+pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
 export interface PDFViewerProps {
   file: string | File | ArrayBuffer | Uint8Array;
@@ -39,12 +32,12 @@ export interface PDFViewerProps {
   onLoadSuccess?: (numPages: number) => void;
 }
 
-export function PDFViewer({ 
-  file, 
+export function PDFViewer({
+  file,
   filename,
   className,
   onLoadError,
-  onLoadSuccess 
+  onLoadSuccess,
 }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(1);
@@ -53,16 +46,21 @@ export function PDFViewer({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const [pdfFile, setPdfFile] = useState<string | File | ArrayBuffer | Uint8Array | null>(null);
+  const [pdfFile, setPdfFile] = useState<
+    string | File | ArrayBuffer | Uint8Array | null
+  >(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Memoize PDF.js options to prevent unnecessary re-renders
-  const pdfOptions = useMemo(() => ({
-    cMapUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/cmaps/`,
-    cMapPacked: true,
-    standardFontDataUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
-    httpHeaders: typeof file === 'string' ? {} : undefined,
-  }), [file]);
+  const pdfOptions = useMemo(
+    () => ({
+      cMapUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/cmaps/`,
+      cMapPacked: true,
+      standardFontDataUrl: `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
+      httpHeaders: typeof file === "string" ? {} : undefined,
+    }),
+    [file],
+  );
 
   // Prepare PDF file for rendering
   useEffect(() => {
@@ -73,52 +71,71 @@ export function PDFViewer({
     }
 
     // If it's already a File, ArrayBuffer, or Uint8Array, use it directly
-    if (file instanceof File || file instanceof ArrayBuffer || file instanceof Uint8Array) {
+    if (
+      file instanceof File ||
+      file instanceof ArrayBuffer ||
+      file instanceof Uint8Array
+    ) {
       setPdfFile(file);
       setLoading(false);
       return;
     }
 
     // If it's a string URL, use it directly
-    if (typeof file === 'string') {
+    if (typeof file === "string") {
       setPdfFile(file);
       setLoading(false);
     }
   }, [file]);
 
-  const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
-    console.log('PDF loaded successfully, pages:', numPages);
-    setNumPages(numPages);
-    setLoading(false);
-    setError(null);
-    onLoadSuccess?.(numPages);
-  }, [onLoadSuccess]);
+  const onDocumentLoadSuccess = useCallback(
+    ({ numPages }: { numPages: number }) => {
+      console.log("PDF loaded successfully, pages:", numPages);
+      setNumPages(numPages);
+      setLoading(false);
+      setError(null);
+      onLoadSuccess?.(numPages);
+    },
+    [onLoadSuccess],
+  );
 
-  const onDocumentLoadError = useCallback((error: Error) => {
-    console.error('PDF load error:', error);
-    console.error('Error details:', {
-      message: error.message,
-      name: error.name,
-      stack: error.stack,
-      file: typeof file === 'string' ? file.substring(0, 100) : 'Not a string URL'
-    });
-    setLoading(false);
-    
-    // Provide more helpful error messages
-    let errorMessage = 'Failed to load PDF. ';
-    if (error.message?.includes('CORS')) {
-      errorMessage += 'CORS error: The PDF file may not be accessible from this domain.';
-    } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
-      errorMessage += 'Network error: Please check your connection and try again.';
-    } else if (error.message?.includes('Invalid PDF')) {
-      errorMessage += 'Invalid PDF format.';
-    } else {
-      errorMessage += error.message || 'Please check if the file is accessible.';
-    }
-    
-    setError(errorMessage);
-    onLoadError?.(error);
-  }, [onLoadError, file]);
+  const onDocumentLoadError = useCallback(
+    (error: Error) => {
+      console.error("PDF load error:", error);
+      console.error("Error details:", {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+        file:
+          typeof file === "string"
+            ? file.substring(0, 100)
+            : "Not a string URL",
+      });
+      setLoading(false);
+
+      // Provide more helpful error messages
+      let errorMessage = "Failed to load PDF. ";
+      if (error.message?.includes("CORS")) {
+        errorMessage +=
+          "CORS error: The PDF file may not be accessible from this domain.";
+      } else if (
+        error.message?.includes("network") ||
+        error.message?.includes("fetch")
+      ) {
+        errorMessage +=
+          "Network error: Please check your connection and try again.";
+      } else if (error.message?.includes("Invalid PDF")) {
+        errorMessage += "Invalid PDF format.";
+      } else {
+        errorMessage +=
+          error.message || "Please check if the file is accessible.";
+      }
+
+      setError(errorMessage);
+      onLoadError?.(error);
+    },
+    [onLoadError, file],
+  );
 
   const goToPrevPage = useCallback(() => {
     // Save scroll position before changing page
@@ -181,13 +198,13 @@ export function PDFViewer({
   }, [isFullscreen]);
 
   const downloadPDF = useCallback(() => {
-    if (typeof file === 'string') {
-      window.open(file, '_blank');
+    if (typeof file === "string") {
+      window.open(file, "_blank");
     } else if (file instanceof File) {
       const url = URL.createObjectURL(file);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
-      link.download = filename || 'document.pdf';
+      link.download = filename || "document.pdf";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -200,57 +217,65 @@ export function PDFViewer({
       setIsFullscreen(!!document.fullscreenElement);
     };
 
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
         return;
       }
 
       switch (e.key) {
-        case 'ArrowLeft':
+        case "ArrowLeft":
           e.preventDefault();
           goToPrevPage();
           break;
-        case 'ArrowRight':
+        case "ArrowRight":
           e.preventDefault();
           goToNextPage();
           break;
-        case '+':
-        case '=':
+        case "+":
+        case "=":
           e.preventDefault();
           zoomIn();
           break;
-        case '-':
+        case "-":
           e.preventDefault();
           zoomOut();
           break;
-        case '0':
+        case "0":
           e.preventDefault();
           resetZoom();
           break;
-        case 'r':
-        case 'R':
+        case "r":
+        case "R":
           e.preventDefault();
           rotate();
           break;
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [goToPrevPage, goToNextPage, zoomIn, zoomOut, resetZoom, rotate]);
 
   return (
-    <Card className={cn("p-6 shadow-sm bg-background border border-border flex flex-col", className)}>
+    <Card
+      className={cn(
+        "p-6 shadow-sm bg-background border border-border flex flex-col",
+        className,
+      )}
+    >
       {/* Toolbar - Sticky */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-border sticky top-0 bg-background z-10">
         <div className="flex items-center gap-2">
@@ -264,13 +289,13 @@ export function PDFViewer({
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          
+
           <div className="flex items-center gap-2 px-3 py-1 bg-muted rounded-md">
             <span className="text-sm text-muted-foreground">
-              Page {pageNumber} of {numPages || '...'}
+              Page {pageNumber} of {numPages || "..."}
             </span>
           </div>
-          
+
           <Button
             variant="outline"
             size="icon"
@@ -294,13 +319,13 @@ export function PDFViewer({
           >
             <ZoomOut className="h-4 w-4" />
           </Button>
-          
+
           <div className="flex items-center gap-2 px-3 py-1 bg-muted rounded-md min-w-[80px] justify-center">
             <span className="text-sm text-muted-foreground">
               {Math.round(scale * 100)}%
             </span>
           </div>
-          
+
           <Button
             variant="outline"
             size="icon"
@@ -311,7 +336,7 @@ export function PDFViewer({
           >
             <ZoomIn className="h-4 w-4" />
           </Button>
-          
+
           <Button
             variant="outline"
             size="icon"
@@ -333,7 +358,7 @@ export function PDFViewer({
           >
             <RotateCw className="h-4 w-4" />
           </Button>
-          
+
           <Button
             variant="outline"
             size="icon"
@@ -347,7 +372,7 @@ export function PDFViewer({
               <Maximize2 className="h-4 w-4" />
             )}
           </Button>
-          
+
           <Button
             variant="outline"
             size="icon"
@@ -361,7 +386,7 @@ export function PDFViewer({
       </div>
 
       {/* PDF Viewer */}
-      <div 
+      <div
         ref={containerRef}
         className="flex justify-center items-start bg-muted/30 rounded-lg p-4 border border-border overflow-y-auto overflow-x-hidden pdf-viewer-container"
       >
@@ -370,21 +395,29 @@ export function PDFViewer({
             {loading ? (
               <>
                 <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-                <p className="text-sm text-muted-foreground">Preparing PDF...</p>
+                <p className="text-sm text-muted-foreground">
+                  Preparing PDF...
+                </p>
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">No PDF file provided</p>
+              <p className="text-sm text-muted-foreground">
+                No PDF file provided
+              </p>
             )}
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-12 w-full">
-            <p className="text-sm text-destructive mb-2 font-medium">Error loading PDF</p>
-            <p className="text-xs text-muted-foreground mb-4 text-center max-w-md">{error}</p>
-            {typeof file === 'string' && (
+            <p className="text-sm text-destructive mb-2 font-medium">
+              Error loading PDF
+            </p>
+            <p className="text-xs text-muted-foreground mb-4 text-center max-w-md">
+              {error}
+            </p>
+            {typeof file === "string" && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => window.open(file, '_blank')}
+                onClick={() => window.open(file, "_blank")}
                 className="mt-2"
               >
                 Open in New Tab
@@ -395,23 +428,27 @@ export function PDFViewer({
           <div className="flex flex-col items-center w-full">
             {pdfFile && (
               <Document
-                file={pdfFile as Parameters<typeof Document>[0]['file']}
+                file={pdfFile as Parameters<typeof Document>[0]["file"]}
                 onLoadSuccess={onDocumentLoadSuccess}
                 onLoadError={onDocumentLoadError}
                 loading={
                   <div className="flex flex-col items-center justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-                    <p className="text-sm text-muted-foreground">Loading PDF...</p>
+                    <p className="text-sm text-muted-foreground">
+                      Loading PDF...
+                    </p>
                   </div>
                 }
                 error={
                   <div className="flex flex-col items-center justify-center py-12">
-                    <p className="text-sm text-destructive mb-2">Error loading PDF</p>
-                    {typeof file === 'string' && (
+                    <p className="text-sm text-destructive mb-2">
+                      Error loading PDF
+                    </p>
+                    {typeof file === "string" && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => window.open(file, '_blank')}
+                        onClick={() => window.open(file, "_blank")}
                         className="mt-2"
                       >
                         Open in New Tab
@@ -422,24 +459,24 @@ export function PDFViewer({
                 className="pdf-document"
                 options={pdfOptions}
               >
-              {numPages > 0 && (
-                <>
-                  <Page
-                    pageNumber={pageNumber}
-                    scale={scale}
-                    rotate={rotation}
-                    renderTextLayer={true}
-                    renderAnnotationLayer={true}
-                    className="shadow-lg rounded-md border border-border"
-                    canvasBackground="white"
-                    loading={
-                      <div className="flex items-center justify-center py-8">
-                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                      </div>
-                    }
-                  />
-                </>
-              )}
+                {numPages > 0 && (
+                  <>
+                    <Page
+                      pageNumber={pageNumber}
+                      scale={scale}
+                      rotate={rotation}
+                      renderTextLayer={true}
+                      renderAnnotationLayer={true}
+                      className="shadow-lg rounded-md border border-border"
+                      canvasBackground="white"
+                      loading={
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        </div>
+                      }
+                    />
+                  </>
+                )}
               </Document>
             )}
           </div>
@@ -449,7 +486,8 @@ export function PDFViewer({
       {/* Keyboard shortcuts hint */}
       <div className="mt-4 pt-4 border-t border-border">
         <p className="text-xs text-muted-foreground text-center">
-          Keyboard shortcuts: ← → (navigate), + - (zoom), 0 (reset zoom), R (rotate)
+          Keyboard shortcuts: ← → (navigate), + - (zoom), 0 (reset zoom), R
+          (rotate)
         </p>
       </div>
     </Card>

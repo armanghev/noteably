@@ -1,5 +1,6 @@
 // Component prop types
 
+import type { CloudFile } from "./index";
 import type { JobOptions, MaterialType } from "./models";
 
 export interface FileUploadProps {
@@ -19,6 +20,7 @@ export interface FileUploadProps {
   onOptionsChange: (options: JobOptions) => void;
   onImportFromCloud?: (provider: "google_drive" | "dropbox") => void;
   isImporting?: boolean;
+  cloudFile?: CloudFile | null;
 }
 
 export interface ProcessingProps {
