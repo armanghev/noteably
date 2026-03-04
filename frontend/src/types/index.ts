@@ -41,3 +41,13 @@ export interface FilterState {
   dateRange: DateRangeFilter;
   sortBy: SortOption;
 }
+
+import type { CloudProvider } from "@/lib/api/services/cloud";
+export interface CloudFile {
+  provider: CloudProvider;
+  fileId?: string;
+  fileLink?: string;
+  name: string;
+  size?: number;
+  type?: string;
+}

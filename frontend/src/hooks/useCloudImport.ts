@@ -1,6 +1,6 @@
 import { cloudService, type CloudProvider } from "@/lib/api/services/cloud";
-import type { MaterialType, ProcessUploadResponse } from "@/types";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { CloudFile } from "@/types";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 declare global {
   interface Window {
@@ -64,33 +64,11 @@ function loadScript(src: string, id: string): Promise<void> {
   });
 }
 
-export function useCloudImport(
-  onSuccess: (response: ProcessUploadResponse) => void,
-  materialTypes: MaterialType[],
-  options?: Record<string, unknown>,
-) {
+export function useCloudImport(onFileSelected: (file: CloudFile) => void) {
   const queryClient = useQueryClient();
   const { data: connections = [] } = useQuery({
     queryKey: ["cloud-connections"],
     queryFn: () => cloudService.getConnections(),
-  });
-
-  const importMutation = useMutation({
-    mutationFn: (params: {
-      provider: CloudProvider;
-      fileId?: string;
-      fileLink?: string;
-    }) =>
-      cloudService.importFromCloud({
-        provider: params.provider,
-        fileId: params.fileId,
-        fileLink: params.fileLink,
-        materialTypes,
-        options,
-      }),
-    onSuccess: (data) => {
-      onSuccess(data);
-    },
   });
 
   const connectedSet = new Set(
@@ -124,9 +102,10 @@ export function useCloudImport(
         success: (files) => {
           const file = files[0];
           if (file?.link) {
-            importMutation.mutate({
+            onFileSelected({
               provider: "dropbox",
               fileLink: file.link,
+              name: file.name,
             });
           }
         },
@@ -190,9 +169,10 @@ export function useCloudImport(
         .addView(docsView)
         .setCallback((data: any) => {
           if (data.action === "picked" && data.docs?.[0]) {
-            importMutation.mutate({
+            onFileSelected({
               provider: "google_drive",
               fileId: data.docs[0].id,
+              name: data.docs[0].name,
             });
           }
         })
@@ -206,7 +186,5 @@ export function useCloudImport(
     openPicker,
     connections,
     connectedSet,
-    isImporting: importMutation.isPending,
-    importError: importMutation.error,
   };
 }

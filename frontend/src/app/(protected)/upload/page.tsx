@@ -16,8 +16,10 @@ import {
   useProcessYoutube,
   useRetryJob,
 } from "@/hooks/useJobs";
+import { cloudService } from "@/lib/api/services/cloud";
 import { jobsService } from "@/lib/api/services/jobs";
 import type {
+  CloudFile,
   FileUploadProps,
   JobOptions,
   MaterialType,
@@ -43,8 +45,8 @@ import {
   Wand2,
   XCircle,
 } from "lucide-react";
-import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 const contentTypes: Array<{
   id: MaterialType;
@@ -193,7 +195,7 @@ const YouTubeInput: React.FC<YouTubeInputProps> = ({
         {/* Video Preview Card */}
         {videoMeta && (
           <div className="flex items-start gap-4 p-3 rounded-xl border border-border mb-6">
-            <div className="relative flex-shrink-0">
+            <div className="relative shrink-0">
               <img
                 src={videoMeta.thumbnail}
                 alt={videoMeta.title}
@@ -404,20 +406,30 @@ const FileUpload: React.FC<FileUploadProps> = ({
   onOptionsChange,
   onImportFromCloud,
   isImporting,
+  cloudFile,
 }) => {
+  const displayFile = file || cloudFile;
+  const isCloud = !!cloudFile;
+
   return (
     <div className="flex-1 flex flex-col">
-      {file ? (
+      {displayFile ? (
         // File Preview State
         <div className="flex-1 flex flex-col items-center justify-center p-12 animate-fadeIn bg-background border border-primary rounded-3xl">
           <div className="w-20 h-20 bg-card rounded-2xl flex items-center justify-center mb-4 shadow-sm">
-            {getFileIcon(file.type)}
+            {getFileIcon(
+              isCloud ? cloudFile?.type || "pdf" : (file as File).type,
+            )}
           </div>
           <h3 className="text-lg font-medium text-foreground mb-1">
-            {file.name}
+            {displayFile.name}
           </h3>
           <p className="text-muted-foreground text-sm mb-6">
-            {(file.size / (1024 * 1024)).toFixed(2)} MB
+            {isCloud
+              ? cloudFile?.size
+                ? `${(cloudFile.size / (1024 * 1024)).toFixed(2)} MB`
+                : "Cloud File"
+              : `${((file as File).size / (1024 * 1024)).toFixed(2)} MB`}
           </p>
 
           {/* Content Type Selection */}
@@ -614,7 +626,7 @@ const Processing: React.FC<ProcessingProps> = ({
               <>
                 <div className="absolute inset-0 rounded-full"></div>
                 <svg
-                  className="absolute inset-0 w-full h-full rotate-[-90deg] text-primary"
+                  className="absolute inset-0 w-full h-full -rotate-90 text-primary"
                   viewBox="0 0 100 100"
                 >
                   <circle
@@ -664,7 +676,7 @@ const Processing: React.FC<ProcessingProps> = ({
                 }`}
               >
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+                  className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${
                     idx < currentStep
                       ? "bg-primary text-primary-foreground"
                       : idx === currentStep
@@ -710,7 +722,7 @@ const Processing: React.FC<ProcessingProps> = ({
               <Button
                 onClick={onRetry}
                 disabled={isRetrying}
-                className="flex-[2] h-12 rounded-xl bg-primary text-background hover:bg-primary/90 gap-2"
+                className="flex-2 h-12 rounded-xl bg-primary text-background hover:bg-primary/90 gap-2"
               >
                 {isRetrying ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -747,6 +759,7 @@ export default function Upload() {
   const [inputMode, setInputMode] = useState<"file" | "youtube">("file");
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [file, setFile] = useState<File | null>(null);
+  const [cloudFile, setCloudFile] = useState<CloudFile | null>(null);
   const [youtubeUrl, setYoutubeUrl] = useState<string>("");
   const [videoMeta, setVideoMeta] = useState<VideoMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -766,15 +779,14 @@ export default function Upload() {
   const [jobId, setJobId] = useState<string | undefined>(undefined);
   const [currentStep, setCurrentStep] = useState<number>(0);
 
-  const handleCloudImportSuccess = (response: ProcessUploadResponse) => {
-    setJobId(response.job_id);
-    setJob({ id: response.job_id, status: response.status, progress: 0 });
+  const handleCloudFileSelected = (file: CloudFile) => {
+    setCloudFile(file);
+    setFile(null); // Clear local file if cloud file selected
+    setYoutubeUrl(""); // Clear YouTube if cloud file selected
+    setVideoMeta(null);
   };
-  const { openPicker, isImporting } = useCloudImport(
-    handleCloudImportSuccess,
-    selectedTypes,
-    jobOptions,
-  );
+
+  const { openPicker } = useCloudImport(handleCloudFileSelected);
 
   const { lastMessage } = useWebSocket();
 
@@ -811,7 +823,7 @@ export default function Upload() {
   const [job, setJob] = useState<any>(null);
 
   // Determine file type category
-  const fileType = job?.file_type || file?.type || "";
+  const fileType = job?.file_type || cloudFile?.type || file?.type || "";
   const isAudioVideo =
     fileType.includes("audio") ||
     fileType.includes("video") ||
@@ -979,6 +991,7 @@ export default function Upload() {
 
   const handleRemoveFile = () => {
     setFile(null);
+    setCloudFile(null);
     setError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -1013,6 +1026,16 @@ export default function Upload() {
           materialTypes: selectedTypes,
           options: jobOptions,
         });
+      } else if (inputMode === "file" && cloudFile) {
+        // Handle cloud import
+        const { provider, fileId, fileLink } = cloudFile;
+        response = await cloudService.importFromCloud({
+          provider,
+          fileId,
+          fileLink,
+          materialTypes: selectedTypes,
+          options: jobOptions,
+        });
       } else if (inputMode === "youtube" && youtubeUrl) {
         response = await processYoutubeMutation.mutateAsync({
           url: youtubeUrl,
@@ -1039,6 +1062,7 @@ export default function Upload() {
       setJobId(undefined);
       setJob(null);
       setFile(null);
+      setCloudFile(null);
       setCurrentStep(0);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err) {
@@ -1077,12 +1101,11 @@ export default function Upload() {
     !!jobId ||
     processUploadMutation.isPending ||
     processYoutubeMutation.isPending ||
-    retryJobMutation.isPending ||
-    isImporting;
+    retryJobMutation.isPending;
   const progress = job?.progress || 0;
 
   return (
-<>
+    <>
       <div className="max-w-7xl mx-auto">
         <header className="mb-10 text-center">
           <h1 className="text-4xl font-serif text-foreground mb-4">
@@ -1154,7 +1177,8 @@ export default function Upload() {
                 options={jobOptions}
                 onOptionsChange={setJobOptions}
                 onImportFromCloud={openPicker}
-                isImporting={isImporting}
+                isImporting={false} // Hook no longer handles mutation
+                cloudFile={cloudFile}
               />
             )
           ) : (
@@ -1205,6 +1229,6 @@ export default function Upload() {
           </div>
         )}
       </div>
-</>
-);
+    </>
+  );
 }
