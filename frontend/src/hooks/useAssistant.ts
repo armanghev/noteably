@@ -68,6 +68,7 @@ export function useAssistant(jobId: string) {
   useEffect(() => {
     let isMounted = true;
     (async () => {
+      if (!jobId) return;
       try {
         const history = await contentService.getChatHistory(jobId);
         if (isMounted && history.messages) {
