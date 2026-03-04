@@ -53,7 +53,7 @@ export default function Notes() {
 
   // Filter and sort completed jobs
   const completedJobs = (() => {
-    let filtered =
+    const filtered =
       jobs?.filter((job) => {
         // Only show completed jobs
         if (job.status !== "completed") return false;
