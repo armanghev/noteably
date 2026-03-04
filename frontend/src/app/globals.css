@@ -38,7 +38,7 @@
   --font-sans: Inter, ui-sans-serif, sans-serif, system-ui;
   --font-serif: Shrikhand, cursive;
   --font-mono: Courier Prime, ui-monospace, monospace;
-  --radius: 0.625rem;
+  --radius: 1rem;
   /* Design-system shadow tokens (not used by Tailwind utilities) */
   --ds-shadow-x: 0px;
   --ds-shadow-y: 1px;
@@ -105,7 +105,7 @@
   --font-sans: Inter, ui-sans-serif, sans-serif, system-ui;
   --font-serif: Shrikhand, cursive;
   --font-mono: Courier Prime, ui-monospace, monospace;
-  --radius: 0.625rem;
+  --radius: 1rem;
   --ds-shadow-x: 0px;
   --ds-shadow-y: 1px;
   --ds-shadow-blur: 4.5px;
@@ -223,7 +223,7 @@
     --font-sans: Inter, ui-sans-serif, sans-serif, system-ui;
     --font-mono: Courier Prime, ui-monospace, monospace;
     --font-serif: Shrikhand, cursive;
-    --radius: 0.625rem;
+    --radius: 1rem;
     --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
     --tracking-tight: calc(var(--tracking-normal) - 0.025em);
     --tracking-wide: calc(var(--tracking-normal) + 0.025em);
