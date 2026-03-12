@@ -38,14 +38,22 @@ interface APIKey {
   is_active: boolean;
 }
 
-export function APIKeys() {
+export function APIKeys({ initialKeys }: { initialKeys?: APIKey[] }) {
   const { session } = useAuth();
-  const [keys, setKeys] = useState<APIKey[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [keys, setKeys] = useState<APIKey[]>(initialKeys || []);
+  const [loading, setLoading] = useState(!initialKeys);
   const [newKeyName, setNewKeyName] = useState("");
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Update keys if initialKeys changes
+  useEffect(() => {
+    if (initialKeys) {
+      setKeys(initialKeys);
+      setLoading(false);
+    }
+  }, [initialKeys]);
 
   // Fetch keys
   const fetchKeys = async () => {
@@ -70,10 +78,10 @@ export function APIKeys() {
   };
 
   useEffect(() => {
-    if (session?.access_token) {
+    if (session?.access_token && !initialKeys) {
       fetchKeys();
     }
-  }, [session]);
+  }, [session, initialKeys]);
 
   const handleCreateKey = async () => {
     if (!newKeyName.trim()) return;

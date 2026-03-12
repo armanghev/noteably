@@ -1,5 +1,4 @@
 "use client";
-
 import { UserAvatar } from "@/components/profile/UserAvatar";
 import { useTheme } from "@/components/theme/theme-provider";
 import { Button } from "@/components/ui/button";
@@ -29,7 +28,7 @@ import {
   Sun,
   Trash2,
 } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { APIKeys } from "@/components/profile/APIKeys";
@@ -40,13 +39,32 @@ import { ChangePassword } from "@/components/profile/ChangePassword";
 import { ROUTES } from "@/router/routes";
 
 export default function Profile() {
-  const { user, logout, refreshUser } = useAuth();
+  const { user, logout, refreshUser, session } = useAuth();
   const router = useRouter();
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [profileData, setProfileData] = useState<any>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchProfile = useCallback(async () => {
+    if (!session?.access_token) return;
+    try {
+      setLoadingProfile(true);
+      const data = await authService.getCurrentUser();
+      setProfileData(data);
+    } catch (error) {
+      console.error("Failed to fetch profile", error);
+    } finally {
+      setLoadingProfile(false);
+    }
+  }, [session?.access_token]);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   if (!user) return null;
 
@@ -326,7 +344,7 @@ export default function Profile() {
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">
-            <CloudStorageSettings />
+            <CloudStorageSettings initialConnections={profileData?.cloud_connections} />
 
             <Card className="bg-card border-border shadow-sm">
               <CardHeader>
@@ -407,7 +425,7 @@ export default function Profile() {
           </TabsContent>
 
           <TabsContent value="developers" className="space-y-6">
-            <APIKeys />
+            <APIKeys initialKeys={profileData?.api_keys} />
           </TabsContent>
         </Tabs>
       </div>

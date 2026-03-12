@@ -31,7 +31,10 @@ class SupabaseUser:
         return self.email or self.id or "SupabaseUser"
 
     def __getattr__(self, name):
-        return self.data.get(name)
+        try:
+            return self.data[name]
+        except (KeyError, TypeError):
+            raise AttributeError(f"'SupabaseUser' object has no attribute '{name}'")
 
 
 def supabase_auth_middleware(get_response):

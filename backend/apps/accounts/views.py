@@ -332,20 +332,41 @@ def complete_profile(request):
 def get_user_profile(request):
     """
     Get current user's profile information.
-    Includes profile fields from user_metadata.
+    Includes profile fields from user_metadata and API keys.
     """
+    from .models import APIKey
+    from .serializers import APIKeySerializer
+
     user_metadata = {}
     if hasattr(request.user, "data") and isinstance(request.user.data, dict):
         user_metadata = request.user.data.get("user_metadata", {}) or {}
 
+    from apps.cloud.models import CloudConnection
+    from apps.cloud.providers import PROVIDERS
+
+    # Fetch user's API keys
+    api_keys = APIKey.objects.filter(user=request.user_id)
+    api_keys_data = APIKeySerializer(api_keys, many=True).data
+
+    # Fetch user's cloud connections
+    conns = list(
+        CloudConnection.objects.filter(user_id=str(request.user_id)).values_list("provider", flat=True)
+    )
+    cloud_connections = [{"provider": p, "connected": True, "chooser_only": False} for p in conns if p in PROVIDERS]
+    # Dropbox uses Chooser (no OAuth), so always show as connected
+    if "dropbox" not in conns:
+        cloud_connections.append({"provider": "dropbox", "connected": True, "chooser_only": True})
+
     return Response(
         {
-            "user": request.user,
+            "user": getattr(request.user, "data", {}),
             "user_id": request.user_id,
             "first_name": user_metadata.get("first_name"),
             "last_name": user_metadata.get("last_name"),
             "phone_number": user_metadata.get("phone_number"),
             "profile_completed": user_metadata.get("profile_completed", False),
+            "api_keys": api_keys_data,
+            "cloud_connections": cloud_connections,
         }
     )
 

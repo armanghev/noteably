@@ -16,11 +16,12 @@ const PROVIDERS: Array<{
   { id: "dropbox", name: "Dropbox", icon: DropboxIcon },
 ];
 
-export function CloudStorageSettings() {
+export function CloudStorageSettings({ initialConnections }: { initialConnections?: any[] }) {
   const queryClient = useQueryClient();
   const { data: connections = [], isLoading } = useQuery({
     queryKey: ["cloud-connections"],
     queryFn: () => cloudService.getConnections(),
+    initialData: initialConnections,
   });
 
   const connectedSet = new Set(

@@ -23,6 +23,17 @@ export interface AccountDeletionError {
   status: number
 }
 
+export interface UserProfile {
+  user: Record<string, unknown>;
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone_number: string | null;
+  profile_completed: boolean;
+  api_keys: any[];
+  cloud_connections: any[];
+}
+
 export const authService = {
   login: async (data: LoginRequest): Promise<void> => {
     try {
@@ -51,10 +62,10 @@ export const authService = {
     } catch (error: any) {
       // Check if account is pending deletion
       if (error.response?.status === 403) {
-        const errorMsg = error.response?.data?.error || ''
-        if (errorMsg.includes('Account scheduled for deletion') || errorMsg.includes('pending_deletion')) {
+        const errorMsg = error.response?.data?.error || ""
+        if (errorMsg.includes("Account scheduled for deletion") || errorMsg.includes("pending_deletion")) {
           throw {
-            type: 'ACCOUNT_PENDING_DELETION',
+            type: "ACCOUNT_PENDING_DELETION",
             message: errorMsg,
             recoveryAvailable: error.response?.data?.recovery_available ?? true,
             status: 403,
@@ -95,10 +106,10 @@ export const authService = {
     if (error) throw error;
   },
 
-  getCurrentUser: async (): Promise<unknown> => {
+  getCurrentUser: async (): Promise<UserProfile> => {
     // Get user profile from backend (if needed for extra data)
     // The basic user data is already in the Supabase session
-    const response = await apiClient.get(API_ENDPOINTS.AUTH.CURRENT_USER);
+    const response = await apiClient.get<UserProfile>(API_ENDPOINTS.AUTH.CURRENT_USER);
     return response.data;
   },
 
