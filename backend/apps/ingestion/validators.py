@@ -34,6 +34,7 @@ def validate_file_size(file: UploadedFile, max_size_mb: int) -> bool:
 def get_file_duration(file: UploadedFile) -> float:
     """
     Estimate audio/video duration in minutes.
+    Returns 0 for document types.
 
     For now, uses size-based estimation since mutagen requires a file path.
     TODO: Improve with actual duration extraction after R2 upload.
@@ -41,12 +42,18 @@ def get_file_duration(file: UploadedFile) -> float:
     Returns:
         Duration in minutes (estimated)
     """
+    ext = file.name.split(".")[-1].lower()
+    if ext in ALLOWED_DOCUMENT_TYPES:
+        logger.info(f"Skipping duration estimation for document: {file.name}")
+        return 0.0
+
     # Quick estimate: ~1 MB = 1 minute of compressed audio/video
     # This is rough but good enough for quota checking
     size_mb = file.size / (1024 * 1024)
     estimated_minutes = size_mb
 
     logger.info(
-        f"Estimated duration: {estimated_minutes:.1f} minutes (based on {size_mb:.1f}MB file size)"
+        f"Estimated duration for media: {estimated_minutes:.1f} minutes (based on {size_mb:.1f}MB file size)"
     )
     return estimated_minutes
+

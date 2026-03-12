@@ -25,8 +25,10 @@ logger = logging.getLogger(__name__)
 @permission_classes([IsAuthenticated])
 @throttle_classes([UploadRateThrottle])
 def process_upload(request):
+    logger.info(f"Received upload request for user {request.user_id}")
     serializer = ProcessUploadSerializer(data=request.data)
     if not serializer.is_valid():
+        logger.warning(f"Invalid upload serializer: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     file = serializer.validated_data["file"]
@@ -52,6 +54,7 @@ def process_upload(request):
         options=options,
         status="uploading",  # Start with uploading status
     )
+    logger.info(f"Created job {job.id} for user {request.user_id}")
 
     # Upload file to R2 storage synchronously (works in Docker with separate containers)
     # This ensures the file is available to Celery workers without shared filesystem
@@ -85,17 +88,21 @@ def process_upload(request):
         user_email = getattr(request.user, "email", None)
 
     logger.info(
-        f"Process upload request - User type: {type(request.user)}, Email: {user_email}"
+        f"Triggering tasks for job {job.id} - User Email: {user_email}"
     )
 
+    from .tasks import orchestrate_job_task, send_upload_received_email_task
+    
+    # 1. Start orchestration
+    logger.info(f"Enqueuing orchestrate_job_task for {job.id}...")
     orchestrate_job_task.delay(str(job.id), user_email=user_email)
+    logger.info(f"Successfully enqueued orchestrate_job_task for {job.id}")
 
-    # Send receipt email
+    # 2. Send receipt email asynchronously
     if user_email:
-        logger.info(f"Sending receipt email to {user_email}")
-        from apps.core.utils.email import send_upload_received_email
-
-        send_upload_received_email(user_email, file.name)
+        logger.info(f"Enqueuing receipt email task for {user_email}...")
+        send_upload_received_email_task.delay(user_email, file.name)
+        logger.info(f"Successfully enqueued receipt email task for {user_email}")
 
     return Response(
         {
@@ -105,6 +112,7 @@ def process_upload(request):
         },
         status=status.HTTP_201_CREATED,
     )
+
 
 
 @api_view(["POST"])

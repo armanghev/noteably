@@ -108,6 +108,19 @@ def extract_text_from_url(url: str) -> str:
         raise
 
 
+@shared_task(queue="default")
+def send_upload_received_email_task(user_email, filename):
+    """
+    Asynchronous task to send upload receipt email.
+    """
+    if not user_email:
+        return
+    
+    logger.info(f"Sending receipt email to {user_email} for {filename}")
+    from apps.core.utils.email import send_upload_received_email
+    send_upload_received_email(user_email, filename)
+
+
 @shared_task(bind=True, queue="default")
 def orchestrate_job_task(self, job_id, user_email=None):
     """
