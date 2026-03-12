@@ -178,6 +178,13 @@ Handles accepting and validating content from multiple sources (YouTube URLs, fi
 - **Outputs**: File storage reference, validation result, extracted metadata.
 - **Behavior**: Whitelist type, enforce size limits, detect MIME type, store, return storage key.
 
+#### Feature: Document text extraction
+
+- **Description**: Extract raw text from document formats (PDF, DOCX, TXT, MD).
+- **Inputs**: Multipart file upload or storage URL, file type.
+- **Outputs**: Raw text content.
+- **Behavior**: Use specialized extractors (pypdf, python-docx), normalize output, skip transcription pipeline.
+
 #### Feature: Text input processing
 
 - **Description**: Accept pasted text and normalize formatting.
@@ -270,6 +277,42 @@ Generates summaries, notes, flashcards, and quizzes from text using LLMs.
 - **Outputs**: Updated content.
 - **Behavior**: Preserve context, apply targeted changes.
 
+### Capability: Cloud storage integration
+
+Seamlessly import files from external cloud providers.
+
+#### Feature: Google Drive & Dropbox OAuth
+
+- **Description**: Authenticate with cloud providers and store tokens.
+- **Inputs**: OAuth2 callback, user session.
+- **Outputs**: Encrypted connection tokens.
+- **Behavior**: Exchange codes for tokens, encrypt with Fernet, manage refresh cycle.
+
+#### Feature: Cloud file picker & import
+
+- **Description**: Browse and select files from connected cloud accounts.
+- **Inputs**: Provider connection, file ID.
+- **Outputs**: Ingested job in Noteably pipeline.
+- **Behavior**: Proxy download from provider, upload to Noteably storage, trigger processing.
+
+### Capability: AI Assistant (Noteably AI)
+
+Converse with an AI agent about your study materials and trigger new content generation.
+
+#### Feature: Context-aware chat
+
+- **Description**: Chat with Gemini using the transcript and materials as context.
+- **Inputs**: Message, conversation history, job context.
+- **Outputs**: AI response.
+- **Behavior**: Build system prompt with material snapshots, manage history limits.
+
+#### Feature: Chat-triggered actions
+
+- **Description**: Generate new materials directly from the chat interface.
+- **Inputs**: User intent (e.g., "make more flashcards").
+- **Outputs**: Newly generated and saved study items.
+- **Behavior**: Detect intent, call generation service, merge results into existing records.
+
 ### Capability: User interface and interactions
 
 Provides a web experience for upload, progress, and consuming outputs.
@@ -316,6 +359,13 @@ Provides a web experience for upload, progress, and consuming outputs.
 - **Outputs**: Updated output and status.
 - **Behavior**: Capture instructions, call refinement endpoint, update view.
 
+#### Feature: Quiz attempt tracking
+
+- **Description**: Record and review performance on generated quizzes.
+- **Inputs**: Selected answers, score, job ID.
+- **Outputs**: Saved attempt record with percentage and history.
+- **Behavior**: Store structured performance data, track progress over time.
+
 ### Capability: Authentication and authorization
 
 Manages accounts and access control.
@@ -347,6 +397,31 @@ Manages accounts and access control.
 - **Inputs**: User identity, resource, action.
 - **Outputs**: Allow or deny.
 - **Behavior**: Ownership checks, permission policies, rate limits, logging.
+
+### Capability: Advanced account management
+
+Secure and manage user identities and access.
+
+#### Feature: Account deletion with grace period
+
+- **Description**: Soft-delete accounts with a 14-day recovery window.
+- **Inputs**: Deletion request, verification.
+- **Outputs**: Scheduled deletion, email notification.
+- **Behavior**: Mark for deletion, lock access, allow recovery via email OTP.
+
+#### Feature: Multi-step email/password security
+
+- **Description**: Securely change sensitive account details using OTPs.
+- **Inputs**: OTP, new email/password.
+- **Outputs**: Updated credentials.
+- **Behavior**: Current email validation, new email confirmation, security logging.
+
+#### Feature: API key management
+
+- **Description**: Issue and revoke keys for programmatic access.
+- **Inputs**: Key label, user session.
+- **Outputs**: Scoped API key.
+- **Behavior**: Generate secure tokens, list active keys, allow immediate revocation.
 
 ### Capability: Storage and file management
 
@@ -441,10 +516,11 @@ noteably/
 │   ├── manage.py
 ├── frontend/
 │   ├── src/
+│   │   ├── app/ (Next.js App Router)
 │   │   ├── components/
-│   │   ├── services/
-│   │   ├── pages/
-│   │   └── App.js
+│   │   ├── hooks/
+│   │   ├── lib/ (api clients, supabase)
+│   │   └── router/
 │   └── package.json
 ├── tests/
 │   ├── unit/
@@ -891,28 +967,26 @@ Turn the dependency chain into phased delivery with entry and exit criteria.
 **Backend**
 
 - Django REST Framework
-- Celery
-- Redis or RabbitMQ
-- PostgreSQL
-- R2 or S3-compatible object storage
+- Celery (Redis)
+- Supabase PostgreSQL
+- Supabase Storage (S3 compatible)
 - Django Channels for WebSockets
 
 **Frontend**
 
-- React
-- WebSocket client
-- Markdown renderer
-- PDF export library
+- Next.js (App Router)
+- Tailwind CSS
+- TanStack Query
+- PDF.js
 
 **External services**
 
 - YouTube Data API
 - OpenAI Whisper API
 - AssemblyAI
-- Google Gemini
-- Anthropic Claude
-- OpenAI GPT
-- AssemblyAI LeMUR
+- Google Gemini (2.0 Flash)
+- Supabase Auth
+- Resend (Transactional Email)
 
 ### Data models (sketch)
 
