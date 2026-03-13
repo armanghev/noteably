@@ -239,7 +239,6 @@ final class AuthService {
                 options: FileOptions(contentType: "image/jpeg", upsert: true)
             )
             
-        print("✅ Avatar upload successful")
 
         // Get public URL
         let publicUrl = try supabase.storage

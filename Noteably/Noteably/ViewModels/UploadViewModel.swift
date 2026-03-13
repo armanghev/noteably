@@ -6,11 +6,38 @@ final class UploadViewModel {
     enum UploadMode: String, CaseIterable {
         case file
         case youtube
+        case googleDrive
+        case dropbox
         
         var title: String {
             switch self {
             case .file: return "File"
             case .youtube: return "YouTube"
+            case .googleDrive: return "Google Drive"
+            case .dropbox: return "Dropbox"
+            }
+        }
+        
+        var iconName: String {
+            switch self {
+            case .file: return "arrow.up.doc"
+            case .youtube: return "youtube"
+            case .googleDrive: return "googleDrive"
+            case .dropbox: return "dropbox"
+            }
+        }
+        
+        var isSystemIcon: Bool {
+            switch self {
+            case .file: return true
+            case .youtube, .googleDrive, .dropbox: return false
+            }
+        }
+        
+        var tintColor: Color? {
+            switch self {
+            case .file: return .noteablyPrimary
+            default: return nil
             }
         }
     }
@@ -33,6 +60,11 @@ final class UploadViewModel {
     var youtubeUrl: String = ""
     var videoMeta: YoutubeMeta?
     var isFetchingMeta = false
+
+    // Cloud support
+    var cloudFileId: String?
+    var cloudFileLink: String?
+    var selectedCloudFileName: String?
 
     // Material types
     var generateSummary = true
@@ -76,8 +108,19 @@ final class UploadViewModel {
         return types
     }
 
+    var hasCloudFile: Bool {
+        if uploadMode == .googleDrive { return cloudFileId != nil }
+        if uploadMode == .dropbox { return cloudFileLink != nil }
+        return false
+    }
+
     var canUpload: Bool {
-        let hasSource = uploadMode == .file ? hasFile : hasValidYoutube
+        let hasSource: Bool
+        switch uploadMode {
+        case .file: hasSource = hasFile
+        case .youtube: hasSource = hasValidYoutube
+        case .googleDrive, .dropbox: hasSource = hasCloudFile
+        }
         return hasSource && !selectedMaterialTypes.isEmpty && !isUploading
     }
 
@@ -94,6 +137,14 @@ final class UploadViewModel {
         selectedFileData = nil
         selectedFileName = nil
         selectedMimeType = nil
+    }
+    
+    func selectCloudFile(id: String?, link: String?, name: String, provider: CloudProvider) {
+        self.cloudFileId = id
+        self.cloudFileLink = link
+        self.selectedCloudFileName = name
+        self.uploadMode = provider == .googleDrive ? .googleDrive : .dropbox
+        self.errorMessage = nil
     }
 
     // MARK: - Upload
@@ -121,7 +172,7 @@ final class UploadViewModel {
                     materialTypes: selectedMaterialTypes,
                     options: jobOptions
                 )
-            } else {
+            } else if uploadMode == .youtube {
                 guard !youtubeUrl.isEmpty else {
                     isUploading = false
                     return
@@ -132,6 +183,16 @@ final class UploadViewModel {
                     materialTypes: selectedMaterialTypes,
                     options: jobOptions
                 )
+            } else {
+                // Cloud Import
+                let params = CloudImportParams(
+                    provider: uploadMode == .googleDrive ? "google_drive" : "dropbox",
+                    fileId: cloudFileId,
+                    fileLink: cloudFileLink,
+                    materialTypes: selectedMaterialTypes,
+                    options: jobOptions
+                )
+                response = try await CloudService.shared.importFromCloud(params: params)
             }
             
             uploadedJobId = response.jobId
@@ -183,7 +244,6 @@ final class UploadViewModel {
         do {
             videoMeta = try await jobsService.getYoutubeMeta(url: youtubeUrl)
         } catch {
-            print("Fetch Meta Error: \(error)")
             videoMeta = nil
             if youtubeUrl.count > 10 {
                 errorMessage = "Could not fetch video details. Check the URL or API configuration."
@@ -234,6 +294,9 @@ final class UploadViewModel {
         errorMessage = nil
         isComplete = false
         navigateToJobId = nil
+        cloudFileId = nil
+        cloudFileLink = nil
+        selectedCloudFileName = nil
         jobOptions = JobOptions(
             focus: "general",
             language: "english",
@@ -283,6 +346,8 @@ extension UploadViewModel {
         if uploadMode == .youtube {
             s.append(ProcessingStep(id: "checking_video", title: "Checking Video", description: "Validating YouTube URL..."))
             s.append(ProcessingStep(id: "downloading", title: "Downloading Audio", description: "Extracting audio track..."))
+        } else if uploadMode == .googleDrive || uploadMode == .dropbox {
+            s.append(ProcessingStep(id: "importing", title: "Importing", description: "Fetching file from cloud..."))
         } else {
             s.append(ProcessingStep(id: "uploading", title: "Uploading File", description: "Securely transferring your data..."))
         }

@@ -69,6 +69,12 @@ extension Color {
         dark: Color(red: 0.910, green: 0.420, blue: 0.310)
     )
 
+    // Success - Vibrant green for positive outcomes
+    static let noteablySuccess = adaptiveColor(
+        light: Color(red: 0.298, green: 0.549, blue: 0.282),
+        dark: Color(red: 0.380, green: 0.659, blue: 0.365)
+    )
+
     // Subtle tints for feature cards
     static let noteablyMint = adaptiveColor(
         light: Color(red: 0.890, green: 0.945, blue: 0.890),

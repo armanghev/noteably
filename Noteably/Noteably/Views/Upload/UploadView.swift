@@ -5,6 +5,8 @@ struct UploadView: View {
     @Environment(AppState.self) private var appState
     @State private var viewModel = UploadViewModel()
     @State private var showDocumentPicker = false
+    @State private var showGooglePicker = false
+    @State private var showDropboxPicker = false
 
     private var showUploadControls: Bool {
         switch viewModel.uploadMode {
@@ -12,6 +14,8 @@ struct UploadView: View {
             return viewModel.hasFile
         case .youtube:
             return viewModel.hasValidYoutube
+        case .googleDrive, .dropbox:
+            return viewModel.hasCloudFile
         }
     }
 
@@ -22,7 +26,10 @@ struct UploadView: View {
                     CustomTabList(
                         selection: $viewModel.uploadMode,
                         options: UploadViewModel.UploadMode.allCases,
-                        titlePath: \.title
+                        titlePath: \.title,
+                        iconPath: \.iconName,
+                        isSystemIconPath: \.isSystemIcon,
+                        tintPath: \.tintColor
                     )
 
                     if viewModel.isUploading || viewModel.isComplete {
@@ -30,8 +37,10 @@ struct UploadView: View {
                     } else {
                         if viewModel.uploadMode == .file {
                             fileSelectionSection
-                        } else {
+                        } else if viewModel.uploadMode == .youtube {
                             youtubeInputSection
+                        } else {
+                            cloudSelectionSection
                         }
                         
                         if showUploadControls {
@@ -56,6 +65,12 @@ struct UploadView: View {
             .navigationBarTitleDisplayMode(.large)
             .sheet(isPresented: $showDocumentPicker) {
                 DocumentPicker(viewModel: viewModel)
+            }
+            .sheet(isPresented: $showGooglePicker) {
+                GoogleDrivePickerView(viewModel: viewModel)
+            }
+            .sheet(isPresented: $showDropboxPicker) {
+                DropboxPickerView(viewModel: viewModel)
             }
             .navigationDestination(isPresented: Binding(
                 get: { viewModel.navigateToJobId != nil },
@@ -200,9 +215,10 @@ struct UploadView: View {
             } else {
                 // URL Input
                 VStack(spacing: 16) {
-                    Image(systemName: "video.fill")
-                        .font(.system(size: 40, weight: .light))
-                        .foregroundStyle(Color.noteablyPrimary)
+                    Image("youtube")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 80, height: 40)
                     
                     Text("Paste YouTube URL")
                         .font(.noteablyBody(17, weight: .semibold))
@@ -324,6 +340,64 @@ struct UploadView: View {
         .buttonStyle(NoteablyPrimaryButtonStyle())
         .disabled(!viewModel.canUpload)
         .opacity(viewModel.canUpload ? 1.0 : 0.6)
+    }
+
+    private var cloudSelectionSection: some View {
+        let provider: CloudProvider = viewModel.uploadMode == .googleDrive ? .googleDrive : .dropbox
+        
+        return VStack(spacing: 16) {
+            Button {
+                if viewModel.uploadMode == .googleDrive {
+                    showGooglePicker = true
+                } else {
+                    showDropboxPicker = true
+                }
+            } label: {
+                VStack(spacing: 16) {
+                    if let name = viewModel.selectedCloudFileName {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 40, weight: .light))
+                            .foregroundStyle(Color.noteablyPrimary)
+
+                        Text(name)
+                            .font(.noteablyBody(16, weight: .semibold))
+                            .foregroundStyle(Color.noteablyForeground)
+                            .lineLimit(1)
+
+                        Text("Using \(provider.displayName)")
+                            .font(.noteablyBody(13))
+                            .foregroundStyle(Color.noteablySecondaryText)
+                    } else {
+                        Image(provider == .googleDrive ? "googleDrive" : provider.rawValue) // Match custom asset names
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 48, height: 48)
+
+                        Text("Select from \(provider.displayName)")
+                            .font(.noteablyBody(17, weight: .semibold))
+                            .foregroundStyle(Color.noteablyForeground)
+                        
+                        Text("Connect your account in Profile first")
+                            .font(.noteablyBody(13))
+                            .foregroundStyle(Color.noteablySecondaryText)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 40)
+                .background(
+                    RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
+                        .strokeBorder(
+                            Color.noteablyPrimary.opacity(0.3),
+                            style: StrokeStyle(lineWidth: 2, dash: [8])
+                        )
+                        .background(
+                            RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
+                                .fill(Color.noteablyPrimary.opacity(0.04))
+                        )
+                )
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     // MARK: - Progress Section

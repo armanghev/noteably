@@ -4,6 +4,9 @@ struct CustomTabList<T: Hashable>: View {
     @Binding var selection: T
     let options: [T]
     let titlePath: KeyPath<T, String>
+    var iconPath: KeyPath<T, String>? = nil
+    var isSystemIconPath: KeyPath<T, Bool>? = nil
+    var tintPath: KeyPath<T, Color?>? = nil
     
     @Namespace private var namespace
     
@@ -18,20 +21,36 @@ struct CustomTabList<T: Hashable>: View {
                     let generator = UIImpactFeedbackGenerator(style: .light)
                     generator.impactOccurred()
                 } label: {
-                    Text(option[keyPath: titlePath])
-                        .font(.noteablyBody(14, weight: selection == option ? .semibold : .medium))
-                        .foregroundStyle(selection == option ? Color.noteablyBackground : Color.noteablySecondaryText)
-                        .padding(.vertical, 10)
-                        .frame(maxWidth: .infinity)
-                        .background {
-                            if selection == option {
-                                RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
-                                    .fill(Color.noteablyPrimary)
-                                    .matchedGeometryEffect(id: "selection", in: namespace)
-                                    .shadow(color: Color.noteablyPrimary.opacity(0.2), radius: 4, x: 0, y: 2)
+                    Group {
+                        if let iconPath = iconPath, let isSystemIconPath = isSystemIconPath {
+                            if option[keyPath: isSystemIconPath] {
+                                Image(systemName: option[keyPath: iconPath])
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundStyle(selection == option ? Color.noteablyBackground : (tintPath != nil ? (option[keyPath: tintPath!] ?? Color.noteablySecondaryText) : Color.noteablySecondaryText))
+                            } else {
+                                Image(option[keyPath: iconPath])
+                                    .renderingMode(.original)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 20, height: 20)
                             }
+                        } else {
+                            Text(option[keyPath: titlePath])
+                                .font(.noteablyBody(14, weight: selection == option ? .semibold : .medium))
+                                .foregroundStyle(selection == option ? Color.noteablyBackground : Color.noteablySecondaryText)
                         }
-                        .contentShape(Rectangle())
+                    }
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity)
+                    .background {
+                        if selection == option {
+                            RoundedRectangle(cornerRadius: AppRadius.xl, style: .continuous)
+                                .fill(Color.noteablyPrimary)
+                                .matchedGeometryEffect(id: "selection", in: namespace)
+                                .shadow(color: Color.noteablyPrimary.opacity(0.2), radius: 4, x: 0, y: 2)
+                        }
+                    }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }

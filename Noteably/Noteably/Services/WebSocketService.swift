@@ -112,7 +112,6 @@ final class WebSocketService {
                 }
             }
         } catch {
-            print("Failed to decode WebSocket message: \(error)")
         }
     }
 
