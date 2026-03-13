@@ -143,7 +143,7 @@ export default function StudySetDetail() {
     }
   }, [job, activeTab, hasSummaryOrNotes, hasFlashcards, hasQuiz]);
 
-  // Video player is now handled by VideoPlayer component
+
 
   // Flashcard study mode state (default to study mode)
   const [isFlashcardStudyMode, setIsFlashcardStudyMode] = useState(true);
@@ -274,7 +274,7 @@ export default function StudySetDetail() {
     job.file_type?.includes("document") ||
     job.filename?.match(/\.(doc|docx|txt)$/i);
 
-  // Video player is now handled by VideoPlayer component
+
 
   // Helper function to check if a string is valid JSON
   const isValidJson = (str: string): boolean => {
