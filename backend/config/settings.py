@@ -21,6 +21,11 @@ DEBUG = os.getenv("DEBUG", "True") == "True"
 
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
+# Allow all hosts when explicitly set to * (useful for DO App Platform where
+# the load balancer forwards requests from rotating internal IPs)
+if "*" in ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ["*"]
+
 # Application definition
 INSTALLED_APPS = [
     "daphne",
@@ -47,12 +52,20 @@ INSTALLED_APPS = [
 
 ASGI_APPLICATION = "config.asgi.application"
 
+# Redis Settings (resolved early — used by both Channels and Celery)
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+_redis_use_tls = REDIS_URL.startswith("rediss://")
+
+if _redis_use_tls:
+    import ssl as _ssl_module
+    _channel_hosts = [{"address": REDIS_URL, "ssl_cert_reqs": _ssl_module.CERT_NONE}]
+else:
+    _channel_hosts = [REDIS_URL]
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [os.getenv("REDIS_URL", "redis://localhost:6379/0")],
-        },
+        "CONFIG": {"hosts": _channel_hosts},
     },
 }
 
@@ -176,12 +189,18 @@ CORS_ALLOWED_ORIGINS = os.getenv(
 CORS_ALLOW_CREDENTIALS = True
 
 # Celery Configuration
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", REDIS_URL)
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", REDIS_URL)
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
+
+if _redis_use_tls:
+    import ssl as _ssl_module  # noqa: F811
+    _celery_ssl_opts = {"ssl_cert_reqs": _ssl_module.CERT_NONE}
+    CELERY_BROKER_USE_SSL = _celery_ssl_opts
+    CELERY_REDIS_BACKEND_USE_SSL = _celery_ssl_opts
 
 # Celery Queues and Routes
 CELERY_TASK_QUEUES = {
@@ -250,9 +269,6 @@ ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY")
 
 # Google Gemini Settings
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-# Redis Settings
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 # Temporary upload directory (must be shared between web and Celery workers)
 # Resend Email Settings

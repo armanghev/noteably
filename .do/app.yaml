@@ -1,0 +1,122 @@
+name: noteably
+region: nyc
+
+services:
+  - name: api
+    github:
+      repo: armanghev/noteably
+      branch: main
+      deploy_on_push: true
+    source_dir: /backend
+    dockerfile_path: backend/Dockerfile
+    http_port: 8000
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb-fixed
+    health_check:
+      http_path: /health/
+    routes:
+      - path: /
+    envs:
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        type: SECRET
+      - key: ALLOWED_HOSTS
+        value: ${APP_DOMAIN}
+      - key: SUPABASE_URL
+        type: SECRET
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        type: SECRET
+      - key: SUPABASE_ANON_KEY
+        type: SECRET
+      - key: SUPABASE_JWT_SECRET
+        type: SECRET
+      - key: DB_NAME
+        value: postgres
+      - key: DB_USER
+        type: SECRET
+      - key: DB_PASSWORD
+        type: SECRET
+      - key: DB_HOST
+        type: SECRET
+      - key: DB_PORT
+        value: "6543"
+      - key: R2_ENDPOINT
+        type: SECRET
+      - key: R2_BUCKET
+        type: SECRET
+      - key: R2_ACCESS_KEY
+        type: SECRET
+      - key: R2_SECRET_KEY
+        type: SECRET
+      - key: R2_PUBLIC_URL
+        type: SECRET
+      - key: ASSEMBLYAI_API_KEY
+        type: SECRET
+      - key: GEMINI_API_KEY
+        type: SECRET
+      - key: REDIS_URL
+        type: SECRET
+      - key: CELERY_BROKER_URL
+        type: SECRET
+      - key: CELERY_RESULT_BACKEND
+        type: SECRET
+      - key: RESEND_API_KEY
+        type: SECRET
+
+workers:
+  - name: celery-worker
+    github:
+      repo: armanghev/noteably
+      branch: main
+      deploy_on_push: true
+    source_dir: /backend
+    dockerfile_path: backend/Dockerfile
+    run_command: celery -A config worker --loglevel=info
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb-fixed
+    envs:
+      - key: C_FORCE_ROOT
+        value: "1"
+      - key: SECRET_KEY
+        type: SECRET
+      - key: SUPABASE_URL
+        type: SECRET
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        type: SECRET
+      - key: SUPABASE_ANON_KEY
+        type: SECRET
+      - key: SUPABASE_JWT_SECRET
+        type: SECRET
+      - key: DB_NAME
+        value: postgres
+      - key: DB_USER
+        type: SECRET
+      - key: DB_PASSWORD
+        type: SECRET
+      - key: DB_HOST
+        type: SECRET
+      - key: DB_PORT
+        value: "6543"
+      - key: R2_ENDPOINT
+        type: SECRET
+      - key: R2_BUCKET
+        type: SECRET
+      - key: R2_ACCESS_KEY
+        type: SECRET
+      - key: R2_SECRET_KEY
+        type: SECRET
+      - key: R2_PUBLIC_URL
+        type: SECRET
+      - key: ASSEMBLYAI_API_KEY
+        type: SECRET
+      - key: GEMINI_API_KEY
+        type: SECRET
+      - key: REDIS_URL
+        type: SECRET
+      - key: CELERY_BROKER_URL
+        type: SECRET
+      - key: CELERY_RESULT_BACKEND
+        type: SECRET
+      - key: RESEND_API_KEY
+        type: SECRET
